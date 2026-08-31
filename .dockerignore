@@ -1,0 +1,31 @@
+# Dependencies (will be installed fresh in Docker)
+node_modules
+src/*/node_modules
+
+# Build outputs (will be rebuilt in Docker)
+dist
+public
+src/server/dist
+src/web/dist
+
+# Git & IDE
+.git
+.gitignore
+.DS_Store
+.vscode
+.agents
+.husky
+
+# Docs & metadata
+*.md
+!README.md
+LICENSE
+docs
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Scripts
+scripts

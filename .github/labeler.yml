@@ -1,0 +1,15 @@
+# Rules for auto-labeling Pull Requests based on modified files
+
+"area/server":
+  - any-glob-to-any-file: "src/server/**/*"
+
+"area/web":
+  - any-glob-to-any-file: "src/web/**/*"
+
+"area/ci":
+  - any-glob-to-any-file: ".github/**/*"
+
+"area/docs":
+  - any-glob-to-any-file:
+      - "docs/**/*"
+      - "*.md"

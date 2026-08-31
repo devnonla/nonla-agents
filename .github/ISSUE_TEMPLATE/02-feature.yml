@@ -1,0 +1,39 @@
+name: 🚀 Feature Request
+description: Suggest an idea or a new feature for Nonla Agents
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea on how to make Nonla Agents better? Please fill out the form below.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: |
+        A clear and concise description of what the problem is.
+        E.g., "I'm always frustrated when..."
+      placeholder: Describe the problem or paint points...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear and concise description of what you want to happen.
+      placeholder: Describe your desired solution...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: A clear and concise description of any alternative solutions or features you've considered.
+      placeholder: E.g., "I tried using X instead, but..."
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context or screenshots about the feature request here.
+      placeholder: Any other thoughts, drawings, or links...

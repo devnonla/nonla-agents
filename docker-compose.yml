@@ -1,0 +1,21 @@
+services:
+  nonla-agents:
+    image: devnonla/nonla-agents:latest
+    container_name: nonla-agents
+    ports:
+      - "15888:15888"
+    volumes:
+      - nonla-agents-data:/data
+    restart: unless-stopped
+    # Custom tools and site backend.ts workers are sandboxed with bubblewrap
+    # (namespace + capability isolation — see src/server/src/common/sandbox/).
+    # bwrap needs to call clone()/unshare() to create those namespaces, which
+    # Docker's default seccomp profile blocks even for root. This opts the
+    # container out of Docker's syscall filter (not out of Linux
+    # capabilities/privileges) so bwrap can do its job; without it, children
+    # still run, just unsandboxed.
+    security_opt:
+      - seccomp:unconfined
+
+volumes:
+  nonla-agents-data:

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Nonla Agents</title>
+  <meta name="description" content="Nonla Agents — AI Agent Management Platform" />
+
+  <!-- Open Graph / Twitter — production server rewrites these with absolute URLs + agent title on /chat/:id -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Nonla Agents" />
+  <meta property="og:title" content="Nonla Agents" />
+  <meta property="og:description" content="Nonla Agents — AI Agent Management Platform" />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Nonla Agents" />
+  <meta name="twitter:description" content="Nonla Agents — AI Agent Management Platform" />
+  <meta name="twitter:image" content="/og-image.png" />
+
+  <script>
+    document.documentElement.classList.add("dark");
+    document.documentElement.style.colorScheme = "dark";
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="./main.tsx"></script>
+</body>
+
+</html>

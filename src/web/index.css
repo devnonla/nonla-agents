@@ -1,0 +1,363 @@
+@import "tailwindcss";
+@import "./antd/overrides.css";
+
+@font-face {
+  font-family: "Inter var";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: "Inter var";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter var";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-vietnamese-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root,
+.dark {
+  --radius: 6px;
+  --background: #121212;
+  --foreground: #d4d4d4;
+  --card: #191919;
+  --card-foreground: #dcdcdc;
+  --popover: #1e1e1e;
+  --popover-foreground: #d4d4d4;
+  --primary: #e8e8e8;
+  --primary-foreground: #171717;
+  --secondary: #212121;
+  --secondary-foreground: #d4d4d4;
+  --muted: #212121;
+  --muted-foreground: #8a8a8a;
+  --accent: color-mix(in oklab, #dd7627 14%, transparent);
+  --accent-foreground: #ffa333;
+  --tertiary-foreground: #9a9a9a;
+  --quaternary-foreground: #6e6e6e;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: color-mix(in oklab, #d4d4d4 12%, transparent);
+  --border-subtle: color-mix(in oklab, #d4d4d4 6%, transparent);
+  --input: color-mix(in oklab, #666666 20%, transparent);
+  --ring: #8c8c8c;
+  --brand: #dd7627;
+  --brand-soft: #ffa333;
+  --brand-text: #dd7627;
+  --link: #599ce7;
+  --success: #0ac864;
+  --warn: #f1b467;
+  --sidebar: #181818;
+  --sidebar-foreground: #d4d4d4;
+  --sidebar-primary: #e8e8e8;
+  --sidebar-primary-foreground: #171717;
+  --sidebar-accent: color-mix(in oklab, #dd7627 14%, transparent);
+  --sidebar-accent-foreground: #ffa333;
+  --sidebar-border: color-mix(in oklab, #666666 16%, transparent);
+  --sidebar-ring: #8c8c8c;
+  --edge-call-agent: var(--success);
+  --edge-mcp: var(--link);
+  --edge-tool: var(--brand);
+  --edge-skill: var(--warn);
+  --edge-datatable: #fc7744;
+  --solar-size: 16px;
+  --scrollbar-size: 6px;
+  --scrollbar-thumb: color-mix(in oklab, #f0f0f0 14%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, #f0f0f0 22%, transparent);
+
+  /* Chat type — compact default (agent sidebars / panels) */
+  --chat-body-size: 14px;
+  --chat-body-leading: 24px;
+  --chat-h1-size: 16px;
+  --chat-h2-size: 16px;
+  --chat-h3-size: 14px;
+  --chat-h4-size: 14px;
+  --chat-p-mb: 12px;
+  --chat-h-mt: 16px;
+  --chat-h-mb: 8px;
+  --chat-composer-size: 14px;
+  --chat-composer-leading: 22px;
+  --chat-code-size: 12.5px;
+  --chat-inline-code-size: 13px;
+}
+
+@theme inline {
+  --radius: 6px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
+  --radius-full: 9999px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-edge-call-agent: var(--edge-call-agent);
+  --color-edge-mcp: var(--edge-mcp);
+  --color-edge-tool: var(--edge-tool);
+  --color-edge-skill: var(--edge-skill);
+  --color-edge-datatable: var(--edge-datatable);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-link: var(--link);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-quaternary-foreground: var(--quaternary-foreground);
+
+  --shadow-card: none;
+  --shadow-whisper: none;
+  --shadow-button-outline: 0 0 0 1px var(--border);
+  --shadow-drop: 0 2px 8px color-mix(in oklab, #0a0a0a 8%, transparent);
+  --shadow-panel: 0 0 0 1px var(--border), 0 4px 16px color-mix(in oklab, #0a0a0a 8%, transparent);
+
+  --spacing-control-xs: 24px;
+  --spacing-control-sm: 28px;
+  --spacing-control-md: 32px;
+  --spacing-control-lg: 36px;
+  --spacing-nav-item: 32px;
+
+  --font-sans: "Inter var", system-ui;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Sequel Sans", "Inter var", system-ui;
+
+  --font-family-sans: "Inter var", system-ui;
+  --font-family-serif: Georgia, "Times New Roman", Times, serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-family-display: "Sequel Sans", "Inter var", system-ui;
+  --font-family-chat: "Inter var", system-ui;
+
+  --default-font-family: "Inter var", system-ui;
+  --default-mono-font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 600;
+
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-md: 16px;
+  --text-md--line-height: 24px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+  --text-xl: 24px;
+  --text-xl--line-height: 32px;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 42px;
+
+  --spacing-field-sm: 28px;
+  --spacing-field-md: 32px;
+  --spacing-field-lg: 36px;
+  --spacing-field-nav: 32px;
+
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
+  --color-scrollbar-thumb-hover: var(--scrollbar-thumb-hover);
+
+  --animate-fadeIn: fadeIn 0.28s ease-out both;
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply box-border m-0 p-0 border-border outline-none;
+  }
+  html {
+    @apply overflow-hidden w-screen;
+    height: 100dvh;
+    background: var(--background);
+    font-family: var(--font-family-sans);
+  }
+  body {
+    @apply overflow-hidden w-screen bg-background text-foreground;
+    font-family: var(--font-family-sans);
+    height: 100dvh;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: auto;
+    font-optical-sizing: auto;
+    font-feature-settings: "kern" 1, "calt" 1, "lnum" 1;
+    font-variant-numeric: lining-nums;
+  }
+  #root {
+    @apply flex flex-col overflow-hidden bg-background;
+    height: 100%;
+  }
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  display: none;
+}
+html,
+body,
+#root {
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 99px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.scrollbar-visible {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Full-page chat (agent detail + public) — ChatGPT-like reading measure */
+.chat-size-lg {
+  --chat-body-size: 16px;
+  --chat-body-leading: 28px;
+  --chat-h1-size: 24px;
+  --chat-h2-size: 20px;
+  --chat-h3-size: 18px;
+  --chat-h4-size: 16px;
+  --chat-p-mb: 16px;
+  --chat-h-mt: 24px;
+  --chat-h-mb: 12px;
+  --chat-code-size: 14px;
+  --chat-inline-code-size: 14px;
+}
+
+@keyframes ca-status-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.ca-status-shimmer {
+  background-image: linear-gradient(90deg, var(--muted-foreground) 0%, var(--foreground) 45%, var(--muted-foreground) 90%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: ca-status-shimmer 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-status-shimmer {
+    animation: none;
+    background-image: none;
+    background-clip: border-box;
+    -webkit-background-clip: border-box;
+    color: var(--muted-foreground);
+  }
+}
+
+/* Monaco: left inset that scrolls away with content (not a fixed gutter) */
+.monaco-scroll-pad-x .monaco-editor .lines-content {
+  padding-left: 16px;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

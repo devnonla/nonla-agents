@@ -1,0 +1,100 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignore": ["**/dist/**", "**/node_modules/**", "packages/web/common/db/migrations/**"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 320
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "warn",
+        "noUndeclaredVariables": "off",
+        "useExhaustiveDependencies": "off",
+        "noConstAssign": "error",
+        "noNewSymbol": "error",
+        "noUndeclaredDependencies": "off"
+      },
+
+      "style": {
+        "useTemplate": "warn",
+        "useSelfClosingElements": "warn",
+        "useConst": "error",
+        "useShorthandArrayType": "warn",
+        "useExponentiationOperator": "warn",
+        "useEnumInitializers": "off",
+        "noParameterAssign": "off",
+        "noNonNullAssertion": "off",
+        "noUselessElse": "warn",
+        "noArguments": "error",
+        "noVar": "error",
+        "useNumberNamespace": "warn",
+        "useNodejsImportProtocol": "off"
+      },
+
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noDoubleEquals": "error",
+        "noDebugger": "error",
+        "noConsoleLog": "warn",
+        "noDuplicateObjectKeys": "error",
+        "noEmptyInterface": "warn",
+        "noShadowRestrictedNames": "error",
+        "noAsyncPromiseExecutor": "error",
+        "noConfusingVoidType": "warn",
+        "useAwait": "off",
+        "noArrayIndexKey": "warn"
+      },
+
+      "complexity": {
+        "noForEach": "off",
+        "noBannedTypes": "error",
+        "noExtraBooleanCast": "error",
+        "noUselessFragments": "warn",
+        "noUselessTypeConstraint": "warn",
+        "noUselessSwitchCase": "warn",
+        "noUselessConstructor": "warn",
+        "useSimplifiedLogicExpression": "off",
+        "useFlatMap": "warn"
+      },
+
+      "performance": {
+        "noAccumulatingSpread": "warn",
+        "noDelete": "off"
+      },
+
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useKeyWithClickEvents": "off",
+        "useSemanticElements": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
+  },
+  "organizeImports": {
+    "enabled": true
+  }
+}
