@@ -36,7 +36,7 @@
     "test:watch": "DATABASE_URL= bun test --watch src/server/src/__tests__/"
   },
   "dependencies": {
-    "@langchain/openrouter": "^0.4.3"
+    "@langchain/openrouter": "^0.4.10"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
