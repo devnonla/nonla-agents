@@ -29,7 +29,7 @@
     "html-to-image": "^1.11.13",
     "lodash": "^4.18.1",
     "mermaid": "^11.14.0",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.56.0",
     "pixi.js": "^8.17.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
