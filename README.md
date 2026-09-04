@@ -1,157 +1,134 @@
 # Nonla Agents
 
-Self-hosted AI agents with a web UI — extend them with TypeScript tools & MCP, schedule them with cron Jobs, and publish them as public chats & Sites. One Docker container, SQLite, MIT.
+Self-hosted AI agent platform with a web UI. Build agents with TypeScript tools and MCP, schedule Jobs, and publish public chats and Sites — one container, SQLite or PostgreSQL, MIT licensed.
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Runtime](https://img.shields.io/badge/runtime-Bun-f472b6)
-![Docker](https://img.shields.io/badge/docker-ready-2496ED)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Runtime](https://img.shields.io/badge/runtime-Bun-f472b6)](https://bun.sh)
+[![Docker](https://img.shields.io/badge/docker-devnonla%2Fnonla--agents-2496ED)](https://hub.docker.com/r/devnonla/nonla-agents)
 
-## Features
+## Quick start
 
-- 🤖 **Multi-Agent Management** — Create and configure multiple AI agents with personas, tools, and avatars; drag to reorder on the board
-- 🧠 **Multi-Provider** — OpenAI, Anthropic, Google Gemini, OpenRouter and more via LangChain
-- 🛠️ **Custom Tools** — TypeScript/Bun tools, organized in folders on a tree-style Tools page
-- 📚 **Skills** — Shared markdown skill catalog with AI-assisted editing and per-file draft review; assign to agents for progressive disclosure (`read_skill`)
-- 🧩 **Memory** — Per-agent user knowledge graph (nodes/edges) via the agent menu and `memory` tool
-- 📝 **Instruct** — Full-page system prompt editor with AI draft review (approve or discard); chat uses the live prompt until you approve
-- 🔌 **MCP Servers** — Connect remote MCP servers (SSE / Streamable HTTP), sync catalogs, and attach tools to agents
-- 🌐 **Browser Tool** — Builtin stealth headless browser for navigate, click, fill, snapshot, and screenshots
-- 🔗 **Fetch URL** — Builtin HTTP fetch (`md` / `html` / `raw`) for page and docs reads without a full browser session
-- 🗄️ **KV Store** — Key-value storage accessible from tools via `import nonlaagents` (`nonlaagents.kv`)
-- 🔐 **Secrets Management** — Encrypted secret storage with AES-256-GCM (`nonlaagents.secrets`)
-- 📊 **Datatables** — Workspace tables (projects → tables → rows) with schema editor / agent, per-project tools on the agent flow, and `nonlaagents.datatable`
-- 📄 **Sites** — AI-assisted React sites (`app.tsx` / `backend.ts` / `styles.css`) with draft/publish, per-file review, TypeScript/JSON diagnostics, live HTML preview, list thumbnails from preview, and optional public password links
-- ⏰ **Jobs** — Cron-scheduled Bun/TypeScript scripts with admin UI, AI editor, and `nonlaagents.agents` to call workspace agents
-- 💬 **Real-time Chat** — Live streaming chat with agents; refresh (F5) resumes an in-progress reply
-- 🔗 **Public Sharing** — Share agents via public links with optional password protection; Open Graph previews for shared chat and site links
-- 🔑 **API Keys** — Settings keys scoped to selected agents, datatable projects, and KV entries (or unrestricted); Bearer auth for `/api/v1`
-
-## Installation
-
-### Option 1: Docker (Recommended)
-
-The easiest way to run Nonla Agents.
+Pull the published image [`devnonla/nonla-agents:latest`](https://hub.docker.com/r/devnonla/nonla-agents) and run:
 
 ```bash
 docker run -d \
   --name nonla-agents \
-  -p 15888:15888 \
+  -p 8429:8429 \
   -v nonla-agents-data:/data \
+  --security-opt seccomp=unconfined \
   devnonla/nonla-agents:latest
 ```
 
-Open the web UI at [http://localhost:15888](http://localhost:15888).
+Open [http://localhost:8429](http://localhost:8429).
 
-#### Docker Compose
+> `seccomp=unconfined` lets bubblewrap sandbox custom tools and site workers. Without it, the app still runs; sandboxed children fall back to unsandboxed execution.
 
-Create a `docker-compose.yml`:
+## Docker Compose
 
-```yaml
-services:
-  nonla-agents:
-    image: devnonla/nonla-agents:latest
-    container_name: nonla-agents
-    ports:
-      - "15888:15888"
-    volumes:
-      - nonla-agents-data:/data
-    restart: unless-stopped
+Uses the same published image (`devnonla/nonla-agents:latest`).
 
-volumes:
-  nonla-agents-data:
-```
-
-Then run:
+**SQLite (default)**
 
 ```bash
 docker compose up -d
 ```
 
-#### Environment Variables
-
-| Variable          | Default       | Description                                      |
-| ----------------- | ------------- | ------------------------------------------------ |
-| `PORT`            | `15888`       | Server port                                      |
-| `HOST`            | `0.0.0.0`     | Server host                                      |
-| `DATA_DIR`        | `/data`       | Data directory                                   |
-| `PUBLIC_BASE_URL` | _(auto)_      | Public origin behind reverse proxy (e.g. `https://agents.example.com`). Falls back to browser origin / `X-Forwarded-*`. |
-
-#### Build Docker Image Locally
+**PostgreSQL**
 
 ```bash
-docker build -t nonla-agents:local .
-docker run -d -p 15888:15888 -v nonla-agents-data:/data nonla-agents:local
+docker compose -f docker-compose.postgres.yml up -d
 ```
 
----
+Postgres defaults: user / password / database = `nonla`. Override with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
 
-### Option 2: Clone Source
+## Environment
 
-#### Prerequisites
+| Variable          | Default   | Description |
+| ----------------- | --------- | ----------- |
+| `PORT`            | `8429`    | HTTP port |
+| `HOST`            | `0.0.0.0` | Bind address |
+| `DATA_DIR`        | `/data`   | Persistent data (SQLite file, screenshots, sites, sandboxes) |
+| `DATABASE_URL`    | _(unset)_ | Unset → SQLite at `{DATA_DIR}/data.db`. Set `postgres://…` or `postgresql://…` for PostgreSQL |
+| `PUBLIC_BASE_URL` | _(auto)_  | Public origin behind a reverse proxy (e.g. `https://agents.example.com`) |
 
-[Bun](https://bun.sh/) runtime ≥ 1.4 is required.
+## Features
 
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
+- **Agents** — Personas, tools, skills, avatars, teams; board drag-and-drop; agent-to-agent calls
+- **Models** — OpenAI, Anthropic, Google Gemini, OpenRouter, and more via LangChain
+- **Tools** — Custom TypeScript/Bun tools in folders; OS sandbox; builtin browser, fetch, KV, secrets, datatables
+- **Skills & memory** — Shared markdown skills (`read_skill`); per-agent knowledge graph
+- **Instruct** — Full-page system prompt editor with AI draft review
+- **MCP** — Remote MCP servers (SSE / Streamable HTTP); sync catalogs and attach tools; My MCP to expose workspace tools
+- **Jobs** — Cron-scheduled Bun/TypeScript scripts with an AI editor
+- **Sites** — AI-assisted React sites (`app.tsx` / `backend.ts` / `styles.css`) with draft/publish and public links
+- **Chat & sharing** — Live streaming chat; public links with optional passwords and Open Graph cards
+- **API keys** — Scoped Bearer keys for `/api/v1` (agents, datatables, KV)
+- **Database** — SQLite by default, or PostgreSQL via `DATABASE_URL` / `docker-compose.postgres.yml`
 
-#### Setup
+## Data
 
-```bash
-# Clone the repo
-git clone https://github.com/devnonla/nonla-agents.git
-cd nonla-agents
-
-# Install dependencies
-bun install
-
-# Start in development mode (API + Vite HMR)
-bun run dev
-
-# Or start in production mode
-bun run build
-bun run start
-```
-
-The web UI will be available at [http://localhost:15888](http://localhost:15888).
-
-#### Available Scripts
-
-| Script               | Description                         |
-| -------------------- | ----------------------------------- |
-| `bun run dev`        | Start dev servers (API + Vite HMR)  |
-| `bun run build`      | Build for production                |
-| `bun run start`      | Start production server             |
-| `bun run lint`       | Run linter                          |
-| `bun run lint:fix`   | Run linter with auto-fix            |
-| `bun run format`     | Format code                         |
-| `bun run biome:check`| Lint + format check                 |
-| `bun run typecheck`  | TypeScript type checking            |
-
-## Data Storage
-
-All data is stored in the data directory (`/data` in Docker, `~/.nonla-agents` by default when running from source):
+| Path | Location |
+| ---- | -------- |
+| Docker | `/data` (bind or named volume) |
+| From source | `~/.nonla-agents` by default |
 
 ```
 <data-dir>/
-├── data.db                 # SQLite database (agents, conversations, settings)
-├── browser-screenshots/    # PNGs from the builtin browser tool
-├── agent.pid               # PID file (daemon mode)
-└── agent.log               # Server logs (daemon mode)
+├── data.db                 # SQLite when DATABASE_URL is unset
+├── browser-screenshots/    # Builtin browser tool PNGs
+├── agent.pid               # Daemon PID
+└── agent.log               # Daemon logs
 ```
 
-## Tech Stack
+With PostgreSQL, `DATA_DIR` is still used for screenshots, site files, and sandboxes.
 
-- **Runtime**: [Bun](https://bun.sh/)
-- **Server**: [Hono](https://hono.dev/) — lightweight, fast HTTP framework
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS + Ant Design
-- **Database**: SQLite (`bun:sqlite`) + Drizzle ORM
-- **AI**: LangChain (`@langchain/*`)
-- **State**: Redux Toolkit
+## Develop from source
+
+Requires [Bun](https://bun.sh/) ≥ 1.4.
+
+```bash
+git clone https://github.com/devnonla/nonla-agents.git
+cd nonla-agents
+bun install
+bun run dev          # API + Vite HMR → http://localhost:5173
+# bun run build && bun run start   # production → http://localhost:8429
+```
+
+| Script                | Description |
+| --------------------- | ----------- |
+| `bun run dev`         | API + Vite HMR |
+| `bun run build`       | Production build |
+| `bun run start`       | Run production server |
+| `bun run test`        | Server tests |
+| `bun run lint`        | Lint web |
+| `bun run typecheck`   | Typecheck web |
+| `bun run typecheck:server` | Typecheck server |
+
+### Build the image locally (optional)
+
+For contributors iterating on the image. Production deploys should use `devnonla/nonla-agents:latest` (or a version tag) from Docker Hub.
+
+```bash
+docker build -t nonla-agents:local .
+docker run -d -p 8429:8429 -v nonla-agents-data:/data \
+  --security-opt seccomp=unconfined \
+  nonla-agents:local
+```
+
+## Tech stack
+
+| Layer | Stack |
+| ----- | ----- |
+| Runtime | [Bun](https://bun.sh/) |
+| API | [Hono](https://hono.dev/) |
+| UI | React 19, Vite, Tailwind CSS, NonlaUI |
+| Database | SQLite (`bun:sqlite`) or PostgreSQL via `DATABASE_URL` — Drizzle ORM |
+| Agents | LangChain / LangGraph |
+| State | Redux Toolkit |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
