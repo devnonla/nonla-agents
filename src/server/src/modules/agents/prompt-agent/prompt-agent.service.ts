@@ -18,6 +18,7 @@ import { fetchUrlTool } from "../../../common/ai/agent-tools/fetch-url.tool.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
 import { agents as agentsTable, getDb } from "../../../common/db/client.js";
+import { qall } from "../../../common/db/query.js";
 import { getAgent, listAssignments } from "../agents.service.js";
 import { makeDatatableTool } from "../runtime/llm-tools/datatable.tool.js";
 import { makeGeneratePromptTool } from "./llm-tools/generate-prompt.tool.js";
@@ -242,10 +243,10 @@ function buildLangChainMessages(messages: PromptStreamRequest["messages"]): Base
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
-function loadCallableAgents(callableAgentIds: string[]): { name: string; description: string | null }[] {
+async function loadCallableAgents(callableAgentIds: string[]): Promise<{ name: string; description: string | null }[]> {
   if (callableAgentIds.length === 0) return [];
   const db = getDb();
-  const all = db.select({ id: agentsTable.id, name: agentsTable.name, description: agentsTable.description }).from(agentsTable).all();
+  const all = await qall(db.select({ id: agentsTable.id, name: agentsTable.name, description: agentsTable.description }).from(agentsTable));
   return all.filter((a) => callableAgentIds.includes(a.id)).map((a) => ({ name: a.name, description: a.description }));
 }
 
@@ -263,11 +264,11 @@ export async function streamPromptAgent(agentId: string, body: PromptStreamReque
   const model = await getChatModel(providerId, modelId);
 
   // 2. Build system prompt from agent data + connected tools/agents
-  const agentRow = getAgent(agentId);
-  const assignments = listAssignments(agentId);
+  const agentRow = await getAgent(agentId);
+  const assignments = await listAssignments(agentId);
   const connectedTools = assignments.filter((a) => a.toolId !== "builtin:call_agent").map((a) => ({ name: a.tool.name, label: a.tool.label, description: a.tool.description }));
   const callableAgentIds: string[] = (agentRow?.callableAgentIds as string[] | null) ?? [];
-  const callableAgents = loadCallableAgents(callableAgentIds);
+  const callableAgents = await loadCallableAgents(callableAgentIds);
 
   const aiSystemPrompt = buildPromptSystemPrompt({
     agentName: agentRow?.name,

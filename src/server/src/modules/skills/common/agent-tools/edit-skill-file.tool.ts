@@ -35,8 +35,8 @@ const deleteSkillFileSchema = z.object({
   path: z.string().describe('Reference path only: "references/{kebab-name}.md". Cannot delete SKILL.md.'),
 });
 
-function availablePaths(skillId: string): string[] {
-  return ["SKILL.md", ...listReferences(skillId).map((r) => `references/${r.name}.md`)];
+async function availablePaths(skillId: string): Promise<string[]> {
+  return ["SKILL.md", ...(await listReferences(skillId)).map((r) => `references/${r.name}.md`)];
 }
 
 export function makeReadSkillFileTool(skillId: string) {
@@ -47,17 +47,17 @@ export function makeReadSkillFileTool(skillId: string) {
         return JSON.stringify({
           ok: false,
           error: parsed.error.issues.map((i) => i.message).join("; "),
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       }
 
       const path = parsed.data.path.replace(/^\/+/, "").trim();
-      const found = readSkillPath(skillId, path);
+      const found = await readSkillPath(skillId, path);
       if (!found) {
         return JSON.stringify({
           ok: false,
           error: `File not found: ${path}`,
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       }
 
@@ -92,7 +92,7 @@ export function makeEditSkillFileTool(skillId: string) {
         if (mode === "full") {
           next = normalizeToLf(content!);
         } else {
-          const current = getWorkingContent(skillId, path) ?? "";
+          const current = (await getWorkingContent(skillId, path)) ?? "";
           if (!current.trim()) {
             return JSON.stringify({
               ok: false,
@@ -107,7 +107,7 @@ export function makeEditSkillFileTool(skillId: string) {
           next = applied.content;
         }
 
-        const written = writeSkillDraftPath(skillId, path, next);
+        const written = await writeSkillDraftPath(skillId, path, next);
         return JSON.stringify({
           ok: true,
           path: written.path,
@@ -135,7 +135,7 @@ export function makeDeleteSkillFileTool(skillId: string) {
         return JSON.stringify({
           ok: false,
           error: parsed.error.issues.map((i) => i.message).join("; "),
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       }
 
@@ -144,7 +144,7 @@ export function makeDeleteSkillFileTool(skillId: string) {
         return JSON.stringify({
           ok: false,
           error: "Cannot delete SKILL.md",
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       }
 
@@ -153,27 +153,27 @@ export function makeDeleteSkillFileTool(skillId: string) {
         return JSON.stringify({
           ok: false,
           error: 'path must be "references/{kebab-name}.md"',
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       }
 
-      const existing = getReferenceByName(skillId, refMatch[1]);
+      const existing = await getReferenceByName(skillId, refMatch[1]);
       if (!existing) {
         return JSON.stringify({
           ok: false,
           error: `File not found: ${path}`,
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       }
 
       try {
-        deleteReference(skillId, existing.id);
+        await deleteReference(skillId, existing.id);
         return JSON.stringify({
           ok: true,
           path,
           deleted: true,
           message: "Reference deleted permanently. Remove any links to this path from SKILL.md via edit_skill_file if needed.",
-          available: availablePaths(skillId),
+          available: await availablePaths(skillId),
         });
       } catch (err) {
         return JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) });
@@ -187,12 +187,12 @@ export function makeDeleteSkillFileTool(skillId: string) {
   );
 }
 
-export function buildSkillAgentSystemPrompt(skillId: string): string {
-  const skill = getSkill(skillId);
-  const refs = listReferences(skillId);
+export async function buildSkillAgentSystemPrompt(skillId: string): Promise<string> {
+  const skill = await getSkill(skillId);
+  const refs = await listReferences(skillId);
   const refList = refs.length === 0 ? "(none yet)" : refs.map((r) => `- references/${r.name}.md — ${r.title}`).join("\n");
 
-  const workingSkillMd = getWorkingContent(skillId, "SKILL.md") ?? skill?.content ?? "";
+  const workingSkillMd = (await getWorkingContent(skillId, "SKILL.md")) ?? skill?.content ?? "";
 
   return `You are the Skill writing assistant inside Nonla Agents.
 Help the user author skills as SKILL.md plus optional references/*.md.

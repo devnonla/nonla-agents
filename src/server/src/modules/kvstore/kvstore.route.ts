@@ -8,26 +8,26 @@ const app = new Hono();
 /** KV store — any authenticated user (admin + member) */
 app.use("*", requireAuth);
 
-app.get("/", (c) => c.json(listKvEntries(c.req.query())));
+app.get("/", async (c) => c.json(await listKvEntries(c.req.query())));
 
-app.get("/:id", (c) => {
-  const entry = getKvEntry(c.req.param("id"));
+app.get("/:id", async (c) => {
+  const entry = await getKvEntry(c.req.param("id"));
   if (!entry) throw new BadRequestException("KV entry not found");
   return c.json(entry);
 });
 
 app.post("/", async (c) => {
   const body = await c.req.json();
-  return c.json(createKvEntry(body), 201);
+  return c.json(await createKvEntry(body), 201);
 });
 
 app.put("/:id", async (c) => {
   const body = await c.req.json();
-  return c.json(updateKvEntry(c.req.param("id"), body));
+  return c.json(await updateKvEntry(c.req.param("id"), body));
 });
 
-app.delete("/:id", (c) => {
-  deleteKvEntry(c.req.param("id"));
+app.delete("/:id", async (c) => {
+  await deleteKvEntry(c.req.param("id"));
   return c.json({ ok: true });
 });
 

@@ -1,4 +1,4 @@
-import { closeDb, getDb } from "./common/db/client.js";
+import { closeDb, initDb } from "./common/db/client.js";
 import { getDataDir } from "./common/utils/data-dir.js";
 import { createAppServer } from "./common/ws/create-app-server.js";
 import { startJobsScheduler, stopJobsScheduler } from "./modules/jobs/jobs-scheduler.js";
@@ -10,19 +10,19 @@ export interface ServerOptions {
 }
 
 export async function startServer(options: ServerOptions = {}): Promise<void> {
-  const port = options.port ?? Number(process.env.PORT ?? "15888");
+  const port = options.port ?? Number(process.env.PORT ?? "8429");
   const host = options.host ?? process.env.HOST ?? "127.0.0.1";
   const dataDir = options.dataDir ?? getDataDir();
 
   process.env.DATA_DIR = dataDir;
-  getDb(dataDir);
+  await initDb(dataDir);
   startJobsScheduler();
 
   const server = createAppServer({ port, host });
 
-  const shutdown = () => {
+  const shutdown = async () => {
     stopJobsScheduler();
-    closeDb();
+    await closeDb();
     server.stop();
     process.exit(0);
   };

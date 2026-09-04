@@ -13,7 +13,7 @@ function authUser(c: { get: (k: string) => unknown }): svc.SiteActor {
   return c.get("user") as svc.SiteActor;
 }
 
-app.get("/", (c) => c.json(svc.listSites(c.req.query(), authUser(c))));
+app.get("/", async (c) => c.json(await svc.listSites(c.req.query(), authUser(c))));
 
 app.post("/", async (c) => {
   const body = await c.req.json<{ name?: string; slug?: string }>();
@@ -21,35 +21,35 @@ app.post("/", async (c) => {
   return c.json(await svc.createSite({ ...body, createdBy: user.id }), 201);
 });
 
-app.get("/:id", (c) => {
+app.get("/:id", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
-  return c.json(svc.getSite(id));
+  await svc.requireSiteAccess(id, authUser(c));
+  return c.json(await svc.getSite(id));
 });
 
 app.put("/:id", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = await c.req.json();
   return c.json(await svc.updateSite(id, body));
 });
 
-app.delete("/:id", (c) => {
+app.delete("/:id", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
-  return c.json(svc.deleteSite(id));
+  await svc.requireSiteAccess(id, authUser(c));
+  return c.json(await svc.deleteSite(id));
 });
 
-app.get("/:id/files", (c) => {
+app.get("/:id/files", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const tree = c.req.query("tree") === "prod" ? "prod" : "draft";
-  return c.json(svc.getSiteFiles(id, tree));
+  return c.json(await svc.getSiteFiles(id, tree));
 });
 
 app.put("/:id/files/:file", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = await c.req.json<{ content?: string; tree?: string }>();
   if (typeof body.content !== "string") throw new BadRequestException("content is required");
   if (body.tree === "prod") {
@@ -60,7 +60,7 @@ app.put("/:id/files/:file", async (c) => {
 
 app.post("/:id/install", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = (await c.req.json().catch(() => ({}))) as { tree?: string };
   const tree = body.tree === "prod" ? "prod" : "draft";
   return c.json(await svc.installDeps(id, tree));
@@ -68,7 +68,7 @@ app.post("/:id/install", async (c) => {
 
 app.post("/:id/preview", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = (await c.req.json().catch(() => ({}))) as { query?: Record<string, string>; tree?: string };
   const tree = body.tree === "prod" ? "prod" : "draft";
   try {
@@ -81,9 +81,9 @@ app.post("/:id/preview", async (c) => {
 });
 
 /** Mint HttpOnly auth cookie for draft iframe (assets cannot send Authorization). */
-app.post("/:id/live/session", (c) => {
+app.post("/:id/live/session", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const token = readAccessToken(c);
   if (!token) throw new UnauthorizedException("Authentication required");
   return c.json(
@@ -99,7 +99,7 @@ app.post("/:id/live/session", (c) => {
 
 app.get("/:id/live", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const token = readAccessToken(c);
   const headers: Record<string, string> = {
     "Content-Type": "text/html; charset=utf-8",
@@ -127,7 +127,7 @@ app.get("/:id/live", async (c) => {
 
 app.get("/:id/live/assets/:file", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const file = c.req.param("file");
   if (file !== "app.js" && file !== "styles.css") return c.json({ message: "Not found" }, 404);
   const asset = await svc.getDraftLiveAsset(id, file);
@@ -138,20 +138,20 @@ app.get("/:id/live/assets/:file", async (c) => {
 
 app.get("/:id/data", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const result = await svc.loadDraftSiteData(id, c.req.raw);
   return c.json(result);
 });
 
 app.post("/:id/action", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   return c.json(await svc.runDraftAction(id, c.req.raw));
 });
 
 app.get("/:id/thumbnail", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const png = await svc.getSiteThumbnailPng(id);
   if (!png) throw new NotFoundException("Thumbnail not found");
   return new Response(new Uint8Array(png), {
@@ -164,14 +164,14 @@ app.get("/:id/thumbnail", async (c) => {
 
 app.put("/:id/thumbnail", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const buf = Buffer.from(await c.req.arrayBuffer());
   return c.json(await svc.saveSiteThumbnailPng(id, buf));
 });
 
 app.post("/:id/resolve-selection", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = await c.req.json<{
     sourceAnchor?: string;
     tagName?: string;
@@ -179,26 +179,26 @@ app.post("/:id/resolve-selection", async (c) => {
     text?: string;
     outerHtml?: string;
   }>();
-  return c.json(svc.resolveSelection(id, body ?? {}));
+  return c.json(await svc.resolveSelection(id, body ?? {}));
 });
 
 app.post("/:id/approve", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = (await c.req.json().catch(() => ({}))) as { file?: string };
   return c.json(await svc.approveSite(id, body.file));
 });
 
 app.post("/:id/discard", async (c) => {
   const id = c.req.param("id");
-  svc.requireSiteAccess(id, authUser(c));
+  await svc.requireSiteAccess(id, authUser(c));
   const body = (await c.req.json().catch(() => ({}))) as { file?: string };
-  return c.json(svc.discardSiteDraft(id, body.file));
+  return c.json(await svc.discardSiteDraft(id, body.file));
 });
 
 app.post("/:id/agent/stream", async (c) => {
   const siteId = c.req.param("id");
-  svc.requireSiteAccess(siteId, authUser(c));
+  await svc.requireSiteAccess(siteId, authUser(c));
   const body = await c.req.json<SiteAgentStreamRequest>();
   return streamSSE(c, async (stream) => {
     const abort = new AbortController();

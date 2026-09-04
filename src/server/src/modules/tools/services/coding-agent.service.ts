@@ -140,8 +140,8 @@ export async function streamCodingAgent(toolId: string, body: CodingStreamReques
 
   const tools: StructuredToolInterface[] = [makeEditCodeTool(toolId), makeRunCurrentScriptTool(toolId), makeNonlaagentsGuideTool("tools"), browserTool, fetchUrlTool, makeKvStoreTool(["list"]), makeSecretsTool(["list"]), makeDatatableTool(["list_projects", "get_schema"])];
 
-  const currentCode = getDraftCode(toolId);
-  const toolRow = getTool(toolId);
+  const currentCode = await getDraftCode(toolId);
+  const toolRow = await getTool(toolId);
   const systemPrompt = buildCodingSystemPrompt(currentCode, toolRow);
   const agent = createAgent({
     model,

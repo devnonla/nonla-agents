@@ -58,7 +58,7 @@ export function makeCheckSiteTool(siteId: string) {
     async () => {
       try {
         const result = await withToolTimeout(previewSite(siteId), TOOL_TIMEOUT_MS);
-        const app = readDraftFile(siteId, "app.tsx");
+        const app = await readDraftFile(siteId, "app.tsx");
         const hint = !app.includes("loadSiteData") ? 'Prefer loadSiteData() from "./site-api.js" in app.tsx to load server data.' : undefined;
         return JSON.stringify({
           ok: true,

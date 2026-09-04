@@ -4,6 +4,7 @@
 
 import { eq } from "drizzle-orm";
 import { agentConversations, getDb } from "../../../../common/db/client.js";
+import { qrun } from "../../../../common/db/query.js";
 import type { MessageParam } from "./agentRunner.js";
 
 /** Start compacting once history exceeds this many MessageParam entries. */
@@ -69,11 +70,11 @@ ${summary}
 }
 
 /** Load path helper — compact and optionally persist summary on the conversation. */
-export function applyHistoryCompaction(conversationId: string, messages: MessageParam[]): MessageParam[] {
+export async function applyHistoryCompaction(conversationId: string, messages: MessageParam[]): Promise<MessageParam[]> {
   const { messages: next, compacted, summary } = compactMessageParams(messages);
   if (compacted && summary) {
     try {
-      getDb().update(agentConversations).set({ summary, summaryUpdatedAt: new Date() }).where(eq(agentConversations.id, conversationId)).run();
+      await qrun(getDb().update(agentConversations).set({ summary, summaryUpdatedAt: new Date() }).where(eq(agentConversations.id, conversationId)));
     } catch {
       /* best-effort */
     }

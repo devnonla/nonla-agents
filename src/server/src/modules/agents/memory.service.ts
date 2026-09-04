@@ -1,5 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { MEMORY_RELATION_MAX, agentConversations, getDb, memoryEdges, memoryNodes, users } from "../../common/db/client.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, NotFoundException } from "../../common/exceptions/http.exception.js";
 import { getAgent } from "./agents.service.js";
 import { MEMORY_CONTENT_MAX, nodePromptLine, nodeTitle } from "./runtime/utils/factBudget.js";
@@ -19,8 +20,8 @@ export type MemoryOwnerBranch = {
   sessions: MemorySessionBranch[];
 };
 
-function requireAgent(agentId: string) {
-  const agent = getAgent(agentId);
+async function requireAgent(agentId: string) {
+  const agent = await getAgent(agentId);
   if (!agent) throw new NotFoundException("Agent not found");
   return agent;
 }
@@ -125,31 +126,32 @@ export function normalizeRelation(raw: string | null | undefined): string {
 /** @deprecated */
 export const parseRelation = normalizeRelation;
 
-export function getMemory(agentId: string) {
-  requireAgent(agentId);
+export async function getMemory(agentId: string) {
+  await requireAgent(agentId);
   const db = getDb();
 
-  const nodes = sortNodes(db.select().from(memoryNodes).where(eq(memoryNodes.agentId, agentId)).all());
-  const edges = db.select().from(memoryEdges).where(eq(memoryEdges.agentId, agentId)).all();
+  const nodes = sortNodes(await qall(db.select().from(memoryNodes).where(eq(memoryNodes.agentId, agentId))));
+  const edges = await qall(db.select().from(memoryEdges).where(eq(memoryEdges.agentId, agentId)));
 
   const ownerIds = [...new Set(nodes.map((n) => n.ownerId))];
-  const userRows = ownerIds.length === 0 ? [] : db.select({ id: users.id, name: users.name, username: users.username, avatar: users.avatar }).from(users).where(inArray(users.id, ownerIds)).all();
+  const userRows = ownerIds.length === 0 ? [] : await qall(db.select({ id: users.id, name: users.name, username: users.username, avatar: users.avatar }).from(users).where(inArray(users.id, ownerIds)));
   const userMap = new Map(userRows.map((u) => [u.id, { name: u.name, username: u.username, avatar: u.avatar }]));
 
   const convIds = [...new Set(nodes.map((n) => n.sourceConversationId).filter((id): id is string => !!id))];
   const convRows =
     convIds.length === 0
       ? []
-      : db
-          .select({
-            id: agentConversations.id,
-            title: agentConversations.title,
-            ownerId: agentConversations.ownerId,
-            trigger: agentConversations.trigger,
-          })
-          .from(agentConversations)
-          .where(inArray(agentConversations.id, convIds))
-          .all();
+      : await qall(
+          db
+            .select({
+              id: agentConversations.id,
+              title: agentConversations.title,
+              ownerId: agentConversations.ownerId,
+              trigger: agentConversations.trigger,
+            })
+            .from(agentConversations)
+            .where(inArray(agentConversations.id, convIds)),
+        );
   const convTitles = new Map(convRows.map((c) => [c.id, c.title]));
 
   const guestOwnerIds = new Set<string>();
@@ -157,11 +159,12 @@ export function getMemory(agentId: string) {
     if (conv.trigger === "public") guestOwnerIds.add(conv.ownerId);
   }
   if (ownerIds.length > 0) {
-    const publicOwners = db
-      .select({ ownerId: agentConversations.ownerId })
-      .from(agentConversations)
-      .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), inArray(agentConversations.ownerId, ownerIds)))
-      .all();
+    const publicOwners = await qall(
+      db
+        .select({ ownerId: agentConversations.ownerId })
+        .from(agentConversations)
+        .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), inArray(agentConversations.ownerId, ownerIds))),
+    );
     for (const row of publicOwners) guestOwnerIds.add(row.ownerId);
   }
 
@@ -174,7 +177,7 @@ export function getMemory(agentId: string) {
   };
 }
 
-export function createNode(
+export async function createNode(
   agentId: string,
   ownerId: string,
   body: {
@@ -182,7 +185,7 @@ export function createNode(
     sourceConversationId?: string | null;
   },
 ) {
-  requireAgent(agentId);
+  await requireAgent(agentId);
   const content = body.content?.trim();
   if (!content) throw new BadRequestException("content is required");
   if (content.length > MEMORY_CONTENT_MAX) {
@@ -199,18 +202,19 @@ export function createNode(
     createdAt: now,
     updatedAt: now,
   };
-  getDb().insert(memoryNodes).values(row).run();
+  await qrun(getDb().insert(memoryNodes).values(row));
   return row;
 }
 
-export function updateNode(agentId: string, nodeId: string, body: { content?: string }) {
-  requireAgent(agentId);
+export async function updateNode(agentId: string, nodeId: string, body: { content?: string }) {
+  await requireAgent(agentId);
   const db = getDb();
-  const existing = db
-    .select()
-    .from(memoryNodes)
-    .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.agentId, agentId)))
-    .get();
+  const existing = await qone(
+    db
+      .select()
+      .from(memoryNodes)
+      .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.agentId, agentId))),
+  );
   if (!existing) throw new NotFoundException("Node not found");
 
   const patch: Partial<typeof existing> = { updatedAt: new Date() };
@@ -223,28 +227,27 @@ export function updateNode(agentId: string, nodeId: string, body: { content?: st
     patch.content = content;
   }
 
-  db.update(memoryNodes).set(patch).where(eq(memoryNodes.id, nodeId)).run();
-  return db.select().from(memoryNodes).where(eq(memoryNodes.id, nodeId)).get();
+  await qrun(db.update(memoryNodes).set(patch).where(eq(memoryNodes.id, nodeId)));
+  return await qone(db.select().from(memoryNodes).where(eq(memoryNodes.id, nodeId)));
 }
 
-export function deleteNode(agentId: string, nodeId: string) {
-  requireAgent(agentId);
+export async function deleteNode(agentId: string, nodeId: string) {
+  await requireAgent(agentId);
   const db = getDb();
-  const existing = db
-    .select({ id: memoryNodes.id })
-    .from(memoryNodes)
-    .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.agentId, agentId)))
-    .get();
+  const existing = await qone(
+    db
+      .select({ id: memoryNodes.id })
+      .from(memoryNodes)
+      .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.agentId, agentId))),
+  );
   if (!existing) throw new NotFoundException("Node not found");
-  db.delete(memoryEdges)
-    .where(and(eq(memoryEdges.agentId, agentId), or(eq(memoryEdges.fromId, nodeId), eq(memoryEdges.toId, nodeId))))
-    .run();
-  db.delete(memoryNodes).where(eq(memoryNodes.id, nodeId)).run();
+  await qrun(db.delete(memoryEdges).where(and(eq(memoryEdges.agentId, agentId), or(eq(memoryEdges.fromId, nodeId), eq(memoryEdges.toId, nodeId)))));
+  await qrun(db.delete(memoryNodes).where(eq(memoryNodes.id, nodeId)));
   return { ok: true };
 }
 
-export function createEdge(agentId: string, ownerId: string, body: { fromId: string; toId: string; relation: string }) {
-  requireAgent(agentId);
+export async function createEdge(agentId: string, ownerId: string, body: { fromId: string; toId: string; relation: string }) {
+  await requireAgent(agentId);
   const fromId = body.fromId?.trim();
   const toId = body.toId?.trim();
   if (!fromId || !toId) throw new BadRequestException("fromId and toId are required");
@@ -252,23 +255,26 @@ export function createEdge(agentId: string, ownerId: string, body: { fromId: str
   const relation = normalizeRelation(body.relation);
 
   const db = getDb();
-  const from = db
-    .select()
-    .from(memoryNodes)
-    .where(and(eq(memoryNodes.id, fromId), eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId)))
-    .get();
-  const to = db
-    .select()
-    .from(memoryNodes)
-    .where(and(eq(memoryNodes.id, toId), eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId)))
-    .get();
+  const from = await qone(
+    db
+      .select()
+      .from(memoryNodes)
+      .where(and(eq(memoryNodes.id, fromId), eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId))),
+  );
+  const to = await qone(
+    db
+      .select()
+      .from(memoryNodes)
+      .where(and(eq(memoryNodes.id, toId), eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId))),
+  );
   if (!from || !to) throw new NotFoundException("Both nodes must exist for this user");
 
-  const existing = db
-    .select()
-    .from(memoryEdges)
-    .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.fromId, fromId), eq(memoryEdges.toId, toId), eq(memoryEdges.relation, relation)))
-    .get();
+  const existing = await qone(
+    db
+      .select()
+      .from(memoryEdges)
+      .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.fromId, fromId), eq(memoryEdges.toId, toId), eq(memoryEdges.relation, relation))),
+  );
   if (existing) return existing;
 
   const row = {
@@ -280,20 +286,21 @@ export function createEdge(agentId: string, ownerId: string, body: { fromId: str
     relation,
     createdAt: new Date(),
   };
-  db.insert(memoryEdges).values(row).run();
+  await qrun(db.insert(memoryEdges).values(row));
   return row;
 }
 
-export function deleteEdge(agentId: string, edgeId: string) {
-  requireAgent(agentId);
+export async function deleteEdge(agentId: string, edgeId: string) {
+  await requireAgent(agentId);
   const db = getDb();
-  const existing = db
-    .select({ id: memoryEdges.id })
-    .from(memoryEdges)
-    .where(and(eq(memoryEdges.id, edgeId), eq(memoryEdges.agentId, agentId)))
-    .get();
+  const existing = await qone(
+    db
+      .select({ id: memoryEdges.id })
+      .from(memoryEdges)
+      .where(and(eq(memoryEdges.id, edgeId), eq(memoryEdges.agentId, agentId))),
+  );
   if (!existing) throw new NotFoundException("Edge not found");
-  db.delete(memoryEdges).where(eq(memoryEdges.id, edgeId)).run();
+  await qrun(db.delete(memoryEdges).where(eq(memoryEdges.id, edgeId)));
   return { ok: true };
 }
 

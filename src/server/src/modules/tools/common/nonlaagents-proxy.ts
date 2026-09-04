@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { agentConversations, getDb, users } from "../../../common/db/client.js";
+import { qone } from "../../../common/db/query.js";
 import { HttpException } from "../../../common/exceptions/http.exception.js";
 import { getAgent } from "../../agents/agents.service.js";
 import { runAgentConversation } from "../../agents/runtime/runtime.service.js";
@@ -18,46 +19,46 @@ function fail(error: string, status = 400) {
   return Response.json({ ok: false, error }, { status });
 }
 
-function handleKv(action: string, args: Record<string, unknown>) {
+async function handleKv(action: string, args: Record<string, unknown>) {
   switch (action) {
     case "get": {
       const key = String(args.key ?? "")
         .trim()
         .toUpperCase();
-      const entry = getKvByKey(key);
+      const entry = await getKvByKey(key);
       return ok(entry?.value ?? null);
     }
     case "set": {
       const key = String(args.key ?? "");
       const value = args.value;
       if (typeof value !== "string") throw new Error("value must be a string");
-      return ok(upsertKvByKey({ key, value }));
+      return ok(await upsertKvByKey({ key, value }));
     }
     case "list": {
-      const result = listKvEntries({ limit: "1000" });
+      const result = await listKvEntries({ limit: "1000" });
       return ok((result.items as { key: string; value: string }[]).map((e) => ({ key: e.key, value: e.value })));
     }
     case "delete": {
       const key = String(args.key ?? "")
         .trim()
         .toUpperCase();
-      return ok(deleteKvByKey(key));
+      return ok(await deleteKvByKey(key));
     }
     default:
       throw new Error(`Unknown kv action: ${action}`);
   }
 }
 
-function handleSecrets(action: string, args: Record<string, unknown>) {
+async function handleSecrets(action: string, args: Record<string, unknown>) {
   switch (action) {
     case "get": {
       const key = String(args.key ?? "")
         .trim()
         .toUpperCase();
-      return ok(getSecretValueByKey(key));
+      return ok(await getSecretValueByKey(key));
     }
     case "list": {
-      const result = listSecrets({ limit: "1000" });
+      const result = await listSecrets({ limit: "1000" });
       return ok((result.items as { key: string }[]).map((e) => e.key));
     }
     default:
@@ -70,23 +71,23 @@ function formatProjects(projects: { id: string; name: string }[]) {
   return projects.map((p) => `${p.name} [id=${p.id}]`).join(", ");
 }
 
-function handleDatatable(action: string, args: Record<string, unknown>) {
+async function handleDatatable(action: string, args: Record<string, unknown>) {
   switch (action) {
     case "list_projects":
-      return ok(listProjects().map((p) => ({ id: p.id, name: p.name })));
+      return ok((await listProjects()).map((p) => ({ id: p.id, name: p.name })));
     case "get_schema": {
       const projectRef = String(args.project ?? "").trim();
-      const availableProjects = listProjects().map((p) => ({ id: p.id, name: p.name }));
+      const availableProjects = (await listProjects()).map((p) => ({ id: p.id, name: p.name }));
       if (!projectRef) {
         throw new Error(`'project' is required (id or name). Available projects: ${formatProjects(availableProjects)}`);
       }
-      const project = resolveProject(projectRef);
+      const project = await resolveProject(projectRef);
       if (!project) {
         throw new Error(`Project "${projectRef}" not found. Available projects: ${formatProjects(availableProjects)}`);
       }
 
       // Always full project schema (all tables + columns)
-      const schema = getProjectSchemaByRef(project.id);
+      const schema = await getProjectSchemaByRef(project.id);
       return ok({
         project: { id: schema.project.id, name: schema.project.name },
         tables: schema.tables.map((t) => ({
@@ -103,7 +104,7 @@ function handleDatatable(action: string, args: Record<string, unknown>) {
     }
     case "query":
       return ok(
-        queryRowsByName(String(args.project ?? ""), String(args.table ?? ""), {
+        await queryRowsByName(String(args.project ?? ""), String(args.table ?? ""), {
           where: args.where as import("../../datatables/datatable-where.util.js").WhereFilter | undefined,
           order_by: args.order_by as { key: string; dir?: "asc" | "desc" }[] | undefined,
           limit: typeof args.limit === "number" ? args.limit : undefined,
@@ -111,18 +112,18 @@ function handleDatatable(action: string, args: Record<string, unknown>) {
         }),
       );
     case "insert":
-      return ok(insertRowsByName(String(args.project ?? ""), String(args.table ?? ""), (args.rows as Record<string, unknown>[]) ?? []));
+      return ok(await insertRowsByName(String(args.project ?? ""), String(args.table ?? ""), (args.rows as Record<string, unknown>[]) ?? []));
     case "update":
-      return ok(updateRowByName(String(args.project ?? ""), String(args.table ?? ""), String(args.row_id ?? ""), (args.data as Record<string, unknown>) ?? {}));
+      return ok(await updateRowByName(String(args.project ?? ""), String(args.table ?? ""), String(args.row_id ?? ""), (args.data as Record<string, unknown>) ?? {}));
     case "delete":
-      return ok(deleteRowsByName(String(args.project ?? ""), String(args.table ?? ""), (args.row_ids as string[]) ?? []));
+      return ok(await deleteRowsByName(String(args.project ?? ""), String(args.table ?? ""), (args.row_ids as string[]) ?? []));
     default:
       throw new Error(`Unknown datatable action: ${action}`);
   }
 }
 
-function resolveJobOwnerId(): string {
-  const admin = getDb().select({ id: users.id }).from(users).where(eq(users.role, "admin")).get();
+async function resolveJobOwnerId(): Promise<string> {
+  const admin = await qone(getDb().select({ id: users.id }).from(users).where(eq(users.role, "admin")));
   return admin?.id ?? "system";
 }
 
@@ -134,18 +135,18 @@ async function handleAgents(action: string, args: Record<string, unknown>) {
       if (!agentId) throw new Error("agentId is required");
       if (!message.trim()) throw new Error("message is required");
 
-      const agent = getAgent(agentId);
+      const agent = await getAgent(agentId);
       if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
-      const ownerId = resolveJobOwnerId();
-      const conv = createConversation({
+      const ownerId = await resolveJobOwnerId();
+      const conv = await createConversation({
         agentId,
         title: `Job run · ${agent.name}`,
         trigger: "cron",
         ownerId,
       });
       const conversationId = conv.id!;
-      createMessage(conversationId, { agentId, role: "user", content: message, metadata: null });
+      await createMessage(conversationId, { agentId, role: "user", content: message, metadata: null });
 
       try {
         const result = await runAgentConversation({
@@ -164,9 +165,9 @@ async function handleAgents(action: string, args: Record<string, unknown>) {
         return ok(result.text ?? "");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        const live = getDb().select().from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+        const live = await qone(getDb().select().from(agentConversations).where(eq(agentConversations.id, conversationId)));
         if (live?.status === "running") {
-          updateConversationStatus(conversationId, { status: "failed", finishedAt: new Date(), errorMessage });
+          await updateConversationStatus(conversationId, { status: "failed", finishedAt: new Date(), errorMessage });
         }
         throw err;
       }
@@ -188,9 +189,9 @@ async function handleProxyRequest(req: Request): Promise<Response> {
   const action = body.action ?? "";
   const args = body.args ?? {};
   try {
-    if (ns === "kv") return handleKv(action, args);
-    if (ns === "secrets") return handleSecrets(action, args);
-    if (ns === "datatable") return handleDatatable(action, args);
+    if (ns === "kv") return await handleKv(action, args);
+    if (ns === "secrets") return await handleSecrets(action, args);
+    if (ns === "datatable") return await handleDatatable(action, args);
     if (ns === "agents") return await handleAgents(action, args);
     return fail(`Unknown namespace: ${ns}`);
   } catch (err) {

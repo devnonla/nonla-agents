@@ -29,7 +29,7 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
         }
 
         if (action === "list") {
-          const result = listSecrets({ limit: "1000", sorts: "key" });
+          const result = await listSecrets({ limit: "1000", sorts: "key" });
           const keys = (result.items as { key: string }[]).map((item) => item.key);
           return JSON.stringify({ ok: true, count: keys.length, keys });
         }
@@ -40,7 +40,7 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
         const normalized = key.trim().toUpperCase();
 
         if (action === "get") {
-          const secretValue = getSecretValueByKey(normalized);
+          const secretValue = await getSecretValueByKey(normalized);
           if (secretValue === null) return JSON.stringify({ ok: false, error: `Key "${normalized}" not found.` });
           return JSON.stringify({ ok: true, key: normalized, value: secretValue });
         }
@@ -49,14 +49,14 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
           if (typeof value !== "string" || value.length === 0) {
             return JSON.stringify({ ok: false, error: "'value' is required for set." });
           }
-          const meta = upsertSecretByKey({ key: normalized, value });
+          const meta = await upsertSecretByKey({ key: normalized, value });
           return JSON.stringify({ ok: true, key: meta?.key ?? normalized, message: "Secret saved (encrypted at rest)." });
         }
 
         if (action === "delete") {
-          const existing = getSecretMetaByKey(normalized);
+          const existing = await getSecretMetaByKey(normalized);
           if (!existing) return JSON.stringify({ ok: false, error: `Key "${normalized}" not found.` });
-          deleteSecretByKey(normalized);
+          await deleteSecretByKey(normalized);
           return JSON.stringify({ ok: true, deleted: normalized });
         }
 

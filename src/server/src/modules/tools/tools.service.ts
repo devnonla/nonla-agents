@@ -73,6 +73,7 @@ const ALL_TOOL_DEFS: ToolDefinition[] = [
 ];
 import { type NewAgentTool, agentToolAssignments, agentTools, getDb } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { getDataDir } from "../../common/utils/data-dir.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { type BgTaskSnapshot, bgTaskRegistry } from "./common/bg-task-registry.js";
@@ -96,9 +97,9 @@ const BUILTIN_TOOLS = ALL_TOOL_DEFS.filter((b) => !ALWAYS_ON_TOOL_NAMES.has(b.to
   createdAt: new Date(0),
 }));
 
-function nextSortOrder(folderId: string | null): number {
+async function nextSortOrder(folderId: string | null): Promise<number> {
   const db = getDb();
-  const rows = folderId == null ? db.select({ sortOrder: agentTools.sortOrder }).from(agentTools).where(isNull(agentTools.folderId)).all() : db.select({ sortOrder: agentTools.sortOrder }).from(agentTools).where(eq(agentTools.folderId, folderId)).all();
+  const rows = folderId == null ? await qall(db.select({ sortOrder: agentTools.sortOrder }).from(agentTools).where(isNull(agentTools.folderId))) : await qall(db.select({ sortOrder: agentTools.sortOrder }).from(agentTools).where(eq(agentTools.folderId, folderId)));
   return rows.reduce((max, row) => Math.max(max, row.sortOrder), -1) + 1;
 }
 
@@ -107,8 +108,8 @@ export function getBuiltinTool(id: string) {
   return BUILTIN_TOOLS.find((t) => t.id === id) ?? null;
 }
 
-export function listTools(query: RawQuery = {}) {
-  const result = listQuery({ table: agentTools }, query);
+export async function listTools(query: RawQuery = {}) {
+  const result = await listQuery({ table: agentTools }, query);
   // Join constant-based builtins + custom tools from DB
   const items = [...BUILTIN_TOOLS, ...result.items].map(({ codeContent, draftCode, ...rest }: any) => rest);
   return {
@@ -118,30 +119,31 @@ export function listTools(query: RawQuery = {}) {
   };
 }
 
-export function getTool(id: string) {
+export async function getTool(id: string) {
   // Handle virtual builtin tool IDs
   if (id.startsWith("builtin:")) return getBuiltinTool(id);
-  return getDb().select().from(agentTools).where(eq(agentTools.id, id)).get();
+  return await qone(getDb().select().from(agentTools).where(eq(agentTools.id, id)));
 }
 
-function assertToolNameAvailable(name: string, excludeId?: string) {
+async function assertToolNameAvailable(name: string, excludeId?: string) {
   if (BUILTIN_TOOLS.some((t) => t.name === name)) {
     throw new BadRequestException("Tool name already exists");
   }
   const db = getDb();
   const dup = excludeId
-    ? db
-        .select()
-        .from(agentTools)
-        .where(and(eq(agentTools.name, name), ne(agentTools.id, excludeId)))
-        .get()
-    : db.select().from(agentTools).where(eq(agentTools.name, name)).get();
+    ? await qone(
+        db
+          .select()
+          .from(agentTools)
+          .where(and(eq(agentTools.name, name), ne(agentTools.id, excludeId))),
+      )
+    : await qone(db.select().from(agentTools).where(eq(agentTools.name, name)));
   if (dup) {
     throw new BadRequestException("Tool name already exists");
   }
 }
 
-export function createTool(
+export async function createTool(
   body: Pick<NewAgentTool, "name" | "label" | "description" | "parameters" | "codeContent"> & {
     isActive?: boolean;
     folderId?: string | null;
@@ -149,25 +151,25 @@ export function createTool(
   },
 ) {
   const { isActive = true, folderId = null, sortOrder, ...rest } = body;
-  assertToolNameAvailable(rest.name);
+  await assertToolNameAvailable(rest.name);
   const tool: NewAgentTool = {
     ...rest,
     id: crypto.randomUUID(),
     folderId,
-    sortOrder: sortOrder ?? nextSortOrder(folderId),
+    sortOrder: sortOrder ?? (await nextSortOrder(folderId)),
     isActive,
     createdAt: new Date(),
   };
-  getDb().insert(agentTools).values(tool).run();
+  await qrun(getDb().insert(agentTools).values(tool));
   wsHub.emit("tools:created", tool);
   return tool;
 }
 
-export function updateTool(id: string, body: Partial<NewAgentTool>) {
+export async function updateTool(id: string, body: Partial<NewAgentTool>) {
   if (id.startsWith("builtin:")) throw new Error("Cannot modify builtin tools");
 
   const db = getDb();
-  const existing = db.select().from(agentTools).where(eq(agentTools.id, id)).get();
+  const existing = await qone(db.select().from(agentTools).where(eq(agentTools.id, id)));
   if (!existing) throw new BadRequestException("Not found");
 
   // Derive metadata from // @name / // @description / // @param comments, then
@@ -211,18 +213,18 @@ export function updateTool(id: string, body: Partial<NewAgentTool>) {
   }
 
   if (body.name) {
-    assertToolNameAvailable(body.name, id);
+    await assertToolNameAvailable(body.name, id);
   }
 
   if (body.folderId !== undefined && body.sortOrder === undefined) {
     const nextFolderId = body.folderId ?? null;
     if ((existing.folderId ?? null) !== nextFolderId) {
-      body.sortOrder = nextSortOrder(nextFolderId);
+      body.sortOrder = await nextSortOrder(nextFolderId);
     }
   }
 
-  db.update(agentTools).set(body).where(eq(agentTools.id, id)).run();
-  const updated = db.select().from(agentTools).where(eq(agentTools.id, id)).get();
+  await qrun(db.update(agentTools).set(body).where(eq(agentTools.id, id)));
+  const updated = await qone(db.select().from(agentTools).where(eq(agentTools.id, id)));
   if (!updated) throw new BadRequestException("Not found");
 
   // Spec / icon / active updates must not broadcast codeContent — that resets an unsaved editor.
@@ -240,25 +242,25 @@ export function updateTool(id: string, body: Partial<NewAgentTool>) {
 }
 
 /** Set folder + sort order for tools in one column (kanban). */
-export function reorderTools(folderId: string | null, toolIds: string[]) {
+export async function reorderTools(folderId: string | null, toolIds: string[]) {
   const db = getDb();
   for (let i = 0; i < toolIds.length; i++) {
     const id = toolIds[i];
     if (!id || id.startsWith("builtin:")) continue;
-    db.update(agentTools).set({ folderId, sortOrder: i }).where(eq(agentTools.id, id)).run();
+    await qrun(db.update(agentTools).set({ folderId, sortOrder: i }).where(eq(agentTools.id, id)));
   }
   wsHub.emit("tools:reordered", { folderId, toolIds });
   return { folderId, toolIds };
 }
 
-export function deleteTool(id: string) {
+export async function deleteTool(id: string) {
   if (id.startsWith("builtin:")) throw new Error("Cannot delete builtin tools");
   const db = getDb();
   // Find affected agents BEFORE cascade delete
-  const affected = db.select({ agentId: agentToolAssignments.agentId }).from(agentToolAssignments).where(eq(agentToolAssignments.toolId, id)).all();
+  const affected = await qall(db.select({ agentId: agentToolAssignments.agentId }).from(agentToolAssignments).where(eq(agentToolAssignments.toolId, id)));
   // Manually clean up assignments (no FK cascade since builtin tools share this table)
-  db.delete(agentToolAssignments).where(eq(agentToolAssignments.toolId, id)).run();
-  db.delete(agentTools).where(eq(agentTools.id, id)).run();
+  await qrun(db.delete(agentToolAssignments).where(eq(agentToolAssignments.toolId, id)));
+  await qrun(db.delete(agentTools).where(eq(agentTools.id, id)));
   wsHub.emit("tools:deleted", { id });
   // Notify affected agents that their tool assignments changed
   for (const { agentId } of affected) {
@@ -267,7 +269,7 @@ export function deleteTool(id: string) {
 }
 
 export async function runTool(id: string, inputJson = "{}", code?: string) {
-  const tool = getTool(id);
+  const tool = await getTool(id);
   if (!tool) return null;
   const codeToRun = code ?? tool.codeContent;
   const resultStr = await executeTool(id, codeToRun, inputJson, getDataDir());
@@ -282,7 +284,7 @@ export async function runToolWithSoftWait(opts: {
   agentId?: string;
   conversationId?: string | null;
 }): Promise<SoftWaitExecuteResult | null> {
-  const tool = getTool(opts.id);
+  const tool = await getTool(opts.id);
   if (!tool) return null;
   const codeToRun = opts.code ?? tool.codeContent;
   return executeToolWithSoftWait({
@@ -298,21 +300,21 @@ export async function runToolWithSoftWait(opts: {
 }
 
 /** Update draftCode for a tool and notify FE (used by edit_code tool). */
-export function updateDraftCode(id: string, draftCode: string): void {
-  getDb().update(agentTools).set({ draftCode }).where(eq(agentTools.id, id)).run();
+export async function updateDraftCode(id: string, draftCode: string): Promise<void> {
+  await qrun(getDb().update(agentTools).set({ draftCode }).where(eq(agentTools.id, id)));
   wsHub.emit("tools:updated", { id, draftCode });
 }
 
 /** Get draftCode for a tool (used by run_current_script / edit_code). Fallback to published codeContent. */
-export function getDraftCode(id: string): string | null {
-  const row = getDb().select({ draftCode: agentTools.draftCode, codeContent: agentTools.codeContent }).from(agentTools).where(eq(agentTools.id, id)).get();
+export async function getDraftCode(id: string): Promise<string | null> {
+  const row = await qone(getDb().select({ draftCode: agentTools.draftCode, codeContent: agentTools.codeContent }).from(agentTools).where(eq(agentTools.id, id)));
   if (!row) return null;
   return row.draftCode ?? row.codeContent ?? null;
 }
 
 /** Run draftCode of a tool in the Bun sandbox (used by run_current_script tool). */
 export async function runDraftCode(id: string, inputJson = "{}") {
-  const draftCode = getDraftCode(id);
+  const draftCode = await getDraftCode(id);
   if (!draftCode) return null;
   const resultStr = await executeTool(id, draftCode, inputJson, getDataDir());
   return resultStr;

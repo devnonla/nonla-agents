@@ -1,3 +1,4 @@
+import { getDialect } from "../../common/db/dialect.js";
 import type { ColumnType, DatatableColumn } from "../../common/db/schema.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 
@@ -14,7 +15,13 @@ function jsonPath(key: string): string {
   return `$.${key}`;
 }
 
-function extractExpr(key: string): string {
+function extractExpr(key: string, col?: DatatableColumn): string {
+  if (getDialect() === "postgres") {
+    const path = `(data::jsonb->>'${key}')`;
+    if (col?.type === "number") return `(${path})::numeric`;
+    if (col?.type === "boolean") return `(${path})::boolean`;
+    return path;
+  }
   return `json_extract(data, '${jsonPath(key)}')`;
 }
 
@@ -50,7 +57,7 @@ function coerceForCompare(col: DatatableColumn, value: unknown): unknown {
 function pushOp(parts: string[], params: unknown[], key: string, op: string, rawValue: unknown, columns: ColumnMap) {
   assertKnownKey(key, columns);
   const col = columns.get(key)!;
-  const expr = extractExpr(key);
+  const expr = extractExpr(key, col);
 
   if (op === "$exists") {
     const exists = Boolean(rawValue);
@@ -71,7 +78,11 @@ function pushOp(parts: string[], params: unknown[], key: string, op: string, raw
 
   if (op === "$contains") {
     if (col.type === "json") {
-      parts.push(`EXISTS (SELECT 1 FROM json_each(${expr}) WHERE json_each.value = ?)`);
+      if (getDialect() === "postgres") {
+        parts.push(`EXISTS (SELECT 1 FROM jsonb_array_elements_text(data::jsonb->'${key}') AS t(value) WHERE t.value = ?)`);
+      } else {
+        parts.push(`EXISTS (SELECT 1 FROM json_each(${expr}) WHERE json_each.value = ?)`);
+      }
       params.push(typeof rawValue === "string" || typeof rawValue === "number" || typeof rawValue === "boolean" ? rawValue : JSON.stringify(rawValue));
       return;
     }
@@ -193,7 +204,7 @@ export function buildOrderBySql(orderBy: OrderByItem[] | null | undefined, colum
     if (!key || !colMap.has(key)) {
       throw new BadRequestException(`Invalid order_by key: "${key}"`);
     }
-    parts.push(`${extractExpr(key)} ${dir}`);
+    parts.push(`${extractExpr(key, colMap.get(key))} ${dir}`);
   }
   return ` ORDER BY ${parts.join(", ")}`;
 }

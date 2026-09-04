@@ -1,6 +1,7 @@
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { type McpCatalogTool, type NewAgent, agentSkillAssignments, agentToolAssignments, agentTools, agents, getDb, mcpServers, skills, users } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { BUILTIN_DATATABLE_TOOL_ID, datatableProjectToolName, parseDatatableProjectAssignmentId } from "../datatables/datatable-tool-id.js";
@@ -15,13 +16,13 @@ import { getBuiltinTool } from "../tools/tools.service.js";
  * (creator name, tool assignment count). Omits heavy/secret fields —
  * use getAgent for systemPrompt / systemPromptDraft / publicPassword / callableAgentIds.
  */
-export function listAgentsEnriched(query: RawQuery, user?: { id: string; role: string }) {
+export async function listAgentsEnriched(query: RawQuery, user?: { id: string; role: string }) {
   const db = getDb();
 
   // Role-based filtering: admin sees all, member sees only own agents
   const ownerFilter = user && user.role !== "admin" ? eq(agents.createdBy, user.id) : undefined;
 
-  const result = listQuery(
+  const result = await listQuery(
     {
       table: agents,
       searchColumns: ["name", "description"],
@@ -34,7 +35,7 @@ export function listAgentsEnriched(query: RawQuery, user?: { id: string; role: s
   const creatorIds = [...new Set(result.items.map((a: any) => a.createdBy).filter(Boolean))];
   const creatorMap = new Map<string, string>();
   if (creatorIds.length > 0) {
-    const rows = db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, creatorIds)).all();
+    const rows = await qall(db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, creatorIds)));
     for (const r of rows) creatorMap.set(r.id, r.name);
   }
 
@@ -42,7 +43,7 @@ export function listAgentsEnriched(query: RawQuery, user?: { id: string; role: s
   const agentIds = result.items.map((a: any) => a.id);
   const toolCountMap = new Map<string, number>();
   if (agentIds.length > 0) {
-    const rows = db.select({ agentId: agentToolAssignments.agentId, count: count() }).from(agentToolAssignments).where(inArray(agentToolAssignments.agentId, agentIds)).groupBy(agentToolAssignments.agentId).all();
+    const rows = await qall(db.select({ agentId: agentToolAssignments.agentId, count: count() }).from(agentToolAssignments).where(inArray(agentToolAssignments.agentId, agentIds)).groupBy(agentToolAssignments.agentId));
     for (const r of rows) toolCountMap.set(r.agentId, r.count);
   }
 
@@ -59,13 +60,13 @@ export function listAgentsEnriched(query: RawQuery, user?: { id: string; role: s
   };
 }
 
-export function getAgent(id: string) {
-  return getDb().select().from(agents).where(eq(agents.id, id)).get();
+export async function getAgent(id: string) {
+  return await qone(getDb().select().from(agents).where(eq(agents.id, id)));
 }
 
-function nextSortOrder(teamId: string | null): number {
+async function nextSortOrder(teamId: string | null): Promise<number> {
   const db = getDb();
-  const rows = teamId == null ? db.select({ sortOrder: agents.sortOrder }).from(agents).where(isNull(agents.teamId)).all() : db.select({ sortOrder: agents.sortOrder }).from(agents).where(eq(agents.teamId, teamId)).all();
+  const rows = teamId == null ? await qall(db.select({ sortOrder: agents.sortOrder }).from(agents).where(isNull(agents.teamId))) : await qall(db.select({ sortOrder: agents.sortOrder }).from(agents).where(eq(agents.teamId, teamId)));
   if (rows.length === 0) return 0;
   return rows.reduce((min, row) => Math.min(min, row.sortOrder), rows[0].sortOrder) - 1;
 }
@@ -75,13 +76,13 @@ function nextSortOrder(teamId: string | null): number {
  * - admin sees all agents
  * - member sees only agents they created
  */
-export function listAgents(user?: { id: string; role: string }) {
+export async function listAgents(user?: { id: string; role: string }) {
   const db = getDb();
   if (!user || user.role === "admin") {
-    return db.select().from(agents).all();
+    return await qall(db.select().from(agents));
   }
   // member: only own agents
-  return db.select().from(agents).where(eq(agents.createdBy, user.id)).all();
+  return await qall(db.select().from(agents).where(eq(agents.createdBy, user.id)));
 }
 
 /** Minimal random nice-avatar JSON when client omits avatar */
@@ -108,7 +109,7 @@ function randomAvatarJson(): string {
   });
 }
 
-export function createAgent(body: Omit<NewAgent, "id" | "createdAt" | "updatedAt">) {
+export async function createAgent(body: Omit<NewAgent, "id" | "createdAt" | "updatedAt">) {
   const now = new Date();
   const teamId = body.teamId ?? null;
   const newAgent: NewAgent = {
@@ -116,22 +117,22 @@ export function createAgent(body: Omit<NewAgent, "id" | "createdAt" | "updatedAt
     avatar: body.avatar?.trim() ? body.avatar : randomAvatarJson(),
     id: crypto.randomUUID(),
     teamId,
-    sortOrder: body.sortOrder ?? nextSortOrder(teamId),
+    sortOrder: body.sortOrder ?? (await nextSortOrder(teamId)),
     createdAt: now,
     updatedAt: now,
   };
-  getDb().insert(agents).values(newAgent).run();
+  await qrun(getDb().insert(agents).values(newAgent));
   wsHub.emit("agents:created", newAgent);
   return newAgent;
 }
 
-export function updateAgent(id: string, body: Partial<NewAgent>) {
+export async function updateAgent(id: string, body: Partial<NewAgent>) {
   const db = getDb();
   if (body.teamId !== undefined && body.sortOrder === undefined) {
-    const current = db.select({ teamId: agents.teamId }).from(agents).where(eq(agents.id, id)).get();
+    const current = await qone(db.select({ teamId: agents.teamId }).from(agents).where(eq(agents.id, id)));
     const nextTeamId = body.teamId ?? null;
     if ((current?.teamId ?? null) !== nextTeamId) {
-      body.sortOrder = nextSortOrder(nextTeamId);
+      body.sortOrder = await nextSortOrder(nextTeamId);
     }
   }
 
@@ -141,31 +142,31 @@ export function updateAgent(id: string, body: Partial<NewAgent>) {
     patch.systemPromptDraft = body.systemPrompt;
   }
 
-  db.update(agents).set(patch).where(eq(agents.id, id)).run();
-  const updated = db.select().from(agents).where(eq(agents.id, id)).get();
+  await qrun(db.update(agents).set(patch).where(eq(agents.id, id)));
+  const updated = await qone(db.select().from(agents).where(eq(agents.id, id)));
   wsHub.emit("agents:updated", updated);
   return updated;
 }
 
-export function reorderAgents(teamId: string | null, agentIds: string[]) {
+export async function reorderAgents(teamId: string | null, agentIds: string[]) {
   const db = getDb();
   for (let i = 0; i < agentIds.length; i++) {
     const id = agentIds[i];
     if (!id) continue;
-    db.update(agents).set({ teamId, sortOrder: i, updatedAt: new Date() }).where(eq(agents.id, id)).run();
+    await qrun(db.update(agents).set({ teamId, sortOrder: i, updatedAt: new Date() }).where(eq(agents.id, id)));
   }
   wsHub.emit("agents:reordered", { teamId, agentIds });
   return { teamId, agentIds };
 }
 
-export function deleteAgent(id: string) {
-  getDb().delete(agents).where(eq(agents.id, id)).run();
+export async function deleteAgent(id: string) {
+  await qrun(getDb().delete(agents).where(eq(agents.id, id)));
   wsHub.emit("agents:deleted", { id });
 }
 
-export function cloneAgent(sourceId: string, createdBy?: string) {
+export async function cloneAgent(sourceId: string, createdBy?: string) {
   const db = getDb();
-  const src = db.select().from(agents).where(eq(agents.id, sourceId)).get();
+  const src = await qone(db.select().from(agents).where(eq(agents.id, sourceId)));
   if (!src) return null;
 
   const now = new Date();
@@ -175,7 +176,7 @@ export function cloneAgent(sourceId: string, createdBy?: string) {
   const baseName = src.name.replace(/\s*\(Copy(?:\s+\d+)?\)$/, "");
 
   // Find all agents with names like "BaseName (Copy)" or "BaseName (Copy N)"
-  const allAgents = db.select({ name: agents.name }).from(agents).all();
+  const allAgents = await qall(db.select({ name: agents.name }).from(agents));
   const copyPattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\(Copy(?:\\s+(\\d+))?\\)$`);
   let maxNum = 0;
   for (const a of allAgents) {
@@ -201,40 +202,40 @@ export function cloneAgent(sourceId: string, createdBy?: string) {
     aiModel: src.aiModel,
     callableAgentIds: src.callableAgentIds ?? [],
     teamId: src.teamId,
-    sortOrder: nextSortOrder(src.teamId ?? null),
+    sortOrder: await nextSortOrder(src.teamId ?? null),
     createdBy: createdBy ?? src.createdBy,
     createdAt: now,
     updatedAt: now,
   };
-  db.insert(agents).values(cloned).run();
+  await qrun(db.insert(agents).values(cloned));
 
   // Copy tool assignments
-  const srcAssignments = db.select().from(agentToolAssignments).where(eq(agentToolAssignments.agentId, sourceId)).all();
+  const srcAssignments = await qall(db.select().from(agentToolAssignments).where(eq(agentToolAssignments.agentId, sourceId)));
   for (const a of srcAssignments) {
-    db.insert(agentToolAssignments)
-      .values({
+    await qrun(
+      db.insert(agentToolAssignments).values({
         id: crypto.randomUUID(),
         agentId: newId,
         toolId: a.toolId,
         createdAt: now,
-      })
-      .run();
+      }),
+    );
   }
 
   // Copy skill assignments
-  const srcSkills = db.select().from(agentSkillAssignments).where(eq(agentSkillAssignments.agentId, sourceId)).all();
+  const srcSkills = await qall(db.select().from(agentSkillAssignments).where(eq(agentSkillAssignments.agentId, sourceId)));
   for (const a of srcSkills) {
-    db.insert(agentSkillAssignments)
-      .values({
+    await qrun(
+      db.insert(agentSkillAssignments).values({
         id: crypto.randomUUID(),
         agentId: newId,
         skillId: a.skillId,
         createdAt: now,
-      })
-      .run();
+      }),
+    );
   }
 
-  const result = db.select().from(agents).where(eq(agents.id, newId)).get();
+  const result = await qone(db.select().from(agents).where(eq(agents.id, newId)));
   wsHub.emit("agents:created", result);
   return result;
 }
@@ -258,28 +259,30 @@ export interface NewAssignmentInput {
 }
 
 /** List all tool assignments for an agent, joined with tool info. */
-export function listAssignments(agentId: string): AssignmentWithTool[] {
+export async function listAssignments(agentId: string): Promise<AssignmentWithTool[]> {
   const db = getDb();
-  const rows = db
-    .select({
-      id: agentToolAssignments.id,
-      agentId: agentToolAssignments.agentId,
-      toolId: agentToolAssignments.toolId,
-      createdAt: agentToolAssignments.createdAt,
-      toolName: agentTools.name,
-      toolLabel: agentTools.label,
-      toolDescription: agentTools.description,
-    })
-    .from(agentToolAssignments)
-    .leftJoin(agentTools, eq(agentToolAssignments.toolId, agentTools.id))
-    .where(eq(agentToolAssignments.agentId, agentId))
-    .all();
+  const rows = await qall(
+    db
+      .select({
+        id: agentToolAssignments.id,
+        agentId: agentToolAssignments.agentId,
+        toolId: agentToolAssignments.toolId,
+        createdAt: agentToolAssignments.createdAt,
+        toolName: agentTools.name,
+        toolLabel: agentTools.label,
+        toolDescription: agentTools.description,
+      })
+      .from(agentToolAssignments)
+      .leftJoin(agentTools, eq(agentToolAssignments.toolId, agentTools.id))
+      .where(eq(agentToolAssignments.agentId, agentId)),
+  );
 
-  return rows.map((r) => {
+  const result: AssignmentWithTool[] = [];
+  for (const r of rows) {
     // For builtin tools, resolve info from in-memory registry
     if (r.toolId.startsWith("builtin:")) {
       const builtin = getBuiltinTool(r.toolId);
-      return {
+      result.push({
         id: r.id,
         agentId: r.agentId,
         toolId: r.toolId,
@@ -289,15 +292,16 @@ export function listAssignments(agentId: string): AssignmentWithTool[] {
           label: builtin?.label ?? (r.toolId === BUILTIN_DATATABLE_TOOL_ID ? "Datatable" : r.toolId),
           description: builtin?.description ?? "",
         },
-      };
+      });
+      continue;
     }
 
     const mcp = parseMcpToolId(r.toolId);
     if (mcp) {
-      const server = db.select().from(mcpServers).where(eq(mcpServers.id, mcp.serverId)).get();
+      const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, mcp.serverId)));
       const catalog = (server?.tools ?? []) as McpCatalogTool[];
       const def = catalog.find((t) => t.name === mcp.toolName);
-      return {
+      result.push({
         id: r.id,
         agentId: r.agentId,
         toolId: r.toolId,
@@ -307,13 +311,14 @@ export function listAssignments(agentId: string): AssignmentWithTool[] {
           label: `${server?.name ?? "mcp"} → ${def?.name ?? mcp.toolName}`,
           description: def?.description ?? "",
         },
-      };
+      });
+      continue;
     }
 
     const datatableProjectId = parseDatatableProjectAssignmentId(r.toolId);
     if (datatableProjectId) {
-      const project = getProject(datatableProjectId);
-      return {
+      const project = await getProject(datatableProjectId);
+      result.push({
         id: r.id,
         agentId: r.agentId,
         toolId: r.toolId,
@@ -323,10 +328,11 @@ export function listAssignments(agentId: string): AssignmentWithTool[] {
           label: project?.name ?? "Datatable",
           description: project ? `Read and write tables in datatable project "${project.name}".` : "",
         },
-      };
+      });
+      continue;
     }
 
-    return {
+    result.push({
       id: r.id,
       agentId: r.agentId,
       toolId: r.toolId,
@@ -336,83 +342,86 @@ export function listAssignments(agentId: string): AssignmentWithTool[] {
         label: r.toolLabel ?? "",
         description: r.toolDescription ?? "",
       },
-    };
-  });
+    });
+  }
+  return result;
 }
 
 /** Replace all tool assignments for an agent. */
-export function setAssignments(agentId: string, items: NewAssignmentInput[]): AssignmentWithTool[] {
+export async function setAssignments(agentId: string, items: NewAssignmentInput[]): Promise<AssignmentWithTool[]> {
   const db = getDb();
   const hasDatatableProject = items.some((item) => parseDatatableProjectAssignmentId(item.toolId));
   const nextItems = hasDatatableProject ? items.filter((item) => item.toolId !== BUILTIN_DATATABLE_TOOL_ID) : items;
 
   // Delete existing
-  db.delete(agentToolAssignments).where(eq(agentToolAssignments.agentId, agentId)).run();
+  await qrun(db.delete(agentToolAssignments).where(eq(agentToolAssignments.agentId, agentId)));
 
   // Insert new
   for (const item of nextItems) {
-    db.insert(agentToolAssignments)
-      .values({
+    await qrun(
+      db.insert(agentToolAssignments).values({
         id: crypto.randomUUID(),
         agentId,
         toolId: item.toolId,
         createdAt: new Date(),
-      })
-      .run();
+      }),
+    );
   }
 
-  const result = listAssignments(agentId);
+  const result = await listAssignments(agentId);
   wsHub.emit("agents:tools-updated", { agentId, assignments: result });
   return result;
 }
 
-function dropLegacyDatatableAssignment(agentId: string): void {
-  getDb()
-    .delete(agentToolAssignments)
-    .where(and(eq(agentToolAssignments.agentId, agentId), eq(agentToolAssignments.toolId, BUILTIN_DATATABLE_TOOL_ID)))
-    .run();
+async function dropLegacyDatatableAssignment(agentId: string): Promise<void> {
+  await qrun(
+    getDb()
+      .delete(agentToolAssignments)
+      .where(and(eq(agentToolAssignments.agentId, agentId), eq(agentToolAssignments.toolId, BUILTIN_DATATABLE_TOOL_ID))),
+  );
 }
 
 /** Add a single tool assignment (upsert: if already assigned, update it). */
-export function addAssignment(agentId: string, input: NewAssignmentInput): AssignmentWithTool | null {
+export async function addAssignment(agentId: string, input: NewAssignmentInput): Promise<AssignmentWithTool | null> {
   const db = getDb();
 
   // Check if an assignment already exists for this (agentId, toolId)
-  const existing = db
-    .select({ id: agentToolAssignments.id })
-    .from(agentToolAssignments)
-    .where(and(eq(agentToolAssignments.agentId, agentId), eq(agentToolAssignments.toolId, input.toolId)))
-    .get();
+  const existing = await qone(
+    db
+      .select({ id: agentToolAssignments.id })
+      .from(agentToolAssignments)
+      .where(and(eq(agentToolAssignments.agentId, agentId), eq(agentToolAssignments.toolId, input.toolId))),
+  );
 
   if (existing) {
     // Already assigned, nothing to update
   } else {
     const id = crypto.randomUUID();
-    db.insert(agentToolAssignments)
-      .values({
+    await qrun(
+      db.insert(agentToolAssignments).values({
         id,
         agentId,
         toolId: input.toolId,
         createdAt: new Date(),
-      })
-      .run();
+      }),
+    );
   }
 
   if (parseDatatableProjectAssignmentId(input.toolId)) {
-    dropLegacyDatatableAssignment(agentId);
+    await dropLegacyDatatableAssignment(agentId);
   }
 
-  const result = listAssignments(agentId);
+  const result = await listAssignments(agentId);
   wsHub.emit("agents:tools-updated", { agentId, assignments: result });
   return result.find((a) => a.toolId === input.toolId) ?? null;
 }
 
 /** Remove a single assignment by its ID. */
-export function removeAssignment(assignmentId: string): void {
+export async function removeAssignment(assignmentId: string): Promise<void> {
   const db = getDb();
-  const row = db.select({ agentId: agentToolAssignments.agentId }).from(agentToolAssignments).where(eq(agentToolAssignments.id, assignmentId)).get();
+  const row = await qone(db.select({ agentId: agentToolAssignments.agentId }).from(agentToolAssignments).where(eq(agentToolAssignments.id, assignmentId)));
 
-  db.delete(agentToolAssignments).where(eq(agentToolAssignments.id, assignmentId)).run();
+  await qrun(db.delete(agentToolAssignments).where(eq(agentToolAssignments.id, assignmentId)));
 
   if (row) {
     wsHub.emit("agents:tools-updated", { agentId: row.agentId });
@@ -436,21 +445,22 @@ export interface NewSkillAssignmentInput {
   skillId: string;
 }
 
-export function listSkillAssignments(agentId: string): SkillAssignmentWithSkill[] {
+export async function listSkillAssignments(agentId: string): Promise<SkillAssignmentWithSkill[]> {
   const db = getDb();
-  const rows = db
-    .select({
-      id: agentSkillAssignments.id,
-      agentId: agentSkillAssignments.agentId,
-      skillId: agentSkillAssignments.skillId,
-      createdAt: agentSkillAssignments.createdAt,
-      skillName: skills.name,
-      skillDescription: skills.description,
-    })
-    .from(agentSkillAssignments)
-    .leftJoin(skills, eq(agentSkillAssignments.skillId, skills.id))
-    .where(eq(agentSkillAssignments.agentId, agentId))
-    .all();
+  const rows = await qall(
+    db
+      .select({
+        id: agentSkillAssignments.id,
+        agentId: agentSkillAssignments.agentId,
+        skillId: agentSkillAssignments.skillId,
+        createdAt: agentSkillAssignments.createdAt,
+        skillName: skills.name,
+        skillDescription: skills.description,
+      })
+      .from(agentSkillAssignments)
+      .leftJoin(skills, eq(agentSkillAssignments.skillId, skills.id))
+      .where(eq(agentSkillAssignments.agentId, agentId)),
+  );
 
   return rows.map((r) => ({
     id: r.id,
@@ -464,60 +474,61 @@ export function listSkillAssignments(agentId: string): SkillAssignmentWithSkill[
   }));
 }
 
-export function setSkillAssignments(agentId: string, items: NewSkillAssignmentInput[]): SkillAssignmentWithSkill[] {
+export async function setSkillAssignments(agentId: string, items: NewSkillAssignmentInput[]): Promise<SkillAssignmentWithSkill[]> {
   const db = getDb();
-  db.delete(agentSkillAssignments).where(eq(agentSkillAssignments.agentId, agentId)).run();
+  await qrun(db.delete(agentSkillAssignments).where(eq(agentSkillAssignments.agentId, agentId)));
 
   for (const item of items) {
-    const skill = db.select({ id: skills.id }).from(skills).where(eq(skills.id, item.skillId)).get();
+    const skill = await qone(db.select({ id: skills.id }).from(skills).where(eq(skills.id, item.skillId)));
     if (!skill) throw new BadRequestException(`Skill not found: ${item.skillId}`);
-    db.insert(agentSkillAssignments)
-      .values({
+    await qrun(
+      db.insert(agentSkillAssignments).values({
         id: crypto.randomUUID(),
         agentId,
         skillId: item.skillId,
         createdAt: new Date(),
-      })
-      .run();
+      }),
+    );
   }
 
-  const result = listSkillAssignments(agentId);
+  const result = await listSkillAssignments(agentId);
   wsHub.emit("agents:skills-updated", { agentId, assignments: result });
   return result;
 }
 
-export function addSkillAssignment(agentId: string, input: NewSkillAssignmentInput): SkillAssignmentWithSkill | null {
+export async function addSkillAssignment(agentId: string, input: NewSkillAssignmentInput): Promise<SkillAssignmentWithSkill | null> {
   const db = getDb();
-  const skill = db.select({ id: skills.id }).from(skills).where(eq(skills.id, input.skillId)).get();
+  const skill = await qone(db.select({ id: skills.id }).from(skills).where(eq(skills.id, input.skillId)));
   if (!skill) throw new BadRequestException(`Skill not found: ${input.skillId}`);
 
-  const existing = db
-    .select({ id: agentSkillAssignments.id })
-    .from(agentSkillAssignments)
-    .where(and(eq(agentSkillAssignments.agentId, agentId), eq(agentSkillAssignments.skillId, input.skillId)))
-    .get();
+  const existing = await qone(
+    db
+      .select({ id: agentSkillAssignments.id })
+      .from(agentSkillAssignments)
+      .where(and(eq(agentSkillAssignments.agentId, agentId), eq(agentSkillAssignments.skillId, input.skillId))),
+  );
 
   if (!existing) {
-    db.insert(agentSkillAssignments)
-      .values({
+    await qrun(
+      db.insert(agentSkillAssignments).values({
         id: crypto.randomUUID(),
         agentId,
         skillId: input.skillId,
         createdAt: new Date(),
-      })
-      .run();
+      }),
+    );
   }
 
-  const result = listSkillAssignments(agentId);
+  const result = await listSkillAssignments(agentId);
   wsHub.emit("agents:skills-updated", { agentId, assignments: result });
   return result.find((a) => a.skillId === input.skillId) ?? null;
 }
 
-export function removeSkillAssignment(assignmentId: string): void {
+export async function removeSkillAssignment(assignmentId: string): Promise<void> {
   const db = getDb();
-  const row = db.select({ agentId: agentSkillAssignments.agentId }).from(agentSkillAssignments).where(eq(agentSkillAssignments.id, assignmentId)).get();
+  const row = await qone(db.select({ agentId: agentSkillAssignments.agentId }).from(agentSkillAssignments).where(eq(agentSkillAssignments.id, assignmentId)));
 
-  db.delete(agentSkillAssignments).where(eq(agentSkillAssignments.id, assignmentId)).run();
+  await qrun(db.delete(agentSkillAssignments).where(eq(agentSkillAssignments.id, assignmentId)));
 
   if (row) {
     wsHub.emit("agents:skills-updated", { agentId: row.agentId });

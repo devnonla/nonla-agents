@@ -12,10 +12,11 @@ import { ChatOpenAI } from "@langchain/openai";
 import { eq } from "drizzle-orm";
 import { decryptProviderApiKey } from "../../modules/llm-providers/llm-providers.service.js";
 import { getDb, llmProviders } from "../db/client.js";
+import { qone } from "../db/query.js";
 
 export async function getChatModel(providerId: string, modelId: string): Promise<BaseChatModel> {
   const db = getDb();
-  const p = db.select().from(llmProviders).where(eq(llmProviders.id, providerId)).get();
+  const p = await qone(db.select().from(llmProviders).where(eq(llmProviders.id, providerId)));
 
   if (!p) {
     throw new Error(`Provider "${providerId}" not found in DB`);

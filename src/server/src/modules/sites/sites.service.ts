@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { SignJWT, jwtVerify } from "jose";
 import { getDb, sites } from "../../common/db/client.js";
 import { listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from "../../common/exceptions/http.exception.js";
 import { requestOrigin } from "../../common/spa-html.js";
 import { slugify } from "../../common/utils/slug.js";
@@ -32,8 +33,8 @@ export function assertSiteAccess(site: SiteRow, user: SiteActor) {
   throw new ForbiddenException("Forbidden");
 }
 
-export function requireSiteAccess(id: string, user: SiteActor) {
-  const site = getSiteOrThrow(id);
+export async function requireSiteAccess(id: string, user: SiteActor) {
+  const site = await getSiteOrThrow(id);
   assertSiteAccess(site, user);
   return site;
 }
@@ -51,7 +52,7 @@ async function generateSiteToken(siteId: string, storedPassword: string): Promis
 }
 
 export async function verifySitePublicToken(siteId: string, token: string): Promise<boolean> {
-  const site = getSiteOrThrow(siteId);
+  const site = await getSiteOrThrow(siteId);
   if (!site.isPublished || !siteRequiresPassword(site)) return false;
   try {
     const { payload } = await jwtVerify(token, getSiteTokenSecret(site.publicPassword!));
@@ -67,12 +68,12 @@ async function hasSitePublicAccess(site: SiteRow, opts?: { password?: string; to
     const ok = await verifyStoredPublicPassword(site.publicPassword!, opts.password);
     if (ok) return true;
   }
-  if (opts?.token) return verifySitePublicToken(site.id, opts.token);
+  if (opts?.token) return await verifySitePublicToken(site.id, opts.token);
   return false;
 }
 
 export async function verifySitePublicPassword(slug: string, password?: string) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) throw new NotFoundException("Site not found");
   if (siteRequiresPassword(site)) {
     if (!password || !(await verifyStoredPublicPassword(site.publicPassword!, password))) {
@@ -81,7 +82,7 @@ export async function verifySitePublicPassword(slug: string, password?: string) 
     // Migrate legacy plaintext to hash on successful verify
     if (!isPasswordHash(site.publicPassword!)) {
       const hashed = await hashPublicPassword(password);
-      getDb().update(sites).set({ publicPassword: hashed, updatedAt: new Date() }).where(eq(sites.id, site.id)).run();
+      await qrun(getDb().update(sites).set({ publicPassword: hashed, updatedAt: new Date() }).where(eq(sites.id, site.id)));
       site.publicPassword = hashed;
     }
   }
@@ -90,7 +91,7 @@ export async function verifySitePublicPassword(slug: string, password?: string) 
 }
 
 export async function verifySitePublicAccessToken(slug: string, token?: string) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) return { valid: false };
   if (!token) return { valid: false };
   return { valid: await verifySitePublicToken(site.id, token) };
@@ -113,9 +114,9 @@ function assertName(name: string) {
   return n;
 }
 
-function getSiteOrThrow(id: string) {
+async function getSiteOrThrow(id: string) {
   const db = getDb();
-  const row = db.select().from(sites).where(eq(sites.id, id)).get();
+  const row = await qone(db.select().from(sites).where(eq(sites.id, id)));
   if (!row) throw new NotFoundException("Site not found");
   return row;
 }
@@ -149,9 +150,9 @@ async function hashPublicPassword(password: string): Promise<string> {
   return Bun.password.hash(password);
 }
 
-export function listSites(query: Record<string, string | undefined>, user?: SiteActor) {
+export async function listSites(query: Record<string, string | undefined>, user?: SiteActor) {
   const ownerFilter = user && user.role !== "admin" ? eq(sites.createdBy, user.id) : undefined;
-  const result = listQuery(
+  const result = await listQuery(
     {
       table: sites,
       searchColumns: ["name", "slug"],
@@ -165,13 +166,13 @@ export function listSites(query: Record<string, string | undefined>, user?: Site
   };
 }
 
-export function getSite(id: string) {
-  return toSiteResponse(getSiteOrThrow(id));
+export async function getSite(id: string) {
+  return toSiteResponse(await getSiteOrThrow(id));
 }
 
-export function getSiteBySlug(slug: string) {
+export async function getSiteBySlug(slug: string) {
   const db = getDb();
-  const row = db.select().from(sites).where(eq(sites.slug, slug.trim().toLowerCase())).get();
+  const row = await qone(db.select().from(sites).where(eq(sites.slug, slug.trim().toLowerCase())));
   if (!row) throw new NotFoundException("Site not found");
   return withDirty(row);
 }
@@ -181,49 +182,51 @@ export async function createSite(body: { name?: string; slug?: string; createdBy
   const slug = assertSlug(body.slug ?? "");
   const db = getDb();
 
-  const existing = db.select().from(sites).where(eq(sites.slug, slug)).get();
+  const existing = await qone(db.select().from(sites).where(eq(sites.slug, slug)));
   if (existing) throw new BadRequestException("slug already exists");
 
   const id = crypto.randomUUID();
   writeScaffold(id, slug);
 
-  const [row] = db
-    .insert(sites)
-    .values({
-      id,
-      name,
-      slug,
-      isPublished: false,
-      depsStatus: "installing",
-      draftDepsStatus: "installing",
-      createdBy: body.createdBy ?? null,
-    })
-    .returning()
-    .all();
+  const [row] = await qall(
+    db
+      .insert(sites)
+      .values({
+        id,
+        name,
+        slug,
+        isPublished: false,
+        depsStatus: "installing",
+        draftDepsStatus: "installing",
+        createdBy: body.createdBy ?? null,
+      })
+      .returning(),
+  );
 
   wsHub.emit("sites:created", toSiteResponse(row));
 
   const prod = await installSiteDeps(id, "prod");
   const draft = await installSiteDeps(id, "draft");
-  const [updated] = db
-    .update(sites)
-    .set({
-      depsStatus: prod.ok ? "ready" : "error",
-      depsError: prod.ok ? null : prod.error,
-      draftDepsStatus: draft.ok ? "ready" : "error",
-      draftDepsError: draft.ok ? null : draft.error,
-      updatedAt: new Date(),
-    })
-    .where(eq(sites.id, id))
-    .returning()
-    .all();
+  const [updated] = await qall(
+    db
+      .update(sites)
+      .set({
+        depsStatus: prod.ok ? "ready" : "error",
+        depsError: prod.ok ? null : prod.error,
+        draftDepsStatus: draft.ok ? "ready" : "error",
+        draftDepsError: draft.ok ? null : draft.error,
+        updatedAt: new Date(),
+      })
+      .where(eq(sites.id, id))
+      .returning(),
+  );
   wsHub.emit("sites:updated", toSiteResponse(updated));
 
   return toSiteResponse(updated);
 }
 
 export async function updateSite(id: string, body: { name?: string; slug?: string; isPublished?: boolean; publicPassword?: string | null }) {
-  const current = getSiteOrThrow(id);
+  const current = await getSiteOrThrow(id);
   const db = getDb();
   const patch: Partial<typeof sites.$inferInsert> = { updatedAt: new Date() };
 
@@ -231,7 +234,7 @@ export async function updateSite(id: string, body: { name?: string; slug?: strin
   if (body.slug !== undefined) {
     const slug = assertSlug(body.slug);
     if (slug !== current.slug) {
-      const clash = db.select().from(sites).where(eq(sites.slug, slug)).get();
+      const clash = await qone(db.select().from(sites).where(eq(sites.slug, slug)));
       if (clash) throw new BadRequestException("slug already exists");
       patch.slug = slug;
     }
@@ -246,30 +249,30 @@ export async function updateSite(id: string, body: { name?: string; slug?: strin
     }
   }
 
-  const [row] = db.update(sites).set(patch).where(eq(sites.id, id)).returning().all();
+  const [row] = await qall(db.update(sites).set(patch).where(eq(sites.id, id)).returning());
   const safe = toSiteResponse(row);
   wsHub.emit("sites:updated", safe);
   return safe;
 }
 
-export function deleteSite(id: string) {
-  getSiteOrThrow(id);
+export async function deleteSite(id: string) {
+  await getSiteOrThrow(id);
   const db = getDb();
-  db.delete(sites).where(eq(sites.id, id)).run();
+  await qrun(db.delete(sites).where(eq(sites.id, id)));
   removeSiteDir(id);
   invalidateSiteCaches(id);
   wsHub.emit("sites:deleted", { id });
   return { ok: true };
 }
 
-export function getSiteFiles(id: string, tree: SiteTree = "draft") {
-  const site = getSiteOrThrow(id);
+export async function getSiteFiles(id: string, tree: SiteTree = "draft") {
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   return { tree, files: readAllSourceFiles(id, tree), draftDirty: isDraftDirty(id) };
 }
 
 export async function updateSiteFile(id: string, file: string, content: string, tree: SiteTree = "draft") {
-  const site = getSiteOrThrow(id);
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   if (tree === "prod") {
     throw new BadRequestException("Cannot write production files directly; edit draft and approve");
@@ -287,40 +290,41 @@ export async function updateSiteFile(id: string, file: string, content: string, 
   const db = getDb();
   const patch: Partial<typeof sites.$inferInsert> = { updatedAt: new Date() };
   if (tree === "draft") patch.draftUpdatedAt = new Date();
-  const [row] = db.update(sites).set(patch).where(eq(sites.id, id)).returning().all();
+  const [row] = await qall(db.update(sites).set(patch).where(eq(sites.id, id)).returning());
   const safe = toSiteResponse(row);
   wsHub.emit("sites:updated", safe);
   return { ok: true, file, tree, draftDirty: isDraftDirty(id), site: safe, depsInstalled: false as const };
 }
 
 export async function installDeps(id: string, tree: SiteTree = "draft") {
-  getSiteOrThrow(id);
+  await getSiteOrThrow(id);
   const db = getDb();
   if (tree === "draft") {
-    db.update(sites).set({ draftDepsStatus: "installing", draftDepsError: null, updatedAt: new Date() }).where(eq(sites.id, id)).run();
+    await qrun(db.update(sites).set({ draftDepsStatus: "installing", draftDepsError: null, updatedAt: new Date() }).where(eq(sites.id, id)));
   } else {
-    db.update(sites).set({ depsStatus: "installing", depsError: null, updatedAt: new Date() }).where(eq(sites.id, id)).run();
+    await qrun(db.update(sites).set({ depsStatus: "installing", depsError: null, updatedAt: new Date() }).where(eq(sites.id, id)));
   }
 
   const result = await installSiteDeps(id, tree);
-  const [row] = db
-    .update(sites)
-    .set(
-      tree === "draft"
-        ? {
-            draftDepsStatus: result.ok ? "ready" : "error",
-            draftDepsError: result.ok ? null : result.error,
-            updatedAt: new Date(),
-          }
-        : {
-            depsStatus: result.ok ? "ready" : "error",
-            depsError: result.ok ? null : result.error,
-            updatedAt: new Date(),
-          },
-    )
-    .where(eq(sites.id, id))
-    .returning()
-    .all();
+  const [row] = await qall(
+    db
+      .update(sites)
+      .set(
+        tree === "draft"
+          ? {
+              draftDepsStatus: result.ok ? "ready" : "error",
+              draftDepsError: result.ok ? null : result.error,
+              updatedAt: new Date(),
+            }
+          : {
+              depsStatus: result.ok ? "ready" : "error",
+              depsError: result.ok ? null : result.error,
+              updatedAt: new Date(),
+            },
+      )
+      .where(eq(sites.id, id))
+      .returning(),
+  );
 
   invalidateSiteCaches(id);
   const safe = toSiteResponse(row);
@@ -336,7 +340,7 @@ function parseOptionalSourceFiles(file?: string): SiteSourceFile[] | undefined {
 }
 
 export async function approveSite(id: string, file?: string) {
-  getSiteOrThrow(id);
+  await getSiteOrThrow(id);
   const files = parseOptionalSourceFiles(file);
   promoteDraftToProd(id, files);
   invalidateSiteCaches(id);
@@ -344,26 +348,27 @@ export async function approveSite(id: string, file?: string) {
   const needsInstall = !files || files.includes("package.json");
   if (!needsInstall) {
     const db = getDb();
-    const [row] = db.update(sites).set({ updatedAt: new Date() }).where(eq(sites.id, id)).returning().all();
+    const [row] = await qall(db.update(sites).set({ updatedAt: new Date() }).where(eq(sites.id, id)).returning());
     const safe = toSiteResponse(row);
     wsHub.emit("sites:updated", safe);
     return safe;
   }
 
   const db = getDb();
-  db.update(sites).set({ depsStatus: "installing", depsError: null, updatedAt: new Date() }).where(eq(sites.id, id)).run();
+  await qrun(db.update(sites).set({ depsStatus: "installing", depsError: null, updatedAt: new Date() }).where(eq(sites.id, id)));
 
   const result = await installSiteDeps(id, "prod");
-  const [row] = db
-    .update(sites)
-    .set({
-      depsStatus: result.ok ? "ready" : "error",
-      depsError: result.ok ? null : result.error,
-      updatedAt: new Date(),
-    })
-    .where(eq(sites.id, id))
-    .returning()
-    .all();
+  const [row] = await qall(
+    db
+      .update(sites)
+      .set({
+        depsStatus: result.ok ? "ready" : "error",
+        depsError: result.ok ? null : result.error,
+        updatedAt: new Date(),
+      })
+      .where(eq(sites.id, id))
+      .returning(),
+  );
 
   const safe = toSiteResponse(row);
   wsHub.emit("sites:updated", safe);
@@ -371,31 +376,31 @@ export async function approveSite(id: string, file?: string) {
   return safe;
 }
 
-export function discardSiteDraft(id: string, file?: string) {
-  getSiteOrThrow(id);
+export async function discardSiteDraft(id: string, file?: string) {
+  await getSiteOrThrow(id);
   discardDraft(id, parseOptionalSourceFiles(file));
   invalidateSiteCaches(id);
   const db = getDb();
-  const [row] = db.update(sites).set({ draftUpdatedAt: new Date(), updatedAt: new Date() }).where(eq(sites.id, id)).returning().all();
+  const [row] = await qall(db.update(sites).set({ draftUpdatedAt: new Date(), updatedAt: new Date() }).where(eq(sites.id, id)).returning());
   const safe = toSiteResponse(row);
   wsHub.emit("sites:updated", safe);
   return safe;
 }
 
 export async function getSiteThumbnailPng(id: string) {
-  getSiteOrThrow(id);
+  await getSiteOrThrow(id);
   return readSiteThumbnailPng(id);
 }
 
 export async function saveSiteThumbnailPng(id: string, png: Buffer) {
-  getSiteOrThrow(id);
+  await getSiteOrThrow(id);
   await writeSiteThumbnailPng(id, png);
   return { ok: true as const };
 }
 
 /** Bundle check / agent preview — returns shell HTML + backend GET data summary. */
 export async function previewSite(id: string, query?: Record<string, string>, tree: SiteTree = "draft") {
-  const site = getSiteOrThrow(id);
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   const pageUrl = new URL(sitePublicPath(site.slug), "http://site.local");
   if (query) {
@@ -413,18 +418,18 @@ export async function previewSite(id: string, query?: Record<string, string>, tr
 }
 
 export async function runDraftAction(id: string, request: Request) {
-  const site = getSiteOrThrow(id);
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   return runSiteActionModule(id, "draft", { request });
 }
 
-export function resolveSelection(id: string, body: { sourceAnchor?: string; tagName?: string; className?: string; text?: string; outerHtml?: string }) {
-  getSiteOrThrow(id);
+export async function resolveSelection(id: string, body: { sourceAnchor?: string; tagName?: string; className?: string; text?: string; outerHtml?: string }) {
+  await getSiteOrThrow(id);
   return resolveSiteSelection(id, body);
 }
 
 export async function loadPublicSiteData(slug: string, request: Request, access?: { password?: string; token?: string }) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) throw new NotFoundException("Site not found");
   const allowed = await hasSitePublicAccess(site, access);
   if (!allowed) throw new UnauthorizedException("Password required");
@@ -434,7 +439,7 @@ export async function loadPublicSiteData(slug: string, request: Request, access?
 }
 
 export async function loadDraftSiteData(id: string, request: Request) {
-  const site = getSiteOrThrow(id);
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   const query = Object.fromEntries(new URL(request.url).searchParams.entries());
   return runSiteLoad(id, "draft", { request, query });
@@ -442,7 +447,7 @@ export async function loadDraftSiteData(id: string, request: Request) {
 
 /** HTML document for draft live preview (editor iframe). */
 export async function renderDraftLiveHtml(id: string, _request?: Request) {
-  const site = getSiteOrThrow(id);
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   await buildSiteBundle(id, "draft");
   return buildSiteShellHtml({
@@ -454,7 +459,7 @@ export async function renderDraftLiveHtml(id: string, _request?: Request) {
 }
 
 export async function getDraftLiveAsset(id: string, file: "app.js" | "styles.css") {
-  const site = getSiteOrThrow(id);
+  const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
   const bundle = await buildSiteBundle(id, "draft");
   if (file === "app.js") return { body: bundle.appJs, contentType: "text/javascript; charset=utf-8" };
@@ -462,7 +467,7 @@ export async function getDraftLiveAsset(id: string, file: "app.js" | "styles.css
 }
 
 export async function renderPublicSiteDocument(slug: string, request: Request, access?: { password?: string; token?: string }) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) throw new NotFoundException("Site not found");
   ensureReactSiteSources(site.id, site.slug);
   const requiresPassword = siteRequiresPassword(site);
@@ -492,7 +497,7 @@ export async function renderPublicSiteDocument(slug: string, request: Request, a
 }
 
 export async function getPublicSiteAsset(slug: string, file: "app.js" | "styles.css", access?: { password?: string; token?: string }) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) throw new NotFoundException("Site not found");
   const allowed = await hasSitePublicAccess(site, access);
   if (!allowed) throw new UnauthorizedException("Password required");
@@ -504,7 +509,7 @@ export async function getPublicSiteAsset(slug: string, file: "app.js" | "styles.
 
 /** @deprecated JSON HTML preview — kept for older clients; prefer live document. */
 export async function renderPublicSite(slug: string, request: Request, access?: { password?: string; token?: string }) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) throw new NotFoundException("Site not found");
   const requiresPassword = siteRequiresPassword(site);
   const allowed = await hasSitePublicAccess(site, access);
@@ -530,7 +535,7 @@ export async function renderPublicSite(slug: string, request: Request, access?: 
 }
 
 export async function runPublicAction(slug: string, request: Request, access?: { password?: string; token?: string }) {
-  const site = getSiteBySlug(slug);
+  const site = await getSiteBySlug(slug);
   if (!site.isPublished) throw new NotFoundException("Site not found");
   const allowed = await hasSitePublicAccess(site, access);
   if (!allowed) throw new UnauthorizedException("Password required");
@@ -538,8 +543,8 @@ export async function runPublicAction(slug: string, request: Request, access?: {
   return runSiteActionModule(site.id, "prod", { request });
 }
 
-export function readDraftFile(id: string, file: SiteSourceFile) {
-  getSiteOrThrow(id);
-  ensureReactSiteSources(id, getSiteOrThrow(id).slug);
+export async function readDraftFile(id: string, file: SiteSourceFile) {
+  await getSiteOrThrow(id);
+  ensureReactSiteSources(id, (await getSiteOrThrow(id)).slug);
   return readAllSourceFiles(id, "draft")[file];
 }

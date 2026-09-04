@@ -10,6 +10,7 @@ import { type StructuredToolInterface, tool } from "@langchain/core/tools";
 import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { MEMORY_RELATION_MAX, getDb, memoryEdges, memoryNodes } from "../../../../common/db/client.js";
+import { qall, qone, qrun } from "../../../../common/db/query.js";
 import { normalizeRelation } from "../../memory.service.js";
 import { MEMORY_CONTENT_MAX } from "../utils/factBudget.js";
 
@@ -23,7 +24,7 @@ function resolveContent(content?: string, label?: string): string {
   return (content ?? label ?? "").trim();
 }
 
-export function makeMemoryTool(agentId: string, ownerId: string, _isGuest = false, options: MakeMemoryToolOptions = {}): StructuredToolInterface {
+export async function makeMemoryTool(agentId: string, ownerId: string, _isGuest = false, options: MakeMemoryToolOptions = {}): Promise<StructuredToolInterface> {
   const conversationId = options.conversationId ?? null;
 
   const description = `Manage this user's long-term memory as a small knowledge graph.
@@ -72,23 +73,24 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
       const db = getDb();
       const now = new Date();
 
-      const scopeNode = (nodeId: string) =>
-        db
-          .select()
-          .from(memoryNodes)
-          .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId)))
-          .get();
+      const scopeNode = async (nodeId: string) =>
+        await qone(
+          db
+            .select()
+            .from(memoryNodes)
+            .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId))),
+        );
 
       if (action === "upsert_node") {
         if (id) {
-          const existing = scopeNode(id);
+          const existing = await scopeNode(id);
           if (!existing) return JSON.stringify({ ok: false, error: "Node not found." });
           const nextContent = content !== undefined || label !== undefined ? resolveContent(content, label) : existing.content;
           if (!nextContent) return JSON.stringify({ ok: false, error: "content cannot be empty." });
           if (nextContent.length > MEMORY_CONTENT_MAX) {
             return JSON.stringify({ ok: false, error: `content must be ≤${MEMORY_CONTENT_MAX} characters.` });
           }
-          db.update(memoryNodes).set({ content: nextContent, updatedAt: now }).where(eq(memoryNodes.id, id)).run();
+          await qrun(db.update(memoryNodes).set({ content: nextContent, updatedAt: now }).where(eq(memoryNodes.id, id)));
           return JSON.stringify({
             ok: true,
             id,
@@ -104,8 +106,8 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
         }
 
         const nodeId = crypto.randomUUID();
-        db.insert(memoryNodes)
-          .values({
+        await qrun(
+          db.insert(memoryNodes).values({
             id: nodeId,
             agentId,
             ownerId,
@@ -113,8 +115,8 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
             sourceConversationId: conversationId,
             createdAt: now,
             updatedAt: now,
-          })
-          .run();
+          }),
+        );
         return JSON.stringify({
           ok: true,
           id: nodeId,
@@ -125,7 +127,7 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
 
       if (action === "update_node") {
         if (!id) return JSON.stringify({ ok: false, error: "'id' is required for update_node." });
-        const existing = scopeNode(id);
+        const existing = await scopeNode(id);
         if (!existing) return JSON.stringify({ ok: false, error: "Node not found." });
         const patch: Record<string, unknown> = { updatedAt: now };
         if (content !== undefined || label !== undefined) {
@@ -136,18 +138,16 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
           }
           patch.content = next;
         }
-        db.update(memoryNodes).set(patch).where(eq(memoryNodes.id, id)).run();
+        await qrun(db.update(memoryNodes).set(patch).where(eq(memoryNodes.id, id)));
         return JSON.stringify({ ok: true, id, message: "Node updated." });
       }
 
       if (action === "forget_node") {
         if (!id) return JSON.stringify({ ok: false, error: "'id' is required for forget_node." });
-        const existing = scopeNode(id);
+        const existing = await scopeNode(id);
         if (!existing) return JSON.stringify({ ok: false, error: "Node not found." });
-        db.delete(memoryEdges)
-          .where(and(eq(memoryEdges.agentId, agentId), or(eq(memoryEdges.fromId, id), eq(memoryEdges.toId, id))))
-          .run();
-        db.delete(memoryNodes).where(eq(memoryNodes.id, id)).run();
+        await qrun(db.delete(memoryEdges).where(and(eq(memoryEdges.agentId, agentId), or(eq(memoryEdges.fromId, id), eq(memoryEdges.toId, id)))));
+        await qrun(db.delete(memoryNodes).where(eq(memoryNodes.id, id)));
         return JSON.stringify({ ok: true, id, message: "Node forgotten." });
       }
 
@@ -163,18 +163,19 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
             error: err instanceof Error ? err.message : "Invalid relation.",
           });
         }
-        const from = scopeNode(from_id);
-        const to = scopeNode(to_id);
+        const from = await scopeNode(from_id);
+        const to = await scopeNode(to_id);
         if (!from || !to) return JSON.stringify({ ok: false, error: "Both nodes must exist for this user." });
-        const dup = db
-          .select()
-          .from(memoryEdges)
-          .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.fromId, from_id), eq(memoryEdges.toId, to_id), eq(memoryEdges.relation, rel)))
-          .get();
+        const dup = await qone(
+          db
+            .select()
+            .from(memoryEdges)
+            .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.fromId, from_id), eq(memoryEdges.toId, to_id), eq(memoryEdges.relation, rel))),
+        );
         if (dup) return JSON.stringify({ ok: true, id: dup.id, message: "Link already exists." });
         const edgeId = crypto.randomUUID();
-        db.insert(memoryEdges)
-          .values({
+        await qrun(
+          db.insert(memoryEdges).values({
             id: edgeId,
             agentId,
             ownerId,
@@ -182,8 +183,8 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
             toId: to_id,
             relation: rel,
             createdAt: now,
-          })
-          .run();
+          }),
+        );
         return JSON.stringify({
           ok: true,
           id: edgeId,
@@ -194,11 +195,12 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
 
       if (action === "unlink") {
         if (!from_id || !to_id) return JSON.stringify({ ok: false, error: "Provide from_id and to_id." });
-        const rows = db
-          .select()
-          .from(memoryEdges)
-          .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.ownerId, ownerId), eq(memoryEdges.fromId, from_id), eq(memoryEdges.toId, to_id)))
-          .all();
+        const rows = await qall(
+          db
+            .select()
+            .from(memoryEdges)
+            .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.ownerId, ownerId), eq(memoryEdges.fromId, from_id), eq(memoryEdges.toId, to_id))),
+        );
         let filtered = rows;
         if (relation) {
           try {
@@ -212,7 +214,7 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
           }
         }
         for (const row of filtered) {
-          db.delete(memoryEdges).where(eq(memoryEdges.id, row.id)).run();
+          await qrun(db.delete(memoryEdges).where(eq(memoryEdges.id, row.id)));
         }
         return JSON.stringify({ ok: true, removed: filtered.length });
       }
@@ -220,40 +222,44 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
       if (action === "search") {
         const q = (query ?? "").trim().toLowerCase();
         if (!q) return JSON.stringify({ ok: false, error: "Provide 'query' for search." });
-        const rows = db
-          .select({
-            id: memoryNodes.id,
-            content: memoryNodes.content,
-          })
-          .from(memoryNodes)
-          .where(and(eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId)))
-          .all();
+        const rows = await qall(
+          db
+            .select({
+              id: memoryNodes.id,
+              content: memoryNodes.content,
+            })
+            .from(memoryNodes)
+            .where(and(eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId))),
+        );
         const matched = rows.filter((r) => r.content.toLowerCase().includes(q));
         return JSON.stringify({ ok: true, count: matched.length, nodes: matched.slice(0, 40) });
       }
 
       if (action === "neighbors") {
         if (!id) return JSON.stringify({ ok: false, error: "'id' is required for neighbors." });
-        const node = scopeNode(id);
+        const node = await scopeNode(id);
         if (!node) return JSON.stringify({ ok: false, error: "Node not found." });
-        const edges = db
-          .select()
-          .from(memoryEdges)
-          .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.ownerId, ownerId), or(eq(memoryEdges.fromId, id), eq(memoryEdges.toId, id))))
-          .all();
+        const edges = await qall(
+          db
+            .select()
+            .from(memoryEdges)
+            .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.ownerId, ownerId), or(eq(memoryEdges.fromId, id), eq(memoryEdges.toId, id)))),
+        );
         const otherIds = [...new Set(edges.map((e) => (e.fromId === id ? e.toId : e.fromId)))];
         const others =
           otherIds.length === 0
             ? []
-            : db
-                .select({
-                  id: memoryNodes.id,
-                  content: memoryNodes.content,
-                })
-                .from(memoryNodes)
-                .where(and(eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId)))
-                .all()
-                .filter((n) => otherIds.includes(n.id));
+            : (
+                await qall(
+                  db
+                    .select({
+                      id: memoryNodes.id,
+                      content: memoryNodes.content,
+                    })
+                    .from(memoryNodes)
+                    .where(and(eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId))),
+                )
+              ).filter((n) => otherIds.includes(n.id));
         const byId = new Map(others.map((n) => [n.id, n]));
         const links = edges.map((e) => {
           const otherId = e.fromId === id ? e.toId : e.fromId;
@@ -273,24 +279,26 @@ Core nodes appear in <memory> (budgeted). Use search/neighbors for the rest.`;
       }
 
       if (action === "list") {
-        const nodes = db
-          .select({
-            id: memoryNodes.id,
-            content: memoryNodes.content,
-          })
-          .from(memoryNodes)
-          .where(and(eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId)))
-          .all();
-        const edges = db
-          .select({
-            id: memoryEdges.id,
-            from_id: memoryEdges.fromId,
-            to_id: memoryEdges.toId,
-            relation: memoryEdges.relation,
-          })
-          .from(memoryEdges)
-          .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.ownerId, ownerId)))
-          .all();
+        const nodes = await qall(
+          db
+            .select({
+              id: memoryNodes.id,
+              content: memoryNodes.content,
+            })
+            .from(memoryNodes)
+            .where(and(eq(memoryNodes.agentId, agentId), eq(memoryNodes.ownerId, ownerId))),
+        );
+        const edges = await qall(
+          db
+            .select({
+              id: memoryEdges.id,
+              from_id: memoryEdges.fromId,
+              to_id: memoryEdges.toId,
+              relation: memoryEdges.relation,
+            })
+            .from(memoryEdges)
+            .where(and(eq(memoryEdges.agentId, agentId), eq(memoryEdges.ownerId, ownerId))),
+        );
         return JSON.stringify({ ok: true, nodes, edges });
       }
 

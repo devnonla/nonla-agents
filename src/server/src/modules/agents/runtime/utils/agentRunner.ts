@@ -20,6 +20,7 @@ import { createAgent } from "langchain";
 import { extractAiMessageText, unstreamedTextRemainder } from "../../../../common/ai/ai-message-text.js";
 import { getChatModel } from "../../../../common/ai/getChatModel.js";
 import { agents, getDb } from "../../../../common/db/client.js";
+import { qall, qone } from "../../../../common/db/query.js";
 import { type AssignmentWithTool, listAssignments } from "../../agents.service.js";
 import { isCallAgentToolName, parseCallAgentToolTargetId } from "../llm-tools/call-agent.tool.js";
 import { resolveSystemPrompt } from "./buildSystemPrompt.js";
@@ -78,10 +79,10 @@ function buildEnabledToolIds(assignments: AssignmentWithTool[]): string[] {
   return assignments.map((a) => a.toolId).filter((id) => id !== "builtin:call_agent");
 }
 
-function loadCallableAgents(callableAgentIds: string[]): { id: string; name: string; description: string | null }[] {
+async function loadCallableAgents(callableAgentIds: string[]): Promise<{ id: string; name: string; description: string | null }[]> {
   if (callableAgentIds.length === 0) return [];
   const db = getDb();
-  const all = db.select({ id: agents.id, name: agents.name, description: agents.description }).from(agents).all();
+  const all = await qall(db.select({ id: agents.id, name: agents.name, description: agents.description }).from(agents));
   return all.filter((a) => callableAgentIds.includes(a.id));
 }
 
@@ -116,7 +117,7 @@ function toBaseMessages(messages: MessageParam[]): BaseMessage[] {
 }
 
 /** Parse final messages from the agent's output state into AgentResult */
-function parseAgentResult(resultMessages: BaseMessage[]): AgentResult {
+async function parseAgentResult(resultMessages: BaseMessage[]): Promise<AgentResult> {
   let fullText = "";
   const steps: AgentStepSummary[] = [];
   let currentStep: AgentStepSummary | null = null;
@@ -136,11 +137,13 @@ function parseAgentResult(resultMessages: BaseMessage[]): AgentResult {
       if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
         currentStep = {
           text: typeof aiMsg.content === "string" ? aiMsg.content : "",
-          toolCalls: aiMsg.tool_calls.map((tc) => ({
-            toolName: tc.name,
-            label: getToolLabel(tc.name),
-            args: tc.args,
-          })),
+          toolCalls: await Promise.all(
+            aiMsg.tool_calls.map(async (tc) => ({
+              toolName: tc.name,
+              label: await getToolLabel(tc.name),
+              args: tc.args,
+            })),
+          ),
           toolResults: [],
         };
       } else {
@@ -209,14 +212,14 @@ export async function generateAgent(
   } = {},
 ): Promise<AgentResult> {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
   if (!agent.aiProvider || !agent.aiModel) {
     throw new Error(`Agent "${agent.name}" has no AI provider configured`);
   }
 
   // Get tool assignments from junction table
-  const assignments = listAssignments(agentId);
+  const assignments = await listAssignments(agentId);
   const enabledToolIds = buildEnabledToolIds(assignments);
 
   const ownerId = options.ownerId ?? "user";
@@ -225,7 +228,7 @@ export async function generateAgent(
 
   // Callable agents from agent's callableAgentIds column
   const callableAgentIds: string[] = (agent.callableAgentIds as string[]) ?? [];
-  const callableAgents = allowCallAgent ? loadCallableAgents(callableAgentIds) : [];
+  const callableAgents = allowCallAgent ? await loadCallableAgents(callableAgentIds) : [];
 
   const [model, baseSystemPrompt, tools] = await Promise.all([
     getChatModel(agent.aiProvider, agent.aiModel),
@@ -266,7 +269,7 @@ export async function generateAgent(
   // Skip the original input messages (system prompt is handled internally by createAgent)
   const originalCount = messages.length;
   const newMessages = result.messages.slice(originalCount);
-  return parseAgentResult(newMessages);
+  return await parseAgentResult(newMessages);
 }
 
 // ─── streamAgent ──────────────────────────────────────────────────────────────
@@ -288,7 +291,7 @@ export async function* streamAgent(
   } = {},
 ): AsyncGenerator<AgentStreamEvent> {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
 
   if (!agent) {
     yield { type: "error", error: `Agent not found: ${agentId}` };
@@ -304,7 +307,7 @@ export async function* streamAgent(
   }
 
   // Get tool assignments from junction table
-  const assignments = listAssignments(agentId);
+  const assignments = await listAssignments(agentId);
   const enabledToolIds = buildEnabledToolIds(assignments);
 
   const ownerId = options.ownerId ?? "user";
@@ -313,7 +316,7 @@ export async function* streamAgent(
   try {
     // Callable agents from agent's callableAgentIds column
     const callableAgentIds: string[] = (agent.callableAgentIds as string[]) ?? [];
-    const callableAgents = loadCallableAgents(callableAgentIds);
+    const callableAgents = await loadCallableAgents(callableAgentIds);
 
     const [model, baseSystemPrompt, tools] = await Promise.all([
       getChatModel(agent.aiProvider, agent.aiModel),
@@ -446,8 +449,8 @@ export async function* streamAgent(
                         type: "tool-call",
                         toolCallId: tc.id,
                         toolName: tc.name,
-                        toolLabel: getToolLabel(tc.name),
-                        toolIcon: getToolIcon(tc.name),
+                        toolLabel: await getToolLabel(tc.name),
+                        toolIcon: await getToolIcon(tc.name),
                         input: enrichToolCallInput(tc.name, earlyArgs),
                       };
                     }
@@ -482,8 +485,8 @@ export async function* streamAgent(
                     type: "tool-call",
                     toolCallId: tcId,
                     toolName: tc.name,
-                    toolLabel: getToolLabel(tc.name),
-                    toolIcon: getToolIcon(tc.name),
+                    toolLabel: await getToolLabel(tc.name),
+                    toolIcon: await getToolIcon(tc.name),
                     input: enrichToolCallInput(tc.name, tc.args),
                   };
                 }
@@ -527,8 +530,8 @@ export async function* streamAgent(
             type: "tool-call",
             toolCallId: tcId,
             toolName: pending.name,
-            toolLabel: getToolLabel(pending.name),
-            toolIcon: getToolIcon(pending.name),
+            toolLabel: await getToolLabel(pending.name),
+            toolIcon: await getToolIcon(pending.name),
             input: enrichToolCallInput(pending.name, parsedArgs),
           };
         }

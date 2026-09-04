@@ -10,11 +10,11 @@ export { getInstanceId, wakeScheduler } from "./jobs-events.js";
 
 async function tickOnce() {
   const now = new Date();
-  healOrphanedRuns(now);
+  await healOrphanedRuns(now);
 
-  const due = listDueJobs(now);
+  const due = await listDueJobs(now);
   for (const job of due) {
-    const claimed = tryClaimJob(job.id, "cron");
+    const claimed = await tryClaimJob(job.id, "cron");
     if (!claimed) continue;
     startClaimedRun(claimed.job.id, claimed.run.id, true);
   }
@@ -29,7 +29,7 @@ async function loop() {
     }
 
     const now = Date.now();
-    const next = getMinNextRunAt();
+    const next = await getMinNextRunAt();
     let sleepMs = MAX_SLEEP_MS;
     if (next) {
       sleepMs = Math.min(MAX_SLEEP_MS, Math.max(0, next.getTime() - now));

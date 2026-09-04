@@ -112,11 +112,11 @@ export function buildLangChainMessages(messages: DatatableAgentStreamRequest["me
 
 export async function streamDatatableAgent(projectId: string, body: DatatableAgentStreamRequest, stream: SSEStreamingApi, abortSignal?: AbortSignal): Promise<void> {
   const { providerId, modelId, messages } = body;
-  const project = getProject(projectId);
+  const project = await getProject(projectId);
   if (!project) throw new NotFoundException("Project not found");
 
   const model = await getChatModel(providerId, modelId);
-  const schema = getProjectSchema(projectId);
+  const schema = await getProjectSchema(projectId);
 
   const tools: StructuredToolInterface[] = [makeDatatableTool(PROJECT_ACTIONS, { lockedProjectId: projectId })];
   const systemPrompt = buildDatatableAgentSystemPrompt(project, schema.tables);

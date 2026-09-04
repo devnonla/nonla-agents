@@ -211,7 +211,7 @@ export function createApp(): Hono {
   const spaBuildMeta = loadSpaBuildMeta(webDist);
 
   // ── Health check ───────────────────────────────────────────────────────────
-  app.get("/api/health", (c) =>
+  app.get("/api/health", async (c) =>
     c.json({
       ok: true,
       app: "nonla-agents",
@@ -237,7 +237,7 @@ export function createApp(): Hono {
       }
 
       const baseHtml = await Bun.file(indexPath).text();
-      const html = buildSpaHtml(baseHtml, {
+      const html = await buildSpaHtml(baseHtml, {
         origin: requestOrigin(c.req.raw),
         path: reqPath,
       });
@@ -250,7 +250,7 @@ export function createApp(): Hono {
       });
     });
   } else {
-    app.get("/", (c) =>
+    app.get("/", async (c) =>
       c.json({
         ok: true,
         app: "nonla-agents",

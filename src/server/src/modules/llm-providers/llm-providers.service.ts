@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { decryptSecret, encryptSecret } from "../../common/crypto/secret-crypto.js";
 import { type LlmProvider, type NewLlmProvider, getDb, llmProviders } from "../../common/db/client.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 
 export type ProviderPublic = {
@@ -42,18 +43,18 @@ export function toProviderPublic(row: LlmProvider): ProviderPublic {
   };
 }
 
-export function getProvider(id: string) {
-  return getDb().select().from(llmProviders).where(eq(llmProviders.id, id)).get();
+export async function getProvider(id: string) {
+  return await qone(getDb().select().from(llmProviders).where(eq(llmProviders.id, id)));
 }
 
 /** Internal — provider row with decrypted apiKey for LLM / fetchModels. */
-export function getProviderForUse(id: string): (Omit<LlmProvider, "apiKey"> & { apiKey: string }) | null {
-  const row = getProvider(id);
+export async function getProviderForUse(id: string): Promise<(Omit<LlmProvider, "apiKey"> & { apiKey: string }) | null> {
+  const row = await getProvider(id);
   if (!row) return null;
   return { ...row, apiKey: decryptProviderApiKey(row.apiKey) };
 }
 
-export function createProvider(body: Pick<NewLlmProvider, "provider" | "label" | "apiKey" | "customBaseUrl" | "models">) {
+export async function createProvider(body: Pick<NewLlmProvider, "provider" | "label" | "apiKey" | "customBaseUrl" | "models">) {
   const now = new Date();
   const row: NewLlmProvider = {
     ...body,
@@ -61,13 +62,13 @@ export function createProvider(body: Pick<NewLlmProvider, "provider" | "label" |
     createdAt: now,
     updatedAt: now,
   };
-  const [created] = getDb().insert(llmProviders).values(row).returning().all();
+  const [created] = await qall(getDb().insert(llmProviders).values(row).returning());
   return created;
 }
 
-export function updateProvider(id: string, body: Partial<Pick<NewLlmProvider, "provider" | "label" | "apiKey" | "customBaseUrl" | "models">>) {
+export async function updateProvider(id: string, body: Partial<Pick<NewLlmProvider, "provider" | "label" | "apiKey" | "customBaseUrl" | "models">>) {
   const db = getDb();
-  const current = db.select().from(llmProviders).where(eq(llmProviders.id, id)).get();
+  const current = await qone(db.select().from(llmProviders).where(eq(llmProviders.id, id)));
   if (!current) throw new BadRequestException("Provider not found");
 
   const patch: Partial<NewLlmProvider> & { updatedAt: Date } = { updatedAt: new Date() };
@@ -80,10 +81,10 @@ export function updateProvider(id: string, body: Partial<Pick<NewLlmProvider, "p
     patch.apiKey = encryptSecret(body.apiKey);
   }
 
-  db.update(llmProviders).set(patch).where(eq(llmProviders.id, id)).run();
-  return db.select().from(llmProviders).where(eq(llmProviders.id, id)).get()!;
+  await qrun(db.update(llmProviders).set(patch).where(eq(llmProviders.id, id)));
+  return (await qone(db.select().from(llmProviders).where(eq(llmProviders.id, id))))!;
 }
 
-export function deleteProvider(id: string) {
-  getDb().delete(llmProviders).where(eq(llmProviders.id, id)).run();
+export async function deleteProvider(id: string) {
+  await qrun(getDb().delete(llmProviders).where(eq(llmProviders.id, id)));
 }

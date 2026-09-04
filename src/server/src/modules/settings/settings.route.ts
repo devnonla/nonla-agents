@@ -40,24 +40,24 @@ const TIMEZONE_LIST: TimezoneItem[] = (rawTimezones as Array<{ label: string; va
 const app = new Hono();
 
 // GET /api/settings/values?keys=key1,key2
-app.get("/values", (c) => {
+app.get("/values", async (c) => {
   const raw = c.req.query("keys") ?? "";
   const keys = raw
     .split(",")
     .map((k) => k.trim())
     .filter(Boolean);
   if (keys.length === 0) return c.json({});
-  return c.json(loadSettingsByKeys(keys));
+  return c.json(await loadSettingsByKeys(keys));
 });
 
 // PATCH /api/settings
 app.patch("/", async (c) => {
   const body = await c.req.json<Record<string, string>>();
-  saveSettings(body);
+  await saveSettings(body);
   return c.json({ ok: true });
 });
 
 // GET /api/settings/timezones
-app.get("/timezones", (c) => c.json(TIMEZONE_LIST));
+app.get("/timezones", async (c) => c.json(TIMEZONE_LIST));
 
 export default app;

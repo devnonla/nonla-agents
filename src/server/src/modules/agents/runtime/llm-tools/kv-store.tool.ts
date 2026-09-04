@@ -29,7 +29,7 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
         }
 
         if (action === "list") {
-          const map = loadKvMap();
+          const map = await loadKvMap();
           const entries = Object.entries(map).map(([k, v]) => ({ key: k, value: v }));
           return JSON.stringify({ ok: true, count: entries.length, entries });
         }
@@ -40,7 +40,7 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
         const normalized = key.trim().toUpperCase();
 
         if (action === "get") {
-          const entry = getKvByKey(normalized);
+          const entry = await getKvByKey(normalized);
           if (!entry) return JSON.stringify({ ok: false, error: `Key "${normalized}" not found.` });
           return JSON.stringify({ ok: true, key: entry.key, value: entry.value });
         }
@@ -49,12 +49,12 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
           if (typeof value !== "string") {
             return JSON.stringify({ ok: false, error: "'value' is required for set." });
           }
-          const entry = upsertKvByKey({ key: normalized, value });
+          const entry = await upsertKvByKey({ key: normalized, value });
           return JSON.stringify({ ok: true, key: entry?.key ?? normalized, value: entry?.value ?? value });
         }
 
         if (action === "delete") {
-          deleteKvByKey(normalized);
+          await deleteKvByKey(normalized);
           return JSON.stringify({ ok: true, deleted: normalized });
         }
 

@@ -9,6 +9,7 @@
 
 import { eq } from "drizzle-orm";
 import { getDb, users } from "../db/client.js";
+import { qone } from "../db/query.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 
 export const WS_APP_PROTOCOL = "nonla-agents";
@@ -59,7 +60,7 @@ export async function authenticateWsUpgrade(req: Request): Promise<WsAuthSuccess
 
   try {
     const payload = await verifyToken(token);
-    const user = getDb().select().from(users).where(eq(users.id, payload.sub)).get();
+    const user = await qone(getDb().select().from(users).where(eq(users.id, payload.sub)));
     if (!user?.isActive) {
       return new Response("Unauthorized", { status: 401 });
     }

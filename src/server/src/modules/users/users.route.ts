@@ -15,14 +15,14 @@ const app = new Hono();
 app.use("*", requireRole("admin"));
 
 // GET /api/users
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const query = c.req.query();
-  return c.json(listUsers(query));
+  return c.json(await listUsers(query));
 });
 
 // GET /api/users/:id
-app.get("/:id", (c) => {
-  const user = getUser(c.req.param("id"));
+app.get("/:id", async (c) => {
+  const user = await getUser(c.req.param("id"));
   if (!user) throw new BadRequestException("User not found");
   return c.json(user);
 });
@@ -37,14 +37,14 @@ app.post("/", async (c) => {
 // PUT /api/users/:id
 app.put("/:id", async (c) => {
   const body = await c.req.json();
-  const user = updateUser(c.req.param("id"), body);
+  const user = await updateUser(c.req.param("id"), body);
   return c.json(user);
 });
 
 // DELETE /api/users/:id
-app.delete("/:id", (c) => {
+app.delete("/:id", async (c) => {
   const currentUser = (c as any).get("user") as User;
-  deleteUser(c.req.param("id"), currentUser.id);
+  await deleteUser(c.req.param("id"), currentUser.id);
   return c.json({ ok: true });
 });
 

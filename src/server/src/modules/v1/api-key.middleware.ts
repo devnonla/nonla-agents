@@ -7,7 +7,7 @@ export type { ApiKeyContext };
 export async function requireApiKey(c: Context, next: Next) {
   const header = c.req.header("Authorization");
   const raw = header?.startsWith("Bearer ") ? header.slice(7).trim() : "";
-  const apiKey = raw ? authenticateApiKey(raw) : null;
+  const apiKey = raw ? await authenticateApiKey(raw) : null;
   if (!apiKey) {
     throw new UnauthorizedException("Invalid API key");
   }

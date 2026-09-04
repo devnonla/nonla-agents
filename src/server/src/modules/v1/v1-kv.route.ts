@@ -10,8 +10,8 @@ function toPublic(entry: { key: string; value: string; description?: string | nu
   return { key: entry.key, value: entry.value, description: entry.description ?? null };
 }
 
-function requireKv(apiKey: ApiKeyContext, key: string) {
-  const entry = getKvByKey(key);
+async function requireKv(apiKey: ApiKeyContext, key: string) {
+  const entry = await getKvByKey(key);
   if (!entry) throw new NotFoundException("KV entry not found");
   if (!canAccessKvEntry(apiKey, entry.id)) {
     throw new ForbiddenException("This API key cannot access that key");
@@ -19,15 +19,15 @@ function requireKv(apiKey: ApiKeyContext, key: string) {
   return entry;
 }
 
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const apiKey = getApiKey(c);
-  const all = listKvEntries({ sorts: "key" }).items;
+  const all = (await listKvEntries({ sorts: "key" })).items;
   const items = apiKey.kvUnrestricted ? all : all.filter((entry) => apiKey.kvEntryIds.includes(entry.id));
   return c.json({ items: items.map(toPublic) });
 });
 
-app.get("/:key", (c) => {
-  return c.json(toPublic(requireKv(getApiKey(c), c.req.param("key"))));
+app.get("/:key", async (c) => {
+  return c.json(toPublic(await requireKv(getApiKey(c), c.req.param("key"))));
 });
 
 app.put("/:key", async (c) => {
@@ -37,29 +37,29 @@ app.put("/:key", async (c) => {
   if (typeof body.value !== "string") {
     throw new BadRequestException("value is required");
   }
-  const existing = getKvByKey(key);
+  const existing = await getKvByKey(key);
   if (!existing) {
     if (!apiKey.kvUnrestricted) {
       throw new ForbiddenException("This API key cannot access that key");
     }
-    return c.json(toPublic(createKvEntry({ key, value: body.value, description: body.description })), 201);
+    return c.json(toPublic(await createKvEntry({ key, value: body.value, description: body.description })), 201);
   }
   if (!canAccessKvEntry(apiKey, existing.id)) {
     throw new ForbiddenException("This API key cannot access that key");
   }
   return c.json(
     toPublic(
-      updateKvEntry(existing.id, {
+      (await updateKvEntry(existing.id, {
         value: body.value,
         ...(body.description !== undefined ? { description: body.description } : {}),
-      })!,
+      }))!,
     ),
   );
 });
 
-app.delete("/:key", (c) => {
-  requireKv(getApiKey(c), c.req.param("key"));
-  return c.json(deleteKvByKey(c.req.param("key")));
+app.delete("/:key", async (c) => {
+  await requireKv(getApiKey(c), c.req.param("key"));
+  return c.json(await deleteKvByKey(c.req.param("key")));
 });
 
 export default app;

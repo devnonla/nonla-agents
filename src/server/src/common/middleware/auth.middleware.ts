@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import type { Context, Next } from "hono";
 import { SignJWT, jwtVerify } from "jose";
 import { getDb, users } from "../db/client.js";
+import { qone, qrun } from "../db/query.js";
 import { appSettings } from "../db/schema.js";
 import { ForbiddenException, UnauthorizedException } from "../exceptions/http.exception.js";
 
@@ -18,29 +19,30 @@ import { ForbiddenException, UnauthorizedException } from "../exceptions/http.ex
 
 let _secret: Uint8Array | null = null;
 
-function getJwtSecret(): Uint8Array {
-  if (_secret) return _secret;
+export async function loadJwtSecret(): Promise<void> {
+  if (_secret) return;
 
-  // 1. From env
   if (process.env.JWT_SECRET) {
     _secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    return _secret;
+    return;
   }
 
-  // 2. From DB (persist across restarts)
   const db = getDb();
-  const row = db.select().from(appSettings).where(eq(appSettings.key, "jwt_secret")).get();
+  const row = await qone(db.select().from(appSettings).where(eq(appSettings.key, "jwt_secret")));
 
   if (row) {
     _secret = new TextEncoder().encode(row.value);
-    return _secret;
+    return;
   }
 
-  // 3. Auto-generate and persist
   const generated = crypto.randomUUID() + crypto.randomUUID();
-  db.insert(appSettings).values({ key: "jwt_secret", value: generated, updatedAt: new Date() }).run();
+  await qrun(db.insert(appSettings).values({ key: "jwt_secret", value: generated, updatedAt: new Date() }));
   _secret = new TextEncoder().encode(generated);
-  return _secret;
+}
+
+function getJwtSecret(): Uint8Array {
+  if (_secret) return _secret;
+  throw new Error("JWT secret not loaded. Call await initDb() / createTestApp() first.");
 }
 
 // ─── JWT Helpers ──────────────────────────────────────────────────────────────
@@ -131,7 +133,7 @@ export async function resolveAuth(c: Context, next: Next) {
     try {
       const payload = await verifyToken(token);
       // Verify user still exists and is active
-      const user = getDb().select().from(users).where(eq(users.id, payload.sub)).get();
+      const user = await qone(getDb().select().from(users).where(eq(users.id, payload.sub)));
       if (user?.isActive) {
         (c as any).set("user", user);
       }

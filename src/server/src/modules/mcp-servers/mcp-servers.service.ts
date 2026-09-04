@@ -11,6 +11,7 @@
 import { eq, like } from "drizzle-orm";
 import { type McpCatalogTool, type NewMcpServer, agentToolAssignments, getDb, mcpServers } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qone, qrun } from "../../common/db/query.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { type McpToolDef, disconnectMcp, listMcpTools } from "./mcp-client.js";
 import { mergeHeaders, toSafeMcpServer } from "./mcp-safe.js";
@@ -25,9 +26,9 @@ function toCatalogTools(remoteDefs: McpToolDef[]): McpCatalogTool[] {
   }));
 }
 
-function syncCatalogForServer(serverId: string, remoteDefs: McpToolDef[]): SyncResult {
+async function syncCatalogForServer(serverId: string, remoteDefs: McpToolDef[]): Promise<SyncResult> {
   const db = getDb();
-  const server = db.select().from(mcpServers).where(eq(mcpServers.id, serverId)).get();
+  const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, serverId)));
   if (!server) throw new Error("MCP server not found");
 
   const previous = (server.tools ?? []) as McpCatalogTool[];
@@ -46,16 +47,14 @@ function syncCatalogForServer(serverId: string, remoteDefs: McpToolDef[]): SyncR
 
   for (const name of previousNames) {
     if (!nextNames.has(name)) {
-      db.delete(agentToolAssignments)
-        .where(eq(agentToolAssignments.toolId, buildMcpToolId(serverId, name)))
-        .run();
+      await qrun(db.delete(agentToolAssignments).where(eq(agentToolAssignments.toolId, buildMcpToolId(serverId, name))));
       removed++;
     }
   }
 
-  db.update(mcpServers).set({ tools: next, lastSyncError: null, lastSyncedAt: new Date(), updatedAt: new Date() }).where(eq(mcpServers.id, serverId)).run();
+  await qrun(db.update(mcpServers).set({ tools: next, lastSyncError: null, lastSyncedAt: new Date(), updatedAt: new Date() }).where(eq(mcpServers.id, serverId)));
 
-  const updatedServer = db.select().from(mcpServers).where(eq(mcpServers.id, serverId)).get();
+  const updatedServer = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, serverId)));
   if (updatedServer) {
     wsHub.emit("mcp-servers:updated", toSafeMcpServer({ ...updatedServer, toolCount: next.length }));
   }
@@ -70,8 +69,8 @@ function syncCatalogForServer(serverId: string, remoteDefs: McpToolDef[]): SyncR
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-export function listMcpServers(query: RawQuery = {}) {
-  const result = listQuery({ table: mcpServers, searchColumns: ["name", "url"] }, query);
+export async function listMcpServers(query: RawQuery = {}) {
+  const result = await listQuery({ table: mcpServers, searchColumns: ["name", "url"] }, query);
   const items = result.items.map((server: (typeof result.items)[number]) => {
     const tools = (server.tools ?? []) as McpCatalogTool[];
     return toSafeMcpServer({ ...server, toolCount: tools.length, tools });
@@ -79,9 +78,9 @@ export function listMcpServers(query: RawQuery = {}) {
   return { ...result, items };
 }
 
-export function getMcpServer(id: string) {
+export async function getMcpServer(id: string) {
   const db = getDb();
-  const server = db.select().from(mcpServers).where(eq(mcpServers.id, id)).get();
+  const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, id)));
   if (!server) return null;
   const tools = (server.tools ?? []) as McpCatalogTool[];
   return toSafeMcpServer({ ...server, tools });
@@ -102,7 +101,7 @@ export async function createMcpServer(body: Pick<NewMcpServer, "name" | "url" | 
     createdAt: now,
     updatedAt: now,
   };
-  db.insert(mcpServers).values(server).run();
+  await qrun(db.insert(mcpServers).values(server));
   const safe = toSafeMcpServer({ ...server, toolCount: 0, tools: [] });
   wsHub.emit("mcp-servers:created", safe);
   return safe;
@@ -110,7 +109,7 @@ export async function createMcpServer(body: Pick<NewMcpServer, "name" | "url" | 
 
 export async function updateMcpServer(id: string, body: Partial<NewMcpServer>) {
   const db = getDb();
-  const existing = db.select().from(mcpServers).where(eq(mcpServers.id, id)).get();
+  const existing = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, id)));
   if (!existing) return null;
 
   if (body.url) {
@@ -123,16 +122,18 @@ export async function updateMcpServer(id: string, body: Partial<NewMcpServer>) {
     patch.headers = mergeHeaders((existing.headers ?? {}) as Record<string, string>, body.headers);
   }
 
-  db.update(mcpServers)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(eq(mcpServers.id, id))
-    .run();
+  await qrun(
+    db
+      .update(mcpServers)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(mcpServers.id, id)),
+  );
 
   if (body.url || body.headers) {
     await disconnectMcp(existing.id);
   }
 
-  const updated = db.select().from(mcpServers).where(eq(mcpServers.id, id)).get();
+  const updated = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, id)));
   if (!updated) return null;
 
   const tools = (updated.tools ?? []) as McpCatalogTool[];
@@ -146,10 +147,8 @@ export async function deleteMcpServer(id: string) {
 
   await disconnectMcp(id);
 
-  db.delete(agentToolAssignments)
-    .where(like(agentToolAssignments.toolId, `mcp:${id}:%`))
-    .run();
-  db.delete(mcpServers).where(eq(mcpServers.id, id)).run();
+  await qrun(db.delete(agentToolAssignments).where(like(agentToolAssignments.toolId, `mcp:${id}:%`)));
+  await qrun(db.delete(mcpServers).where(eq(mcpServers.id, id)));
   wsHub.emit("mcp-servers:deleted", { id });
 }
 
@@ -165,7 +164,7 @@ export interface SyncResult {
 /** Sync tools from an MCP server into mcp_servers.tools JSON catalog. */
 export async function syncMcpTools(serverId: string): Promise<SyncResult> {
   const db = getDb();
-  const server = db.select().from(mcpServers).where(eq(mcpServers.id, serverId)).get();
+  const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, serverId)));
   if (!server) throw new Error("MCP server not found");
   if (!server.isActive) throw new Error("MCP server is inactive");
 
@@ -177,10 +176,10 @@ export async function syncMcpTools(serverId: string): Promise<SyncResult> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const now = new Date();
-    db.update(mcpServers).set({ isActive: false, lastSyncError: message, lastSyncedAt: now, updatedAt: now }).where(eq(mcpServers.id, serverId)).run();
+    await qrun(db.update(mcpServers).set({ isActive: false, lastSyncError: message, lastSyncedAt: now, updatedAt: now }).where(eq(mcpServers.id, serverId)));
     await disconnectMcp(serverId);
 
-    const updated = db.select().from(mcpServers).where(eq(mcpServers.id, serverId)).get();
+    const updated = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, serverId)));
     if (updated) {
       const tools = (updated.tools ?? []) as McpCatalogTool[];
       wsHub.emit("mcp-servers:updated", toSafeMcpServer({ ...updated, toolCount: tools.length, tools }));

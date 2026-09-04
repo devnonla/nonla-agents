@@ -48,7 +48,7 @@ export function makeEditCodeTool(toolId: string) {
         if (mode === "full") {
           next = normalizeToLf(code!);
         } else {
-          const current = getDraftCode(toolId) ?? "";
+          const current = (await getDraftCode(toolId)) ?? "";
           if (!current.trim()) {
             return JSON.stringify({
               ok: false,
@@ -63,7 +63,7 @@ export function makeEditCodeTool(toolId: string) {
           next = applied.content;
         }
 
-        updateDraftCode(toolId, next);
+        await updateDraftCode(toolId, next);
         return JSON.stringify({
           ok: true,
           mode,

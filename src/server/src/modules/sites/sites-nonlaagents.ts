@@ -33,55 +33,55 @@ function parseProjectTableCall(projectOrOpts: unknown, tableArg?: unknown, optsA
 export function createSiteNonlaagents() {
   return {
     kv: {
-      get(key: string, defaultValue: unknown = null) {
+      async get(key: string, defaultValue: unknown = null) {
         const k = String(key ?? "")
           .trim()
           .toUpperCase();
-        const entry = getKvByKey(k);
+        const entry = await getKvByKey(k);
         return entry?.value ?? defaultValue;
       },
-      set(key: string, value: string) {
+      async set(key: string, value: string) {
         if (typeof value !== "string") throw new Error("value must be a string");
-        return upsertKvByKey({ key, value });
+        return await upsertKvByKey({ key, value });
       },
-      list() {
-        const result = listKvEntries({ limit: "1000" });
+      async list() {
+        const result = await listKvEntries({ limit: "1000" });
         return (result.items as { key: string; value: string }[]).map((e) => ({ key: e.key, value: e.value }));
       },
-      delete(key: string) {
+      async delete(key: string) {
         const k = String(key ?? "")
           .trim()
           .toUpperCase();
-        return deleteKvByKey(k);
+        return await deleteKvByKey(k);
       },
     },
     secrets: {
-      get(key: string) {
+      async get(key: string) {
         const k = String(key ?? "")
           .trim()
           .toUpperCase();
-        return getSecretValueByKey(k);
+        return await getSecretValueByKey(k);
       },
-      list() {
-        const result = listSecrets({ limit: "1000" });
+      async list() {
+        const result = await listSecrets({ limit: "1000" });
         return (result.items as { key: string }[]).map((e) => e.key);
       },
     },
     datatable: {
-      list_projects() {
-        return listProjects().map((p) => ({ id: p.id, name: p.name }));
+      async list_projects() {
+        return (await listProjects()).map((p) => ({ id: p.id, name: p.name }));
       },
-      get_schema(projectRef: string | { project?: string }) {
-        const availableProjects = listProjects().map((p) => ({ id: p.id, name: p.name }));
+      async get_schema(projectRef: string | { project?: string }) {
+        const availableProjects = (await listProjects()).map((p) => ({ id: p.id, name: p.name }));
         const ref = typeof projectRef === "object" && projectRef ? String(projectRef.project ?? "").trim() : String(projectRef ?? "").trim();
         if (!ref) {
           throw new Error(`'project' is required (id or name). Available projects: ${formatProjects(availableProjects)}`);
         }
-        const project = resolveProject(ref);
+        const project = await resolveProject(ref);
         if (!project) {
           throw new Error(`Project "${ref}" not found. Available projects: ${formatProjects(availableProjects)}`);
         }
-        const schema = getProjectSchemaByRef(project.id);
+        const schema = await getProjectSchemaByRef(project.id);
         return {
           project: { id: schema.project.id, name: schema.project.name },
           tables: schema.tables.map((t) => ({
@@ -96,10 +96,10 @@ export function createSiteNonlaagents() {
           })),
         };
       },
-      query(projectOrOpts: unknown, table?: unknown, opts?: unknown) {
+      async query(projectOrOpts: unknown, table?: unknown, opts?: unknown) {
         const { project, table: tableRef, opts: o } = parseProjectTableCall(projectOrOpts, table, opts);
         if (!project || !tableRef) throw new Error("'project' and 'table' are required (id or name)");
-        const result = queryRowsByName(project, tableRef, {
+        const result = await queryRowsByName(project, tableRef, {
           where: o.where as import("../datatables/datatable-where.util.js").WhereFilter | undefined,
           order_by: o.order_by as { key: string; dir?: "asc" | "desc" }[] | undefined,
           limit: typeof o.limit === "number" ? o.limit : undefined,
@@ -108,46 +108,46 @@ export function createSiteNonlaagents() {
         // Alias rows → items for JS loaders that expect either name
         return { ...result, rows: result.items };
       },
-      insert(projectOrOpts: unknown, table?: unknown, rows?: unknown) {
+      async insert(projectOrOpts: unknown, table?: unknown, rows?: unknown) {
         const bag = asRecord(projectOrOpts);
         if (bag && ("project" in bag || "table" in bag)) {
           const project = String(bag.project ?? "").trim();
           const tableRef = String(bag.table ?? "").trim();
           if (!project || !tableRef) throw new Error("'project' and 'table' are required (id or name)");
-          return insertRowsByName(project, tableRef, (bag.rows as Record<string, unknown>[]) ?? []);
+          return await insertRowsByName(project, tableRef, (bag.rows as Record<string, unknown>[]) ?? []);
         }
         const project = String(projectOrOpts ?? "").trim();
         const tableRef = String(table ?? "").trim();
         if (!project || !tableRef) throw new Error("'project' and 'table' are required (id or name)");
-        return insertRowsByName(project, tableRef, (rows as Record<string, unknown>[]) ?? []);
+        return await insertRowsByName(project, tableRef, (rows as Record<string, unknown>[]) ?? []);
       },
-      update(projectOrOpts: unknown, table?: unknown, rowId?: unknown, data?: unknown) {
+      async update(projectOrOpts: unknown, table?: unknown, rowId?: unknown, data?: unknown) {
         const bag = asRecord(projectOrOpts);
         if (bag && ("project" in bag || "table" in bag)) {
           const project = String(bag.project ?? "").trim();
           const tableRef = String(bag.table ?? "").trim();
           const id = String(bag.row_id ?? bag.rowId ?? "").trim();
           if (!project || !tableRef || !id) throw new Error("'project', 'table', and 'row_id' are required");
-          return updateRowByName(project, tableRef, id, (bag.data as Record<string, unknown>) ?? {});
+          return await updateRowByName(project, tableRef, id, (bag.data as Record<string, unknown>) ?? {});
         }
         const project = String(projectOrOpts ?? "").trim();
         const tableRef = String(table ?? "").trim();
         const id = String(rowId ?? "").trim();
         if (!project || !tableRef || !id) throw new Error("'project', 'table', and 'row_id' are required");
-        return updateRowByName(project, tableRef, id, (data as Record<string, unknown>) ?? {});
+        return await updateRowByName(project, tableRef, id, (data as Record<string, unknown>) ?? {});
       },
-      delete(projectOrOpts: unknown, table?: unknown, rowIds?: unknown) {
+      async delete(projectOrOpts: unknown, table?: unknown, rowIds?: unknown) {
         const bag = asRecord(projectOrOpts);
         if (bag && ("project" in bag || "table" in bag)) {
           const project = String(bag.project ?? "").trim();
           const tableRef = String(bag.table ?? "").trim();
           if (!project || !tableRef) throw new Error("'project' and 'table' are required (id or name)");
-          return deleteRowsByName(project, tableRef, (bag.row_ids as string[]) ?? (bag.rowIds as string[]) ?? []);
+          return await deleteRowsByName(project, tableRef, (bag.row_ids as string[]) ?? (bag.rowIds as string[]) ?? []);
         }
         const project = String(projectOrOpts ?? "").trim();
         const tableRef = String(table ?? "").trim();
         if (!project || !tableRef) throw new Error("'project' and 'table' are required (id or name)");
-        return deleteRowsByName(project, tableRef, (rowIds as string[]) ?? []);
+        return await deleteRowsByName(project, tableRef, (rowIds as string[]) ?? []);
       },
     },
   };

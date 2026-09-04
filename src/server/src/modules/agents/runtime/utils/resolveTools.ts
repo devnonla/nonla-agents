@@ -15,6 +15,7 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { type McpCatalogTool, agentTools, agents, getDb, mcpServers, toolFolders } from "../../../../common/db/client.js";
+import { qall, qone } from "../../../../common/db/query.js";
 import { BUILTIN_DATATABLE_TOOL_ID, isDatatableProjectToolName, parseDatatableProjectAssignmentId, parseDatatableProjectToolTargetId } from "../../../datatables/datatable-tool-id.js";
 import { getProject } from "../../../datatables/datatables.service.js";
 import { callMcpTool } from "../../../mcp-servers/mcp-client.js";
@@ -48,12 +49,12 @@ export function formatToolName(name: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function getToolLabel(toolName: string): string {
+export async function getToolLabel(toolName: string): Promise<string> {
   if (isCallAgentToolName(toolName)) {
-    return getCallAgentLabel({ agent_id: parseCallAgentToolTargetId(toolName) });
+    return await getCallAgentLabel({ agent_id: parseCallAgentToolTargetId(toolName) });
   }
   if (isDatatableProjectToolName(toolName)) {
-    return getDatatableProjectLabel(parseDatatableProjectToolTargetId(toolName));
+    return await getDatatableProjectLabel(parseDatatableProjectToolTargetId(toolName));
   }
 
   const KNOWN_LABELS: Record<string, string> = {
@@ -76,7 +77,7 @@ export function getToolLabel(toolName: string): string {
   if (KNOWN_LABELS[toolName]) return KNOWN_LABELS[toolName];
   try {
     const db = getDb();
-    const servers = db.select({ id: mcpServers.id, name: mcpServers.name, tools: mcpServers.tools }).from(mcpServers).all();
+    const servers = await qall(db.select({ id: mcpServers.id, name: mcpServers.name, tools: mcpServers.tools }).from(mcpServers));
     for (const server of servers) {
       const catalog = (server.tools ?? []) as McpCatalogTool[];
       for (const t of catalog) {
@@ -85,7 +86,7 @@ export function getToolLabel(toolName: string): string {
         }
       }
     }
-    const row = db.select({ label: agentTools.label, folderName: toolFolders.name }).from(agentTools).leftJoin(toolFolders, eq(agentTools.folderId, toolFolders.id)).where(eq(agentTools.name, toolName)).get();
+    const row = await qone(db.select({ label: agentTools.label, folderName: toolFolders.name }).from(agentTools).leftJoin(toolFolders, eq(agentTools.folderId, toolFolders.id)).where(eq(agentTools.name, toolName)));
     if (row) {
       const label = row.label && row.label !== toolName ? row.label : formatToolName(toolName);
       return row.folderName ? `${row.folderName} → ${label}` : label;
@@ -97,9 +98,9 @@ export function getToolLabel(toolName: string): string {
 }
 
 /** SVG markup for a custom tool, or null for builtins/MCP/unknown. */
-export function getToolIcon(toolName: string): string | null {
+export async function getToolIcon(toolName: string): Promise<string | null> {
   try {
-    const row = getDb().select({ icon: agentTools.icon }).from(agentTools).where(eq(agentTools.name, toolName)).get();
+    const row = await qone(getDb().select({ icon: agentTools.icon }).from(agentTools).where(eq(agentTools.name, toolName)));
     const icon = row?.icon?.trim();
     if (icon?.startsWith("<svg")) return icon;
   } catch {
@@ -108,12 +109,12 @@ export function getToolIcon(toolName: string): string | null {
   return null;
 }
 
-export function getCallAgentLabel(args: unknown): string {
+export async function getCallAgentLabel(args: unknown): Promise<string> {
   try {
     const agentId = (args as { agent_id?: string; agentId?: string; id?: string } | null)?.agent_id ?? (args as { agentId?: string } | null)?.agentId ?? (args as { id?: string } | null)?.id;
     if (!agentId || typeof agentId !== "string") return "Call Agent";
     const db = getDb();
-    const row = db.select({ name: agents.name }).from(agents).where(eq(agents.id, agentId)).get();
+    const row = await qone(db.select({ name: agents.name }).from(agents).where(eq(agents.id, agentId)));
     if (row?.name) return `Call ${row.name}`;
   } catch {
     /* ignore */
@@ -121,10 +122,10 @@ export function getCallAgentLabel(args: unknown): string {
   return "Call Agent";
 }
 
-function getDatatableProjectLabel(projectId: string | null): string {
+async function getDatatableProjectLabel(projectId: string | null): Promise<string> {
   if (!projectId) return "Datatable";
   try {
-    const project = getProject(projectId);
+    const project = await getProject(projectId);
     if (project?.name) return `Datatable · ${project.name}`;
   } catch {
     /* ignore */
@@ -168,7 +169,7 @@ function buildZodSchema(parameters: object): z.ZodObject<Record<string, z.ZodTyp
   return z.object(shape);
 }
 
-function buildCustomTool(
+async function buildCustomTool(
   record: {
     id: string;
     name: string;
@@ -177,7 +178,7 @@ function buildCustomTool(
     codeContent: string;
   },
   context: { agentId: string; conversationId?: string | null },
-): StructuredToolInterface {
+): Promise<StructuredToolInterface> {
   const schema = buildZodSchema(record.parameters);
 
   return tool(
@@ -216,21 +217,21 @@ function buildCustomTool(
   );
 }
 
-function buildMcpTool(opts: {
+async function buildMcpTool(opts: {
   langGraphName: string;
   description: string;
   parameters: object;
   serverId: string;
   mcpToolName: string;
   abortSignal?: AbortSignal;
-}): StructuredToolInterface {
+}): Promise<StructuredToolInterface> {
   const schema = buildZodSchema(opts.parameters);
 
   return tool(
     async (input: unknown) => {
       try {
         const db = getDb();
-        const server = db.select().from(mcpServers).where(eq(mcpServers.id, opts.serverId)).get();
+        const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, opts.serverId)));
         if (!server) {
           return JSON.stringify({ error: `MCP server not found for tool "${opts.langGraphName}"`, ok: false });
         }
@@ -261,7 +262,7 @@ export type ResolveAgentToolsOptions = {
  * Resolve full tool list for a user agent.
  * @param enabledToolIds — assignment tool_id values (builtin:*, mcp:*, or custom UUID)
  */
-export function resolveAgentTools(agentId: string, enabledToolIds: string[], ownerId: string, isGuest = false, options: ResolveAgentToolsOptions = {}): StructuredToolInterface[] {
+export async function resolveAgentTools(agentId: string, enabledToolIds: string[], ownerId: string, isGuest = false, options: ResolveAgentToolsOptions = {}): Promise<StructuredToolInterface[]> {
   const db = getDb();
   const tools: StructuredToolInterface[] = [];
   const hasDatatableProject = enabledToolIds.some((id) => parseDatatableProjectAssignmentId(id));
@@ -283,21 +284,21 @@ export function resolveAgentTools(agentId: string, enabledToolIds: string[], own
 
     const datatableProjectId = parseDatatableProjectAssignmentId(toolId);
     if (datatableProjectId) {
-      const project = getProject(datatableProjectId);
+      const project = await getProject(datatableProjectId);
       if (project) tools.push(makeDatatableProjectTool(project));
       continue;
     }
 
     const mcp = parseMcpToolId(toolId);
     if (mcp) {
-      const server = db.select().from(mcpServers).where(eq(mcpServers.id, mcp.serverId)).get();
+      const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, mcp.serverId)));
       if (!server || !server.isActive) continue;
       const catalog = (server.tools ?? []) as McpCatalogTool[];
       const def = catalog.find((t) => t.name === mcp.toolName);
       if (!def) continue;
 
       tools.push(
-        buildMcpTool({
+        await buildMcpTool({
           langGraphName: buildMcpLangGraphName(server.name, def.name),
           description: def.description || `MCP tool from ${server.name}`,
           parameters: def.inputSchema,
@@ -309,10 +310,10 @@ export function resolveAgentTools(agentId: string, enabledToolIds: string[], own
       continue;
     }
 
-    const row = db.select().from(agentTools).where(eq(agentTools.id, toolId)).get();
+    const row = await qone(db.select().from(agentTools).where(eq(agentTools.id, toolId)));
     if (row?.isActive) {
       tools.push(
-        buildCustomTool(row, {
+        await buildCustomTool(row, {
           agentId,
           conversationId: options.conversationId ?? null,
         }),
@@ -335,9 +336,9 @@ export function resolveAgentTools(agentId: string, enabledToolIds: string[], own
   }
 
   if (options.enableMemory !== false) {
-    tools.push(makeMemoryTool(agentId, ownerId, isGuest, { conversationId: options.conversationId ?? null }));
+    tools.push(await makeMemoryTool(agentId, ownerId, isGuest, { conversationId: options.conversationId ?? null }));
   }
-  tools.push(makeReadSkillTool(agentId));
+  tools.push(await makeReadSkillTool(agentId));
   tools.push(makeBackgroundTasksTool({ agentId, conversationId: options.conversationId ?? null }));
 
   return tools;

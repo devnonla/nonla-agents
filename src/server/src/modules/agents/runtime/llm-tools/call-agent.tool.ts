@@ -10,6 +10,7 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { agents, getDb } from "../../../../common/db/client.js";
+import { qone } from "../../../../common/db/query.js";
 import { bgTaskRegistry } from "../../../tools/common/bg-task-registry.js";
 
 export const CALL_AGENT_TOOL_PREFIX = "call_agent__";
@@ -125,7 +126,7 @@ async function invokeSubAgent(opts: {
   let callerName = "Another agent";
   try {
     const db = getDb();
-    const caller = db.select({ name: agents.name }).from(agents).where(eq(agents.id, opts.callerAgentId)).get();
+    const caller = await qone(db.select({ name: agents.name }).from(agents).where(eq(agents.id, opts.callerAgentId)));
     if (caller?.name) callerName = caller.name;
   } catch {
     /* ignore */

@@ -3,12 +3,13 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, skillReferences } from "../../../../common/db/client.js";
+import { qall, qone } from "../../../../common/db/query.js";
 import { getAssignedSkillByName } from "../../../skills/skills.service.js";
 
 /**
  * Create read_skill for an agent — loads assigned skill body or a reference.
  */
-export function makeReadSkillTool(agentId: string): StructuredToolInterface {
+export async function makeReadSkillTool(agentId: string): Promise<StructuredToolInterface> {
   return tool(
     async ({ name, reference }: { name: string; reference?: string }) => {
       const skillName = name?.trim();
@@ -16,7 +17,7 @@ export function makeReadSkillTool(agentId: string): StructuredToolInterface {
         return JSON.stringify({ ok: false, error: "Provide skill `name`." });
       }
 
-      const skill = getAssignedSkillByName(agentId, skillName);
+      const skill = await getAssignedSkillByName(agentId, skillName);
       if (!skill) {
         return JSON.stringify({
           ok: false,
@@ -24,15 +25,16 @@ export function makeReadSkillTool(agentId: string): StructuredToolInterface {
         });
       }
 
-      const refs = getDb().select({ name: skillReferences.name, title: skillReferences.title }).from(skillReferences).where(eq(skillReferences.skillId, skill.id)).all();
+      const refs = await qall(getDb().select({ name: skillReferences.name, title: skillReferences.title }).from(skillReferences).where(eq(skillReferences.skillId, skill.id)));
 
       if (reference?.trim()) {
         const refName = reference.trim();
-        const row = getDb()
-          .select()
-          .from(skillReferences)
-          .where(and(eq(skillReferences.skillId, skill.id), eq(skillReferences.name, refName)))
-          .get();
+        const row = await qone(
+          getDb()
+            .select()
+            .from(skillReferences)
+            .where(and(eq(skillReferences.skillId, skill.id), eq(skillReferences.name, refName))),
+        );
         if (!row) {
           return JSON.stringify({
             ok: false,

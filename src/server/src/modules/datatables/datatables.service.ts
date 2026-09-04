@@ -14,9 +14,10 @@ import {
   datatableProjects,
   datatableRows,
   datatableTables,
+  executeRaw,
   getDb,
-  getRawDb,
 } from "../../common/db/client.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, NotFoundException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { type OrderByItem, type WhereFilter, buildOrderBySql, buildWhereSql } from "./datatable-where.util.js";
@@ -106,22 +107,23 @@ function validateRowData(columns: DatatableColumn[], data: Record<string, unknow
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
-export function listProjects() {
+export async function listProjects() {
   const db = getDb();
-  const projects = db.select().from(datatableProjects).orderBy(asc(datatableProjects.name)).all();
+  const projects = await qall(db.select().from(datatableProjects).orderBy(asc(datatableProjects.name)));
   if (projects.length === 0) return [] as Array<DatatableProject & { tableCount: number; tableNames: string[] }>;
 
-  const tables = db
-    .select({ projectId: datatableTables.projectId, name: datatableTables.name })
-    .from(datatableTables)
-    .where(
-      inArray(
-        datatableTables.projectId,
-        projects.map((p) => p.id),
-      ),
-    )
-    .orderBy(asc(datatableTables.name))
-    .all();
+  const tables = await qall(
+    db
+      .select({ projectId: datatableTables.projectId, name: datatableTables.name })
+      .from(datatableTables)
+      .where(
+        inArray(
+          datatableTables.projectId,
+          projects.map((p) => p.id),
+        ),
+      )
+      .orderBy(asc(datatableTables.name)),
+  );
 
   const namesMap = new Map<string, string[]>();
   for (const t of tables) {
@@ -136,64 +138,64 @@ export function listProjects() {
   });
 }
 
-export function getProject(id: string): DatatableProject | null {
-  return getDb().select().from(datatableProjects).where(eq(datatableProjects.id, id)).get() ?? null;
+export async function getProject(id: string): Promise<DatatableProject | null> {
+  return (await qone(getDb().select().from(datatableProjects).where(eq(datatableProjects.id, id)))) ?? null;
 }
 
-export function getProjectByName(name: string): DatatableProject | null {
-  return getDb().select().from(datatableProjects).where(eq(datatableProjects.name, name)).get() ?? null;
+export async function getProjectByName(name: string): Promise<DatatableProject | null> {
+  return (await qone(getDb().select().from(datatableProjects).where(eq(datatableProjects.name, name)))) ?? null;
 }
 
-export function createProject(body: { name: string }) {
+export async function createProject(body: { name: string }) {
   const name = assertName(body.name, "name");
-  if (getProjectByName(name)) throw new BadRequestException(`Project "${name}" already exists`);
+  if (await getProjectByName(name)) throw new BadRequestException(`Project "${name}" already exists`);
   const now = new Date();
   const entry: NewDatatableProject = { id: crypto.randomUUID(), name, createdAt: now, updatedAt: now };
-  getDb().insert(datatableProjects).values(entry).run();
+  await qrun(getDb().insert(datatableProjects).values(entry));
   wsHub.emit("datatables:project-created", entry);
   return entry;
 }
 
-export function updateProject(id: string, body: { name?: string }) {
-  const current = getProject(id);
+export async function updateProject(id: string, body: { name?: string }) {
+  const current = await getProject(id);
   if (!current) throw new NotFoundException("Project not found");
   const name = body.name !== undefined ? assertName(body.name, "name") : current.name;
-  if (name !== current.name && getProjectByName(name)) {
+  if (name !== current.name && (await getProjectByName(name))) {
     throw new BadRequestException(`Project "${name}" already exists`);
   }
   const updatedAt = new Date();
-  getDb().update(datatableProjects).set({ name, updatedAt }).where(eq(datatableProjects.id, id)).run();
-  const updated = getProject(id)!;
+  await qrun(getDb().update(datatableProjects).set({ name, updatedAt }).where(eq(datatableProjects.id, id)));
+  const updated = (await getProject(id))!;
   wsHub.emit("datatables:project-updated", updated);
   return updated;
 }
 
-export function deleteProject(id: string) {
-  const current = getProject(id);
+export async function deleteProject(id: string) {
+  const current = await getProject(id);
   if (!current) throw new NotFoundException("Project not found");
-  getDb().delete(datatableProjects).where(eq(datatableProjects.id, id)).run();
+  await qrun(getDb().delete(datatableProjects).where(eq(datatableProjects.id, id)));
   wsHub.emit("datatables:project-deleted", { id });
 }
 
 // ─── Tables ───────────────────────────────────────────────────────────────────
 
-export function listTables(projectId: string) {
-  if (!getProject(projectId)) throw new NotFoundException("Project not found");
-  return getDb().select().from(datatableTables).where(eq(datatableTables.projectId, projectId)).orderBy(asc(datatableTables.name)).all();
+export async function listTables(projectId: string) {
+  if (!(await getProject(projectId))) throw new NotFoundException("Project not found");
+  return await qall(getDb().select().from(datatableTables).where(eq(datatableTables.projectId, projectId)).orderBy(asc(datatableTables.name)));
 }
 
 /** All tables in a project with their columns — one round-trip for the schema canvas. */
-export function getProjectSchema(projectId: string) {
-  const project = getProject(projectId);
+export async function getProjectSchema(projectId: string) {
+  const project = await getProject(projectId);
   if (!project) throw new NotFoundException("Project not found");
 
-  const tables = listTables(projectId);
+  const tables = await listTables(projectId);
   if (tables.length === 0) {
     return { project, tables: [] as Array<DatatableTable & { columns: DatatableColumn[] }> };
   }
 
   const tableIds = tables.map((t) => t.id);
-  const columns = getDb().select().from(datatableColumns).where(inArray(datatableColumns.tableId, tableIds)).orderBy(asc(datatableColumns.sortOrder), asc(datatableColumns.name)).all();
+  const columns = await qall(getDb().select().from(datatableColumns).where(inArray(datatableColumns.tableId, tableIds)).orderBy(asc(datatableColumns.sortOrder), asc(datatableColumns.name)));
 
   const columnsByTable = new Map<string, DatatableColumn[]>();
   for (const col of columns) {
@@ -211,164 +213,169 @@ export function getProjectSchema(projectId: string) {
   };
 }
 
-export function getTable(id: string): DatatableTable | null {
-  return getDb().select().from(datatableTables).where(eq(datatableTables.id, id)).get() ?? null;
+export async function getTable(id: string): Promise<DatatableTable | null> {
+  return (await qone(getDb().select().from(datatableTables).where(eq(datatableTables.id, id)))) ?? null;
 }
 
-export function getTableByNames(projectName: string, tableName: string): { project: DatatableProject; table: DatatableTable } | null {
-  const project = getProjectByName(projectName);
+export async function getTableByNames(projectName: string, tableName: string): Promise<{ project: DatatableProject; table: DatatableTable } | null> {
+  const project = await getProjectByName(projectName);
   if (!project) return null;
   const table =
-    getDb()
-      .select()
-      .from(datatableTables)
-      .where(and(eq(datatableTables.projectId, project.id), eq(datatableTables.name, tableName)))
-      .get() ?? null;
+    (await qone(
+      getDb()
+        .select()
+        .from(datatableTables)
+        .where(and(eq(datatableTables.projectId, project.id), eq(datatableTables.name, tableName))),
+    )) ?? null;
   if (!table) return null;
   return { project, table };
 }
 
 /** Resolve project by id first, then by name (LLM may pass either after list_projects). */
-export function resolveProject(ref: string): DatatableProject | null {
+export async function resolveProject(ref: string): Promise<DatatableProject | null> {
   const key = String(ref ?? "").trim();
   if (!key) return null;
-  return getProject(key) ?? getProjectByName(key);
+  return (await getProject(key)) ?? (await getProjectByName(key));
 }
 
 /** Resolve table within a project by table id first, then by name. */
-export function resolveTableInProject(project: DatatableProject, tableRef: string): DatatableTable | null {
+export async function resolveTableInProject(project: DatatableProject, tableRef: string): Promise<DatatableTable | null> {
   const key = String(tableRef ?? "").trim();
   if (!key) return null;
-  const byId = getTable(key);
+  const byId = await getTable(key);
   if (byId && byId.projectId === project.id) return byId;
   return (
-    getDb()
-      .select()
-      .from(datatableTables)
-      .where(and(eq(datatableTables.projectId, project.id), eq(datatableTables.name, key)))
-      .get() ?? null
+    (await qone(
+      getDb()
+        .select()
+        .from(datatableTables)
+        .where(and(eq(datatableTables.projectId, project.id), eq(datatableTables.name, key))),
+    )) ?? null
   );
 }
 
 /** Resolve project + table from refs that may be id or name. */
-export function resolveProjectAndTable(projectRef: string, tableRef: string): { project: DatatableProject; table: DatatableTable } | null {
-  const project = resolveProject(projectRef);
+export async function resolveProjectAndTable(projectRef: string, tableRef: string): Promise<{ project: DatatableProject; table: DatatableTable } | null> {
+  const project = await resolveProject(projectRef);
   if (!project) return null;
-  const table = resolveTableInProject(project, tableRef);
+  const table = await resolveTableInProject(project, tableRef);
   if (!table) return null;
   return { project, table };
 }
 
-export function createTable(projectId: string, body: { name: string }) {
-  if (!getProject(projectId)) throw new NotFoundException("Project not found");
+export async function createTable(projectId: string, body: { name: string }) {
+  if (!(await getProject(projectId))) throw new NotFoundException("Project not found");
   const name = assertName(body.name, "name");
-  const clash = getDb()
-    .select()
-    .from(datatableTables)
-    .where(and(eq(datatableTables.projectId, projectId), eq(datatableTables.name, name)))
-    .get();
+  const clash = await qone(
+    getDb()
+      .select()
+      .from(datatableTables)
+      .where(and(eq(datatableTables.projectId, projectId), eq(datatableTables.name, name))),
+  );
   if (clash) throw new BadRequestException(`Table "${name}" already exists in this project`);
   const now = new Date();
   const entry: NewDatatableTable = { id: crypto.randomUUID(), projectId, name, createdAt: now, updatedAt: now };
-  getDb().insert(datatableTables).values(entry).run();
+  await qrun(getDb().insert(datatableTables).values(entry));
   wsHub.emit("datatables:table-created", entry);
   return entry;
 }
 
-export function updateTable(id: string, body: { name?: string }) {
-  const current = getTable(id);
+export async function updateTable(id: string, body: { name?: string }) {
+  const current = await getTable(id);
   if (!current) throw new NotFoundException("Table not found");
   const name = body.name !== undefined ? assertName(body.name, "name") : current.name;
   if (name !== current.name) {
-    const clash = getDb()
-      .select()
-      .from(datatableTables)
-      .where(and(eq(datatableTables.projectId, current.projectId), eq(datatableTables.name, name)))
-      .get();
+    const clash = await qone(
+      getDb()
+        .select()
+        .from(datatableTables)
+        .where(and(eq(datatableTables.projectId, current.projectId), eq(datatableTables.name, name))),
+    );
     if (clash) throw new BadRequestException(`Table "${name}" already exists in this project`);
   }
   const updatedAt = new Date();
-  getDb().update(datatableTables).set({ name, updatedAt }).where(eq(datatableTables.id, id)).run();
-  const updated = getTable(id)!;
+  await qrun(getDb().update(datatableTables).set({ name, updatedAt }).where(eq(datatableTables.id, id)));
+  const updated = (await getTable(id))!;
   wsHub.emit("datatables:table-updated", updated);
   return updated;
 }
 
-export function deleteTable(id: string) {
-  const current = getTable(id);
+export async function deleteTable(id: string) {
+  const current = await getTable(id);
   if (!current) throw new NotFoundException("Table not found");
-  getDb().delete(datatableTables).where(eq(datatableTables.id, id)).run();
+  await qrun(getDb().delete(datatableTables).where(eq(datatableTables.id, id)));
   wsHub.emit("datatables:table-deleted", { id, projectId: current.projectId });
 }
 
 // ─── Columns ──────────────────────────────────────────────────────────────────
 
-export function listColumns(tableId: string) {
-  if (!getTable(tableId)) throw new NotFoundException("Table not found");
-  return getDb().select().from(datatableColumns).where(eq(datatableColumns.tableId, tableId)).orderBy(asc(datatableColumns.sortOrder), asc(datatableColumns.name)).all();
+export async function listColumns(tableId: string) {
+  if (!(await getTable(tableId))) throw new NotFoundException("Table not found");
+  return await qall(getDb().select().from(datatableColumns).where(eq(datatableColumns.tableId, tableId)).orderBy(asc(datatableColumns.sortOrder), asc(datatableColumns.name)));
 }
 
-export function getColumn(id: string): DatatableColumn | null {
-  return getDb().select().from(datatableColumns).where(eq(datatableColumns.id, id)).get() ?? null;
+export async function getColumn(id: string): Promise<DatatableColumn | null> {
+  return (await qone(getDb().select().from(datatableColumns).where(eq(datatableColumns.id, id)))) ?? null;
 }
 
 /** Resolve column within a table by column id first, then by name. */
-export function resolveColumnInTable(tableId: string, columnRef: string): DatatableColumn | null {
+export async function resolveColumnInTable(tableId: string, columnRef: string): Promise<DatatableColumn | null> {
   const key = String(columnRef ?? "").trim();
   if (!key) return null;
-  const byId = getColumn(key);
+  const byId = await getColumn(key);
   if (byId && byId.tableId === tableId) return byId;
-  return listColumns(tableId).find((c) => c.name === key) ?? null;
+  return (await listColumns(tableId)).find((c) => c.name === key) ?? null;
 }
 
-export function getSchemaByNames(projectName: string, tableName: string) {
-  const found = getTableByNames(projectName, tableName);
+export async function getSchemaByNames(projectName: string, tableName: string) {
+  const found = await getTableByNames(projectName, tableName);
   if (!found) throw new NotFoundException(`Table "${projectName}/${tableName}" not found`);
   return {
     project: found.project,
     table: found.table,
-    columns: listColumns(found.table.id),
+    columns: await listColumns(found.table.id),
   };
 }
 
 /** Schema for one table; project/table refs accept id or name. */
-export function getSchemaByRefs(projectRef: string, tableRef: string) {
-  const found = resolveProjectAndTable(projectRef, tableRef);
+export async function getSchemaByRefs(projectRef: string, tableRef: string) {
+  const found = await resolveProjectAndTable(projectRef, tableRef);
   if (!found) throw new NotFoundException(`Table "${projectRef}/${tableRef}" not found`);
   return {
     project: found.project,
     table: found.table,
-    columns: listColumns(found.table.id),
+    columns: await listColumns(found.table.id),
   };
 }
 
 /** Full project schema (all tables + columns); ref accepts id or name. */
-export function getProjectSchemaByRef(projectRef: string) {
-  const project = resolveProject(projectRef);
+export async function getProjectSchemaByRef(projectRef: string) {
+  const project = await resolveProject(projectRef);
   if (!project) throw new NotFoundException(`Project "${projectRef}" not found`);
-  return getProjectSchema(project.id);
+  return await getProjectSchema(project.id);
 }
 
 /** @deprecated prefer getProjectSchemaByRef */
-export function getProjectSchemaByName(projectName: string) {
-  return getProjectSchemaByRef(projectName);
+export async function getProjectSchemaByName(projectName: string) {
+  return await getProjectSchemaByRef(projectName);
 }
 
-export function createColumn(tableId: string, body: { name: string; type: string; options?: string[] | null; required?: boolean; sortOrder?: number }) {
-  if (!getTable(tableId)) throw new NotFoundException("Table not found");
+export async function createColumn(tableId: string, body: { name: string; type: string; options?: string[] | null; required?: boolean; sortOrder?: number }) {
+  if (!(await getTable(tableId))) throw new NotFoundException("Table not found");
   const name = assertColumnName(body.name ?? "");
   const type = assertColumnType(body.type);
   if (type === "select" && body.options !== undefined && body.options !== null && !Array.isArray(body.options)) {
     throw new BadRequestException("options must be a string array");
   }
-  const clash = getDb()
-    .select()
-    .from(datatableColumns)
-    .where(and(eq(datatableColumns.tableId, tableId), eq(datatableColumns.name, name)))
-    .get();
+  const clash = await qone(
+    getDb()
+      .select()
+      .from(datatableColumns)
+      .where(and(eq(datatableColumns.tableId, tableId), eq(datatableColumns.name, name))),
+  );
   if (clash) throw new BadRequestException(`Column "${name}" already exists`);
 
-  const existing = listColumns(tableId);
+  const existing = await listColumns(tableId);
   const sortOrder = body.sortOrder ?? existing.reduce((m, c) => Math.max(m, c.sortOrder), -1) + 1;
   const entry: NewDatatableColumn = {
     id: crypto.randomUUID(),
@@ -380,22 +387,23 @@ export function createColumn(tableId: string, body: { name: string; type: string
     sortOrder,
     createdAt: new Date(),
   };
-  getDb().insert(datatableColumns).values(entry).run();
+  await qrun(getDb().insert(datatableColumns).values(entry));
   wsHub.emit("datatables:column-created", entry);
   return entry;
 }
 
-export function updateColumn(id: string, body: { name?: string; type?: string; options?: string[] | null; required?: boolean; sortOrder?: number }) {
-  const current = getColumn(id);
+export async function updateColumn(id: string, body: { name?: string; type?: string; options?: string[] | null; required?: boolean; sortOrder?: number }) {
+  const current = await getColumn(id);
   if (!current) throw new NotFoundException("Column not found");
 
   const name = body.name !== undefined ? assertColumnName(body.name) : current.name;
   if (name !== current.name) {
-    const clash = getDb()
-      .select()
-      .from(datatableColumns)
-      .where(and(eq(datatableColumns.tableId, current.tableId), eq(datatableColumns.name, name)))
-      .get();
+    const clash = await qone(
+      getDb()
+        .select()
+        .from(datatableColumns)
+        .where(and(eq(datatableColumns.tableId, current.tableId), eq(datatableColumns.name, name))),
+    );
     if (clash) throw new BadRequestException(`Column "${name}" already exists`);
   }
 
@@ -410,65 +418,66 @@ export function updateColumn(id: string, body: { name?: string; type?: string; o
     options = null;
   }
 
-  getDb()
-    .update(datatableColumns)
-    .set({
-      name,
-      type,
-      options,
-      required: body.required !== undefined ? Boolean(body.required) : current.required,
-      sortOrder: body.sortOrder !== undefined ? body.sortOrder : current.sortOrder,
-    })
-    .where(eq(datatableColumns.id, id))
-    .run();
+  await qrun(
+    getDb()
+      .update(datatableColumns)
+      .set({
+        name,
+        type,
+        options,
+        required: body.required !== undefined ? Boolean(body.required) : current.required,
+        sortOrder: body.sortOrder !== undefined ? body.sortOrder : current.sortOrder,
+      })
+      .where(eq(datatableColumns.id, id)),
+  );
 
   if (name !== current.name) {
-    renameColumnNameInRows(current.tableId, current.name, name);
+    await renameColumnNameInRows(current.tableId, current.name, name);
   }
 
-  const updated = getColumn(id)!;
+  const updated = (await getColumn(id))!;
   wsHub.emit("datatables:column-updated", updated);
   return updated;
 }
 
-export function reorderColumns(tableId: string, orderedIds: string[]) {
-  if (!getTable(tableId)) throw new NotFoundException("Table not found");
-  const cols = listColumns(tableId);
+export async function reorderColumns(tableId: string, orderedIds: string[]) {
+  if (!(await getTable(tableId))) throw new NotFoundException("Table not found");
+  const cols = await listColumns(tableId);
   const idSet = new Set(cols.map((c) => c.id));
   if (orderedIds.length !== cols.length || orderedIds.some((id) => !idSet.has(id))) {
     throw new BadRequestException("orderedIds must include every column id exactly once");
   }
   const db = getDb();
-  orderedIds.forEach((id, i) => {
-    db.update(datatableColumns).set({ sortOrder: i }).where(eq(datatableColumns.id, id)).run();
-  });
-  const updated = listColumns(tableId);
+  for (const [i, id] of orderedIds.entries()) {
+    await qrun(db.update(datatableColumns).set({ sortOrder: i }).where(eq(datatableColumns.id, id)));
+  }
+  const updated = await listColumns(tableId);
   wsHub.emit("datatables:columns-reordered", { tableId, columns: updated });
   return updated;
 }
 
-export function deleteColumn(id: string) {
-  const current = getColumn(id);
+export async function deleteColumn(id: string) {
+  const current = await getColumn(id);
   if (!current) throw new NotFoundException("Column not found");
-  stripColumnNameFromRows(current.tableId, current.name);
-  getDb().delete(datatableColumns).where(eq(datatableColumns.id, id)).run();
+  await stripColumnNameFromRows(current.tableId, current.name);
+  await qrun(getDb().delete(datatableColumns).where(eq(datatableColumns.id, id)));
   wsHub.emit("datatables:column-deleted", { id, tableId: current.tableId, name: current.name });
 }
 
-function stripColumnNameFromRows(tableId: string, name: string) {
-  const rows = getDb().select().from(datatableRows).where(eq(datatableRows.tableId, tableId)).all();
+async function stripColumnNameFromRows(tableId: string, name: string) {
+  const rows = await qall(getDb().select().from(datatableRows).where(eq(datatableRows.tableId, tableId)));
   const db = getDb();
   const now = new Date();
   for (const row of rows) {
     if (!(name in (row.data ?? {}))) continue;
     const data = { ...row.data };
     delete data[name];
-    db.update(datatableRows).set({ data, updatedAt: now }).where(eq(datatableRows.id, row.id)).run();
+    await qrun(db.update(datatableRows).set({ data, updatedAt: now }).where(eq(datatableRows.id, row.id)));
   }
 }
 
-function renameColumnNameInRows(tableId: string, from: string, to: string) {
-  const rows = getDb().select().from(datatableRows).where(eq(datatableRows.tableId, tableId)).all();
+async function renameColumnNameInRows(tableId: string, from: string, to: string) {
+  const rows = await qall(getDb().select().from(datatableRows).where(eq(datatableRows.tableId, tableId)));
   const db = getDb();
   const now = new Date();
   for (const row of rows) {
@@ -476,13 +485,13 @@ function renameColumnNameInRows(tableId: string, from: string, to: string) {
     const data = { ...row.data };
     data[to] = data[from];
     delete data[from];
-    db.update(datatableRows).set({ data, updatedAt: now }).where(eq(datatableRows.id, row.id)).run();
+    await qrun(db.update(datatableRows).set({ data, updatedAt: now }).where(eq(datatableRows.id, row.id)));
   }
 }
 
 // ─── Rows ─────────────────────────────────────────────────────────────────────
 
-export function queryRows(
+export async function queryRows(
   tableId: string,
   opts: {
     where?: WhereFilter;
@@ -491,31 +500,28 @@ export function queryRows(
     offset?: number;
   } = {},
 ) {
-  if (!getTable(tableId)) throw new NotFoundException("Table not found");
-  const columns = listColumns(tableId);
+  if (!(await getTable(tableId))) throw new NotFoundException("Table not found");
+  const columns = await listColumns(tableId);
   const { sql: whereSql, params: whereParams } = buildWhereSql(opts.where, columns);
   const orderSql = buildOrderBySql(opts.order_by, columns);
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
   const offset = Math.max(opts.offset ?? 0, 0);
 
-  const raw = getRawDb();
-  const countParams = [tableId, ...whereParams] as (string | number | boolean | null)[];
-  const countRow = raw.query(`SELECT COUNT(*) AS c FROM datatable_rows WHERE table_id = ?${whereSql}`).get(...countParams) as {
-    c: number;
-  };
-  const listParams = [tableId, ...whereParams, limit, offset] as (string | number | boolean | null)[];
-  const items = raw
-    .query(
-      `SELECT id, table_id AS tableId, data, created_at AS createdAt, updated_at AS updatedAt
-       FROM datatable_rows WHERE table_id = ?${whereSql}${orderSql} LIMIT ? OFFSET ?`,
-    )
-    .all(...listParams) as Array<{
+  const countParams = [tableId, ...whereParams];
+  const countRows = await executeRaw<{ c: number }>(`SELECT COUNT(*) AS c FROM datatable_rows WHERE table_id = ?${whereSql}`, countParams);
+  const countRow = countRows[0] ?? { c: 0 };
+  const listParams = [tableId, ...whereParams, limit, offset];
+  const items = await executeRaw<{
     id: string;
     tableId: string;
     data: string;
     createdAt: number;
     updatedAt: number;
-  }>;
+  }>(
+    `SELECT id, table_id AS tableId, data, created_at AS createdAt, updated_at AS updatedAt
+       FROM datatable_rows WHERE table_id = ?${whereSql}${orderSql} LIMIT ? OFFSET ?`,
+    listParams,
+  );
 
   return {
     items: items.map((r) => ({
@@ -525,21 +531,21 @@ export function queryRows(
       createdAt: new Date(r.createdAt * 1000),
       updatedAt: new Date(r.updatedAt * 1000),
     })),
-    total: countRow.c,
+    total: Number(countRow.c),
     limit,
     offset,
   };
 }
 
-export function getRow(id: string): DatatableRow | null {
-  return getDb().select().from(datatableRows).where(eq(datatableRows.id, id)).get() ?? null;
+export async function getRow(id: string): Promise<DatatableRow | null> {
+  return (await qone(getDb().select().from(datatableRows).where(eq(datatableRows.id, id)))) ?? null;
 }
 
-export function insertRows(tableId: string, rows: Record<string, unknown>[]) {
-  if (!getTable(tableId)) throw new NotFoundException("Table not found");
+export async function insertRows(tableId: string, rows: Record<string, unknown>[]) {
+  if (!(await getTable(tableId))) throw new NotFoundException("Table not found");
   if (!Array.isArray(rows) || rows.length === 0) throw new BadRequestException("rows must be a non-empty array");
   if (rows.length > 200) throw new BadRequestException("Cannot insert more than 200 rows at once");
-  const columns = listColumns(tableId);
+  const columns = await listColumns(tableId);
   const now = new Date();
   const created: DatatableRow[] = [];
   const db = getDb();
@@ -555,20 +561,20 @@ export function insertRows(tableId: string, rows: Record<string, unknown>[]) {
       createdAt: now,
       updatedAt: now,
     };
-    db.insert(datatableRows).values(entry).run();
-    created.push(getRow(entry.id as string) ?? (entry as DatatableRow));
+    await qrun(db.insert(datatableRows).values(entry));
+    created.push((await getRow(entry.id as string)) ?? (entry as DatatableRow));
   }
   wsHub.emit("datatables:rows-created", { tableId, rows: created });
   return created;
 }
 
-export function updateRow(id: string, data: Record<string, unknown>, partial = true) {
-  const current = getRow(id);
+export async function updateRow(id: string, data: Record<string, unknown>, partial = true) {
+  const current = await getRow(id);
   if (!current) throw new NotFoundException("Row not found");
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new BadRequestException("data must be an object");
   }
-  const columns = listColumns(current.tableId);
+  const columns = await listColumns(current.tableId);
   const patch = validateRowData(columns, data, partial);
   const next = partial ? { ...current.data, ...patch } : patch;
   for (const col of columns) {
@@ -577,28 +583,28 @@ export function updateRow(id: string, data: Record<string, unknown>, partial = t
     }
   }
   const updatedAt = new Date();
-  getDb().update(datatableRows).set({ data: next, updatedAt }).where(eq(datatableRows.id, id)).run();
-  const updated = getRow(id)!;
+  await qrun(getDb().update(datatableRows).set({ data: next, updatedAt }).where(eq(datatableRows.id, id)));
+  const updated = (await getRow(id))!;
   wsHub.emit("datatables:row-updated", updated);
   return updated;
 }
 
-export function deleteRow(id: string) {
-  const current = getRow(id);
+export async function deleteRow(id: string) {
+  const current = await getRow(id);
   if (!current) throw new NotFoundException("Row not found");
-  getDb().delete(datatableRows).where(eq(datatableRows.id, id)).run();
+  await qrun(getDb().delete(datatableRows).where(eq(datatableRows.id, id)));
   wsHub.emit("datatables:row-deleted", { id, tableId: current.tableId });
 }
 
-export function bulkDeleteRows(tableId: string, rowIds: string[]) {
-  if (!getTable(tableId)) throw new NotFoundException("Table not found");
+export async function bulkDeleteRows(tableId: string, rowIds: string[]) {
+  if (!(await getTable(tableId))) throw new NotFoundException("Table not found");
   if (!Array.isArray(rowIds) || rowIds.length === 0) throw new BadRequestException("rowIds required");
   const db = getDb();
   let deleted = 0;
   for (const id of rowIds) {
-    const row = getRow(id);
+    const row = await getRow(id);
     if (!row || row.tableId !== tableId) continue;
-    db.delete(datatableRows).where(eq(datatableRows.id, id)).run();
+    await qrun(db.delete(datatableRows).where(eq(datatableRows.id, id)));
     deleted++;
   }
   wsHub.emit("datatables:rows-deleted", { tableId, rowIds, deleted });
@@ -607,28 +613,28 @@ export function bulkDeleteRows(tableId: string, rowIds: string[]) {
 
 // ─── Ref-based helpers (SDK / builtin) — project/table accept id or name ──────
 
-export function queryRowsByName(projectRef: string, tableRef: string, opts: { where?: WhereFilter; order_by?: OrderByItem[]; limit?: number; offset?: number } = {}) {
-  const found = resolveProjectAndTable(projectRef, tableRef);
+export async function queryRowsByName(projectRef: string, tableRef: string, opts: { where?: WhereFilter; order_by?: OrderByItem[]; limit?: number; offset?: number } = {}) {
+  const found = await resolveProjectAndTable(projectRef, tableRef);
   if (!found) throw new NotFoundException(`Table "${projectRef}/${tableRef}" not found`);
-  return queryRows(found.table.id, opts);
+  return await queryRows(found.table.id, opts);
 }
 
-export function insertRowsByName(projectRef: string, tableRef: string, rows: Record<string, unknown>[]) {
-  const found = resolveProjectAndTable(projectRef, tableRef);
+export async function insertRowsByName(projectRef: string, tableRef: string, rows: Record<string, unknown>[]) {
+  const found = await resolveProjectAndTable(projectRef, tableRef);
   if (!found) throw new NotFoundException(`Table "${projectRef}/${tableRef}" not found`);
-  return insertRows(found.table.id, rows);
+  return await insertRows(found.table.id, rows);
 }
 
-export function updateRowByName(projectRef: string, tableRef: string, rowId: string, data: Record<string, unknown>) {
-  const found = resolveProjectAndTable(projectRef, tableRef);
+export async function updateRowByName(projectRef: string, tableRef: string, rowId: string, data: Record<string, unknown>) {
+  const found = await resolveProjectAndTable(projectRef, tableRef);
   if (!found) throw new NotFoundException(`Table "${projectRef}/${tableRef}" not found`);
-  const row = getRow(rowId);
+  const row = await getRow(rowId);
   if (!row || row.tableId !== found.table.id) throw new NotFoundException("Row not found");
-  return updateRow(rowId, data, true);
+  return await updateRow(rowId, data, true);
 }
 
-export function deleteRowsByName(projectRef: string, tableRef: string, rowIds: string[]) {
-  const found = resolveProjectAndTable(projectRef, tableRef);
+export async function deleteRowsByName(projectRef: string, tableRef: string, rowIds: string[]) {
+  const found = await resolveProjectAndTable(projectRef, tableRef);
   if (!found) throw new NotFoundException(`Table "${projectRef}/${tableRef}" not found`);
-  return bulkDeleteRows(found.table.id, rowIds);
+  return await bulkDeleteRows(found.table.id, rowIds);
 }

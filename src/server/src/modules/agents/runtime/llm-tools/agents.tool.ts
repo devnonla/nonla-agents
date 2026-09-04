@@ -39,14 +39,14 @@ ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;
         }
 
         if (action === "list") {
-          const items = listAgents().map(summarizeAgent);
+          const items = (await listAgents()).map(summarizeAgent);
           return JSON.stringify({ ok: true, count: items.length, items });
         }
 
         if (action === "get") {
           const agentId = id?.trim() ?? "";
           if (!agentId) return JSON.stringify({ ok: false, error: "'id' is required for get." });
-          const agent = getAgent(agentId);
+          const agent = await getAgent(agentId);
           if (!agent) return JSON.stringify({ ok: false, error: `Agent not found: ${agentId}` });
           return JSON.stringify({ ok: true, agent: summarizeAgent(agent) });
         }

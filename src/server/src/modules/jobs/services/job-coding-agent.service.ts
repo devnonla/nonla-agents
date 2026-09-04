@@ -141,8 +141,8 @@ export async function streamJobCodingAgent(jobId: string, body: JobCodingStreamR
     makeAgentsTool(["list", "get"]),
   ];
 
-  const currentCode = getDraftCode(jobId);
-  const job = getJob(jobId);
+  const currentCode = await getDraftCode(jobId);
+  const job = await getJob(jobId);
   const systemPrompt = buildJobCodingSystemPrompt(currentCode, job);
   const agent = createAgent({
     model,

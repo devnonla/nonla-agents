@@ -65,7 +65,7 @@ async function handleMethod(serverId: string, serverName: string, req: JsonRpcRe
     case "ping":
       return {};
     case "tools/list": {
-      const tools = listLiveMcpTools(serverId).map((t) => ({
+      const tools = (await listLiveMcpTools(serverId)).map((t) => ({
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema,
@@ -75,7 +75,7 @@ async function handleMethod(serverId: string, serverName: string, req: JsonRpcRe
     case "tools/call": {
       const name = typeof params.name === "string" ? params.name : "";
       if (!name) return textResult("Tool name is required", true);
-      const tool = getAssignedToolForCall(serverId, name);
+      const tool = await getAssignedToolForCall(serverId, name);
       if (!tool) return textResult(`Tool not found: ${name}`, true);
       if (!tool.isActive) return textResult(`Tool is inactive: ${name}`, true);
       const args = params.arguments && typeof params.arguments === "object" ? params.arguments : {};
@@ -133,7 +133,7 @@ app.post("/:id", async (c) => {
   const token = readBearer(c.req.header("authorization"));
   if (!token) throw new UnauthorizedException("Authentication required");
 
-  const auth = authenticateMyMcpServer(id, token);
+  const auth = await authenticateMyMcpServer(id, token);
   if (auth === "missing") throw new NotFoundException("MCP server not found");
   if (auth === "unauthorized") throw new UnauthorizedException("Invalid token");
   if (auth === "inactive") throw new ForbiddenException("MCP server is inactive");
@@ -159,7 +159,7 @@ app.post("/:id", async (c) => {
     return Response.json(responses);
   }
 
-  return handleRpc(auth.id, auth.name, (body ?? {}) as JsonRpcRequest);
+  return await handleRpc(auth.id, auth.name, (body ?? {}) as JsonRpcRequest);
 });
 
 export default app;

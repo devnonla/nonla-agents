@@ -7,7 +7,7 @@ export function makeGetJobRunTool(jobId: string) {
     async ({ runId }) => {
       const id = runId?.trim();
       if (id) {
-        const run = getJobRun(id);
+        const run = await getJobRun(id);
         if (!run || run.jobId !== jobId) {
           return JSON.stringify({ ok: false, error: `Run not found: ${id}` });
         }
@@ -26,7 +26,7 @@ export function makeGetJobRunTool(jobId: string) {
         });
       }
 
-      const latest = listJobRuns(jobId, { limit: "1" }).items[0];
+      const latest = (await listJobRuns(jobId, { limit: "1" })).items[0];
       if (!latest) return JSON.stringify({ ok: false, error: "No runs yet" });
       return JSON.stringify({
         ok: true,

@@ -12,16 +12,22 @@
 
 import { eq } from "drizzle-orm";
 import { appSettings, getDb } from "../db/client.js";
+import { qone } from "../db/query.js";
+
+let timezoneCache = "UTC";
 
 /** Đọc timezone đã cấu hình từ DB. Fallback: UTC. */
-export function getConfiguredTimezone(): string {
+export async function getConfiguredTimezone(): Promise<string> {
   try {
-    const row = getDb().select().from(appSettings).where(eq(appSettings.key, "timezone")).get();
-    if (row?.value) return row.value;
+    const row = await qone(getDb().select().from(appSettings).where(eq(appSettings.key, "timezone")));
+    if (row?.value) {
+      timezoneCache = row.value;
+      return row.value;
+    }
   } catch {
     /* ignore */
   }
-  return "UTC";
+  return timezoneCache;
 }
 
 /**
@@ -59,7 +65,7 @@ export function getTzOffsetMs(tz: string, date: Date): number {
  */
 export function cronNextDate(cron: string, from: Date = new Date(), tz?: string): Date | null {
   try {
-    const timezone = tz ?? getConfiguredTimezone();
+    const timezone = tz ?? timezoneCache;
     const offsetMs = getTzOffsetMs(timezone, from);
 
     // Shift `from` vào TZ space (fake UTC)

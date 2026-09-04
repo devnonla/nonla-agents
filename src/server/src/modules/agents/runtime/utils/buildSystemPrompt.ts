@@ -17,6 +17,7 @@
 
 import { eq } from "drizzle-orm";
 import { agents, getDb } from "../../../../common/db/client.js";
+import { qall, qone } from "../../../../common/db/query.js";
 import { listAssignedSkillSummaries } from "../../../skills/skills.service.js";
 import { callAgentToolName } from "../llm-tools/call-agent.tool.js";
 
@@ -133,10 +134,10 @@ export function buildSystemPrompt(agent: AgentLike, options: BuildSystemPromptOp
 /**
  * Resolve full system prompt for an agent directly from DB.
  */
-export function resolveSystemPrompt(agentId: string, callableAgentIds?: string[]): string {
+export async function resolveSystemPrompt(agentId: string, callableAgentIds?: string[]): Promise<string> {
   const db = getDb();
 
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
   const effectiveCallableIds = callableAgentIds ?? (agent.callableAgentIds as string[] | null) ?? [];
@@ -144,11 +145,11 @@ export function resolveSystemPrompt(agentId: string, callableAgentIds?: string[]
   let agentsToDelegate: { id: string; name: string; description: string | null }[] | undefined;
 
   if (effectiveCallableIds.length > 0) {
-    const all = db.select({ id: agents.id, name: agents.name, description: agents.description }).from(agents).all();
+    const all = await qall(db.select({ id: agents.id, name: agents.name, description: agents.description }).from(agents));
     agentsToDelegate = all.filter((a) => effectiveCallableIds.includes(a.id));
   }
 
-  const skillSummaries = listAssignedSkillSummaries(agentId);
+  const skillSummaries = await listAssignedSkillSummaries(agentId);
 
   return buildSystemPrompt(agent, {
     agentsToDelegate,

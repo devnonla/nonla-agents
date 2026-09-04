@@ -1,5 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { agentMessages, getDb } from "../../../../common/db/client.js";
+import { qall } from "../../../../common/db/query.js";
 import type { MessageParam } from "./agentRunner.js";
 import { applyHistoryCompaction } from "./historyCompact.js";
 
@@ -102,8 +103,8 @@ export function rebuildHistoryFromRows(rows: HistoryRow[]): MessageParam[] {
  * Load conversation history for the agent.
  * Long histories are compacted: older turns → extractive summary + recent window.
  */
-export function loadHistory(conversationId: string): MessageParam[] {
-  const rows = getDb().select().from(agentMessages).where(eq(agentMessages.conversationId, conversationId)).orderBy(sql`rowid`).all();
+export async function loadHistory(conversationId: string): Promise<MessageParam[]> {
+  const rows = await qall(getDb().select().from(agentMessages).where(eq(agentMessages.conversationId, conversationId)).orderBy(asc(agentMessages.createdAt), asc(agentMessages.id)));
 
   const full = rebuildHistoryFromRows(
     rows.map((r) => ({

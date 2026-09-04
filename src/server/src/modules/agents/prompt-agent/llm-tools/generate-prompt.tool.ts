@@ -21,7 +21,7 @@ const schema = z.object({
 export function makeGeneratePromptTool(agentId: string) {
   return tool(
     async ({ prompt, summary }) => {
-      updateAgent(agentId, { systemPromptDraft: prompt });
+      await updateAgent(agentId, { systemPromptDraft: prompt });
 
       return JSON.stringify({
         ok: true,

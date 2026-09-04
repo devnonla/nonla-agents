@@ -5,13 +5,13 @@ import { createMcpServer, deleteMcpServer, getMcpServer, listMcpServers, syncMcp
 const app = new Hono();
 
 // GET /api/mcp-servers
-app.get("/", (c) => {
-  return c.json(listMcpServers(c.req.query()));
+app.get("/", async (c) => {
+  return c.json(await listMcpServers(c.req.query()));
 });
 
 // GET /api/mcp-servers/:id
-app.get("/:id", (c) => {
-  const server = getMcpServer(c.req.param("id"));
+app.get("/:id", async (c) => {
+  const server = await getMcpServer(c.req.param("id"));
   if (!server) throw new BadRequestException("MCP server not found");
   return c.json(server);
 });
@@ -29,11 +29,11 @@ app.post("/", async (c) => {
   // Auto-sync tools after creation
   try {
     const syncResult = await syncMcpTools(server.id!);
-    const refreshed = getMcpServer(server.id!);
+    const refreshed = await getMcpServer(server.id!);
     return c.json({ ...(refreshed ?? server), syncResult }, 201);
   } catch (err) {
     // Server created but sync failed — return server with persisted error
-    const refreshed = getMcpServer(server.id!);
+    const refreshed = await getMcpServer(server.id!);
     return c.json(
       {
         ...(refreshed ?? server),

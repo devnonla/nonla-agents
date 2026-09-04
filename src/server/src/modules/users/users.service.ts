@@ -6,6 +6,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { type NewUser, type User, getDb, users } from "../../common/db/client.js";
 import { listQuery } from "../../common/db/list-query.util.js";
+import { qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { revokeAllRefreshTokensForUser } from "../auth/auth.service.js";
@@ -22,8 +23,8 @@ function toSafeUser(user: User): SafeUser {
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 
-export function listUsers(query: Record<string, string>) {
-  const result = listQuery(
+export async function listUsers(query: Record<string, string>) {
+  const result = await listQuery(
     {
       table: users,
       searchColumns: ["username", "name"],
@@ -40,8 +41,8 @@ export function listUsers(query: Record<string, string>) {
 
 // ─── Get ──────────────────────────────────────────────────────────────────────
 
-export function getUser(id: string): SafeUser | undefined {
-  const user = getDb().select().from(users).where(eq(users.id, id)).get();
+export async function getUser(id: string): Promise<SafeUser | undefined> {
+  const user = await qone(getDb().select().from(users).where(eq(users.id, id)));
   if (!user) return undefined;
   return toSafeUser(user);
 }
@@ -71,7 +72,7 @@ export async function createUser(body: {
   }
 
   // Check unique username
-  const existingUsername = getDb().select().from(users).where(eq(users.username, username)).get();
+  const existingUsername = await qone(getDb().select().from(users).where(eq(users.username, username)));
   if (existingUsername) {
     throw new BadRequestException("Username already exists");
   }
@@ -91,7 +92,7 @@ export async function createUser(body: {
     updatedAt: now,
   };
 
-  getDb().insert(users).values(newUser).run();
+  await qrun(getDb().insert(users).values(newUser));
 
   const safe = toSafeUser(newUser as User);
   wsHub.emit("users:created", safe);
@@ -100,20 +101,21 @@ export async function createUser(body: {
 
 // ─── Update ───────────────────────────────────────────────────────────────────
 
-export function updateUser(id: string, body: { username?: string; name?: string; role?: "admin" | "member" }): SafeUser {
+export async function updateUser(id: string, body: { username?: string; name?: string; role?: "admin" | "member" }): Promise<SafeUser> {
   const db = getDb();
-  const existing = db.select().from(users).where(eq(users.id, id)).get();
+  const existing = await qone(db.select().from(users).where(eq(users.id, id)));
   if (!existing) {
     throw new BadRequestException("User not found");
   }
 
   // Check unique username (exclude self)
   if (body.username && body.username !== existing.username) {
-    const dup = db
-      .select()
-      .from(users)
-      .where(and(eq(users.username, body.username), ne(users.id, id)))
-      .get();
+    const dup = await qone(
+      db
+        .select()
+        .from(users)
+        .where(and(eq(users.username, body.username), ne(users.id, id))),
+    );
     if (dup) {
       throw new BadRequestException("Username already exists");
     }
@@ -125,8 +127,8 @@ export function updateUser(id: string, body: { username?: string; name?: string;
   if (body.name !== undefined) updateSet.name = body.name;
   if (body.role) updateSet.role = body.role;
 
-  db.update(users).set(updateSet).where(eq(users.id, id)).run();
-  const updated = db.select().from(users).where(eq(users.id, id)).get();
+  await qrun(db.update(users).set(updateSet).where(eq(users.id, id)));
+  const updated = await qone(db.select().from(users).where(eq(users.id, id)));
   if (!updated) throw new BadRequestException("User not found");
   const safe = toSafeUser(updated);
   wsHub.emit("users:updated", safe);
@@ -135,9 +137,9 @@ export function updateUser(id: string, body: { username?: string; name?: string;
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
-export function deleteUser(id: string, currentUserId: string): void {
+export async function deleteUser(id: string, currentUserId: string): Promise<void> {
   const db = getDb();
-  const user = db.select().from(users).where(eq(users.id, id)).get();
+  const user = await qone(db.select().from(users).where(eq(users.id, id)));
   if (!user) {
     throw new BadRequestException("User not found");
   }
@@ -147,8 +149,8 @@ export function deleteUser(id: string, currentUserId: string): void {
     throw new BadRequestException("Cannot delete yourself");
   }
 
-  revokeAllRefreshTokensForUser(id);
-  db.delete(users).where(eq(users.id, id)).run();
+  await revokeAllRefreshTokensForUser(id);
+  await qrun(db.delete(users).where(eq(users.id, id)));
   wsHub.emit("users:deleted", { id });
 }
 
@@ -156,7 +158,7 @@ export function deleteUser(id: string, currentUserId: string): void {
 
 export async function resetPassword(id: string, body: { password?: string }): Promise<{ password: string }> {
   const db = getDb();
-  const user = db.select().from(users).where(eq(users.id, id)).get();
+  const user = await qone(db.select().from(users).where(eq(users.id, id)));
   if (!user) {
     throw new BadRequestException("User not found");
   }
@@ -169,8 +171,8 @@ export async function resetPassword(id: string, body: { password?: string }): Pr
   }
 
   const passwordHash = await Bun.password.hash(password);
-  db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id)).run();
-  revokeAllRefreshTokensForUser(id);
+  await qrun(db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id)));
+  await revokeAllRefreshTokensForUser(id);
 
   return { password };
 }

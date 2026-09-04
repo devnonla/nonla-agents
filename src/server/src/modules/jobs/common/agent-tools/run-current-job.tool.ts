@@ -5,7 +5,7 @@ import { runDraftJobCode } from "../../jobs-runner.js";
 export function makeRunCurrentJobTool(jobId: string) {
   return tool(
     async () => {
-      const result = runDraftJobCode(jobId);
+      const result = await runDraftJobCode(jobId);
       if (result.started) {
         return JSON.stringify({
           started: true,

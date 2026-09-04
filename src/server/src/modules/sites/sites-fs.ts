@@ -45,7 +45,7 @@ const DEFAULT_BACKEND = `export async function handle({ request, nonlaagents, qu
 const DEFAULT_APP = `import { useEffect, useState } from "react";
 import { loadSiteData, siteAction } from "./site-api.js";
 
-export default function App() {
+export default async function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);

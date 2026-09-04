@@ -12,7 +12,7 @@ export type CreateAppServerOptions = {
 };
 
 export function createAppServer(options: CreateAppServerOptions = {}) {
-  const port = options.port ?? Number(process.env.PORT ?? "15888");
+  const port = options.port ?? Number(process.env.PORT ?? "8429");
   const host = options.host ?? process.env.HOST ?? "127.0.0.1";
   const app = createApp();
 

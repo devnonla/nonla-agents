@@ -4,6 +4,7 @@
 
 import { and, eq, isNull } from "drizzle-orm";
 import { type User, appSettings, getDb, refreshTokens, users } from "../../common/db/client.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, UnauthorizedException } from "../../common/exceptions/http.exception.js";
 import { type JwtPayload, signToken } from "../../common/middleware/auth.middleware.js";
 
@@ -44,42 +45,45 @@ async function issueTokenPair(user: User): Promise<{ token: string; refreshToken
   const now = new Date();
   const expiresAt = new Date(now.getTime() + REFRESH_TTL_MS);
 
-  getDb()
-    .insert(refreshTokens)
-    .values({
-      id: crypto.randomUUID(),
-      userId: user.id,
-      tokenHash: hashRefreshToken(refreshToken),
-      expiresAt,
-      createdAt: now,
-      revokedAt: null,
-    })
-    .run();
+  await qrun(
+    getDb()
+      .insert(refreshTokens)
+      .values({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        tokenHash: hashRefreshToken(refreshToken),
+        expiresAt,
+        createdAt: now,
+        revokedAt: null,
+      }),
+  );
 
   return { token, refreshToken };
 }
 
-export function revokeRefreshToken(refreshToken: string | undefined | null): void {
+export async function revokeRefreshToken(refreshToken: string | undefined | null): Promise<void> {
   if (!refreshToken) return;
-  getDb()
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(eq(refreshTokens.tokenHash, hashRefreshToken(refreshToken)))
-    .run();
+  await qrun(
+    getDb()
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(refreshTokens.tokenHash, hashRefreshToken(refreshToken))),
+  );
 }
 
-export function revokeAllRefreshTokensForUser(userId: string): void {
-  getDb()
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)))
-    .run();
+export async function revokeAllRefreshTokensForUser(userId: string): Promise<void> {
+  await qrun(
+    getDb()
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt))),
+  );
 }
 
 // ─── Setup Status ─────────────────────────────────────────────────────────────
 
-export function checkSetupStatus(): { needsSetup: boolean } {
-  const userCount = getDb().select().from(users).limit(1).all();
+export async function checkSetupStatus(): Promise<{ needsSetup: boolean }> {
+  const userCount = await qall(getDb().select().from(users).limit(1));
   return { needsSetup: userCount.length === 0 };
 }
 
@@ -94,7 +98,7 @@ export async function setupFirstAdmin(body: {
   const { username, name, password, timezone } = body;
 
   // Only allow setup when no users exist
-  const { needsSetup } = checkSetupStatus();
+  const { needsSetup } = await checkSetupStatus();
   if (!needsSetup) {
     throw new BadRequestException("Setup has already been completed");
   }
@@ -119,8 +123,8 @@ export async function setupFirstAdmin(body: {
   const now = new Date();
   const id = crypto.randomUUID();
 
-  db.insert(users)
-    .values({
+  await qrun(
+    db.insert(users).values({
       id,
       username,
       name,
@@ -129,17 +133,19 @@ export async function setupFirstAdmin(body: {
       isActive: true,
       createdAt: now,
       updatedAt: now,
-    })
-    .run();
+    }),
+  );
 
   // Save timezone to app settings
-  db.insert(appSettings)
-    .values({ key: "timezone", value: timezone, updatedAt: now })
-    .onConflictDoUpdate({ target: appSettings.key, set: { value: timezone, updatedAt: now } })
-    .run();
+  await qrun(
+    db
+      .insert(appSettings)
+      .values({ key: "timezone", value: timezone, updatedAt: now })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value: timezone, updatedAt: now } }),
+  );
 
   // Auto-login — generate JWT + refresh
-  const user = db.select().from(users).where(eq(users.id, id)).get();
+  const user = await qone(db.select().from(users).where(eq(users.id, id)));
   if (!user) throw new BadRequestException("Failed to create user");
 
   const tokens = await issueTokenPair(user);
@@ -159,7 +165,7 @@ export async function login(body: {
   }
 
   // Find by username
-  const user = getDb().select().from(users).where(eq(users.username, username)).get();
+  const user = await qone(getDb().select().from(users).where(eq(users.username, username)));
 
   if (!user) {
     throw new BadRequestException("Invalid username or password");
@@ -188,7 +194,7 @@ export async function refreshSession(refreshToken: string): Promise<{ token: str
 
   const db = getDb();
   const hash = hashRefreshToken(refreshToken);
-  const row = db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, hash)).get();
+  const row = await qone(db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, hash)));
 
   if (!row) {
     throw new UnauthorizedException("Invalid refresh token");
@@ -199,7 +205,7 @@ export async function refreshSession(refreshToken: string): Promise<{ token: str
     // older revoked tokens as theft and revoke all sessions.
     const revokedAgeMs = Date.now() - row.revokedAt.getTime();
     if (revokedAgeMs > 15_000) {
-      revokeAllRefreshTokensForUser(row.userId);
+      await revokeAllRefreshTokensForUser(row.userId);
       throw new UnauthorizedException("Refresh token reuse detected");
     }
     throw new UnauthorizedException("Invalid refresh token");
@@ -209,17 +215,18 @@ export async function refreshSession(refreshToken: string): Promise<{ token: str
     throw new UnauthorizedException("Refresh token expired");
   }
 
-  const user = db.select().from(users).where(eq(users.id, row.userId)).get();
+  const user = await qone(db.select().from(users).where(eq(users.id, row.userId)));
   if (!user?.isActive) {
     throw new UnauthorizedException("Authentication required");
   }
 
-  const revoked = db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(refreshTokens.id, row.id), isNull(refreshTokens.revokedAt)))
-    .returning({ id: refreshTokens.id })
-    .all();
+  const revoked = await qall(
+    db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(refreshTokens.id, row.id), isNull(refreshTokens.revokedAt)))
+      .returning({ id: refreshTokens.id }),
+  );
 
   if (revoked.length === 0) {
     // Lost a concurrent refresh race — winner already rotated; do not wipe other sessions.
@@ -231,8 +238,8 @@ export async function refreshSession(refreshToken: string): Promise<{ token: str
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
-export function logout(refreshToken: string | undefined | null): void {
-  revokeRefreshToken(refreshToken);
+export async function logout(refreshToken: string | undefined | null): Promise<void> {
+  await revokeRefreshToken(refreshToken);
 }
 
 // ─── Get current user ─────────────────────────────────────────────────────────
@@ -254,7 +261,7 @@ export async function changePassword(userId: string, body: { oldPassword: string
     throw new BadRequestException("New password must be at least 8 characters");
   }
 
-  const user = getDb().select().from(users).where(eq(users.id, userId)).get();
+  const user = await qone(getDb().select().from(users).where(eq(users.id, userId)));
 
   if (!user) {
     throw new BadRequestException("User not found");
@@ -266,8 +273,8 @@ export async function changePassword(userId: string, body: { oldPassword: string
   }
 
   const newHash = await Bun.password.hash(newPassword);
-  getDb().update(users).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(users.id, userId)).run();
-  revokeAllRefreshTokensForUser(userId);
+  await qrun(getDb().update(users).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(users.id, userId)));
+  await revokeAllRefreshTokensForUser(userId);
 }
 
 // ─── Update Profile ───────────────────────────────────────────────────────────
@@ -276,16 +283,18 @@ export async function updateProfile(userId: string, body: { name?: string; avata
   const { name, avatar } = body;
   const db = getDb();
 
-  db.update(users)
-    .set({
-      ...(name !== undefined ? { name } : {}),
-      ...(avatar !== undefined ? { avatar } : {}),
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId))
-    .run();
+  await qrun(
+    db
+      .update(users)
+      .set({
+        ...(name !== undefined ? { name } : {}),
+        ...(avatar !== undefined ? { avatar } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId)),
+  );
 
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const user = await qone(db.select().from(users).where(eq(users.id, userId)));
   if (!user) throw new BadRequestException("User not found");
 
   return toSafeUser(user);

@@ -102,7 +102,7 @@ function buildLangChainMessages(messages: SkillStreamRequest["messages"]): BaseM
 
 export async function streamSkillAgent(skillId: string, body: SkillStreamRequest, stream: SSEStreamingApi, abortSignal?: AbortSignal): Promise<void> {
   try {
-    if (!getSkill(skillId)) {
+    if (!(await getSkill(skillId))) {
       throw new Error("Skill not found");
     }
 
@@ -114,7 +114,7 @@ export async function streamSkillAgent(skillId: string, body: SkillStreamRequest
     const agent = createAgent({
       model,
       tools,
-      systemPrompt: buildSkillAgentSystemPrompt(skillId),
+      systemPrompt: await buildSkillAgentSystemPrompt(skillId),
       middleware: [createCompactEditMiddleware()],
     });
 

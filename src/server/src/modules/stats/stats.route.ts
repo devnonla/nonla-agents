@@ -1,16 +1,17 @@
 import { count } from "drizzle-orm";
 import { Hono } from "hono";
 import { agentTeams, agentTools, agents, getDb } from "../../common/db/client.js";
+import { qall } from "../../common/db/query.js";
 
 const app = new Hono();
 
 // GET /api/stats — dashboard overview counts
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const db = getDb();
 
-  const [agentCount] = db.select({ value: count() }).from(agents).all();
-  const [teamCount] = db.select({ value: count() }).from(agentTeams).all();
-  const [toolCount] = db.select({ value: count() }).from(agentTools).all();
+  const [agentCount] = await qall(db.select({ value: count() }).from(agents));
+  const [teamCount] = await qall(db.select({ value: count() }).from(agentTeams));
+  const [toolCount] = await qall(db.select({ value: count() }).from(agentTools));
 
   return c.json({
     agents: agentCount.value,

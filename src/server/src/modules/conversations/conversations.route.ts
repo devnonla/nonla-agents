@@ -15,79 +15,79 @@ function requireUser(c: { get: (key: string) => unknown }) {
 }
 
 // GET /api/conversations?page=1&limit=50&sorts=-createdAt&agentId=xxx
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const user = requireUser(c);
-  return c.json(listConversations(user.id, c.req.query()));
+  return c.json(await listConversations(user.id, c.req.query()));
 });
 
 // GET /api/conversations/feed/messages — must be before /:id
-app.get("/feed/messages", (c) => {
+app.get("/feed/messages", async (c) => {
   const user = requireUser(c);
   const agentId = c.req.query("agentId");
   if (!agentId) throw new BadRequestException("agentId required");
-  return c.json(getMessageFeed(agentId, user.id, c.req.query("cursor")));
+  return c.json(await getMessageFeed(agentId, user.id, c.req.query("cursor")));
 });
 
 // GET /api/conversations/:id
-app.get("/:id", (c) => {
+app.get("/:id", async (c) => {
   const user = requireUser(c);
-  return c.json(requireOwnedConversation(c.req.param("id"), user.id));
+  return c.json(await requireOwnedConversation(c.req.param("id"), user.id));
 });
 
 // POST /api/conversations
 app.post("/", async (c) => {
   const user = requireUser(c);
   const body = await c.req.json();
-  return c.json(createConversation({ ...body, ownerId: user.id }), 201);
+  return c.json(await createConversation({ ...body, ownerId: user.id }), 201);
 });
 
 // PUT /api/conversations/:id
 app.put("/:id", async (c) => {
   const user = requireUser(c);
   const id = c.req.param("id");
-  requireOwnedConversation(id, user.id);
+  await requireOwnedConversation(id, user.id);
   const body = await c.req.json();
-  return c.json(updateConversation(id, body));
+  return c.json(await updateConversation(id, body));
 });
 
 // DELETE /api/conversations/:id
-app.delete("/:id", (c) => {
+app.delete("/:id", async (c) => {
   const user = requireUser(c);
   const id = c.req.param("id");
-  requireOwnedConversation(id, user.id);
-  deleteConversation(id);
+  await requireOwnedConversation(id, user.id);
+  await deleteConversation(id);
   return c.json({ ok: true });
 });
 
 // GET /api/conversations/:id/messages
-app.get("/:id/messages", (c) => {
+app.get("/:id/messages", async (c) => {
   const user = requireUser(c);
-  requireOwnedConversation(c.req.param("id"), user.id);
-  return c.json(listMessages(c.req.param("id")));
+  await requireOwnedConversation(c.req.param("id"), user.id);
+  return c.json(await listMessages(c.req.param("id")));
 });
 
 // GET /api/conversations/:id/bg-tasks
-app.get("/:id/bg-tasks", (c) => {
+app.get("/:id/bg-tasks", async (c) => {
   const user = requireUser(c);
-  requireOwnedConversation(c.req.param("id"), user.id);
+  await requireOwnedConversation(c.req.param("id"), user.id);
   return c.json({ items: listConversationBgTasks(c.req.param("id")) });
 });
 
 // GET /api/conversations/:id/bg-tasks/:taskId
-app.get("/:id/bg-tasks/:taskId", (c) => {
+app.get("/:id/bg-tasks/:taskId", async (c) => {
   const user = requireUser(c);
   const conversationId = c.req.param("id");
-  requireOwnedConversation(conversationId, user.id);
+  await requireOwnedConversation(conversationId, user.id);
   const task = getConversationBgTask(conversationId, c.req.param("taskId"));
   if (!task) throw new BadRequestException("Task not found");
   return c.json(task);
 });
 
 // POST /api/conversations/:id/bg-tasks/:taskId/cancel
-app.post("/:id/bg-tasks/:taskId/cancel", (c) => {
+app.post("/:id/bg-tasks/:taskId/cancel", async (c) => {
   const user = requireUser(c);
   const conversationId = c.req.param("id");
-  requireOwnedConversation(conversationId, user.id);
+  await requireOwnedConversation(conversationId, user.id);
   const task = cancelConversationBgTask(conversationId, c.req.param("taskId"));
   if (!task) throw new BadRequestException("Task not found");
   return c.json(task);
@@ -97,17 +97,17 @@ app.post("/:id/bg-tasks/:taskId/cancel", (c) => {
 app.post("/:id/messages", async (c) => {
   const user = requireUser(c);
   const id = c.req.param("id");
-  requireOwnedConversation(id, user.id);
+  await requireOwnedConversation(id, user.id);
   const body = await c.req.json();
-  return c.json(createMessage(id, body), 201);
+  return c.json(await createMessage(id, body), 201);
 });
 
 // PATCH /api/conversations/:convId/messages/:msgId/metadata
 app.patch("/:convId/messages/:msgId/metadata", async (c) => {
   const user = requireUser(c);
-  requireOwnedConversation(c.req.param("convId"), user.id);
+  await requireOwnedConversation(c.req.param("convId"), user.id);
   const patch = await c.req.json<Record<string, unknown>>();
-  const result = patchMessageMeta(c.req.param("msgId"), patch);
+  const result = await patchMessageMeta(c.req.param("msgId"), patch);
   if (!result) throw new BadRequestException("Message not found");
   return c.json(result);
 });
@@ -118,7 +118,7 @@ app.patch("/:convId/messages/:msgId/metadata", async (c) => {
 app.post("/:id/chat", async (c) => {
   const user = requireUser(c);
   const conversationId = c.req.param("id");
-  requireOwnedConversation(conversationId, user.id);
+  await requireOwnedConversation(conversationId, user.id);
   const body = await c.req.json<{ agentId: string; message: string; password?: string; token?: string }>();
 
   return streamSSE(c, async (stream) => {
@@ -129,10 +129,10 @@ app.post("/:id/chat", async (c) => {
 // ─── SSE Stream ──────────────────────────────────────────────────────────────
 // GET /api/conversations/:id/stream — subscribe to a running (or recently finished)
 // background task. Replays buffered events so F5 mid-stream catches up.
-app.get("/:id/stream", (c) => {
+app.get("/:id/stream", async (c) => {
   const user = requireUser(c);
   const conversationId = c.req.param("id");
-  requireOwnedConversation(conversationId, user.id);
+  await requireOwnedConversation(conversationId, user.id);
 
   return streamSSE(c, async (stream) => {
     // Wait for stream to become available (GET opened before POST registers the run)

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { SSEStreamingApi } from "hono/streaming";
 import { agentConversations, agentMessages, agents, getDb } from "../../../common/db/client.js";
+import { qone, qrun } from "../../../common/db/query.js";
 import { wsHub } from "../../../common/ws/wsHub.js";
 import { appendMessageContent, patchMessageMetadata, saveMessage, updateConversationStatus } from "../../conversations/conversations.service.js";
 import { verifyPublicToken } from "../../public/public.service.js";
@@ -37,13 +38,13 @@ export async function streamChatSSE(body: ChatStreamInput, stream: SSEStreamingA
   }
 
   const db = getDb();
-  const conv = db.select({ agentId: agentConversations.agentId, ownerId: agentConversations.ownerId, trigger: agentConversations.trigger }).from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+  const conv = await qone(db.select({ agentId: agentConversations.agentId, ownerId: agentConversations.ownerId, trigger: agentConversations.trigger }).from(agentConversations).where(eq(agentConversations.id, conversationId)));
 
   const msgAgentId = conv?.agentId ?? agentId;
 
   // ── Public access validation ──────────────────────────────────────────────
   if (conv?.trigger === "public") {
-    const agent = db.select({ publicPassword: agents.publicPassword, isPublic: agents.isPublic }).from(agents).where(eq(agents.id, msgAgentId)).get();
+    const agent = await qone(db.select({ publicPassword: agents.publicPassword, isPublic: agents.isPublic }).from(agents).where(eq(agents.id, msgAgentId)));
     if (!agent?.isPublic) {
       await stream.writeSSE({ data: JSON.stringify({ type: "error", error: "Agent is not public." }) });
       return;
@@ -58,12 +59,12 @@ export async function streamChatSSE(body: ChatStreamInput, stream: SSEStreamingA
   }
 
   // ── Prepare ───────────────────────────────────────────────────────────────
-  const history = loadHistory(conversationId);
-  saveMessage({ agentId: msgAgentId, conversationId, role: "user", content: message, metadata: null });
+  const history = await loadHistory(conversationId);
+  await saveMessage({ agentId: msgAgentId, conversationId, role: "user", content: message, metadata: null });
 
   // Mark running + broadcast (clear finishedAt so other tabs don't treat this as stale)
-  db.update(agentConversations).set({ status: "running", startedAt: new Date(), finishedAt: null, errorMessage: null }).where(eq(agentConversations.id, conversationId)).run();
-  const updatedConv = db.select().from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+  await qrun(db.update(agentConversations).set({ status: "running", startedAt: new Date(), finishedAt: null, errorMessage: null }).where(eq(agentConversations.id, conversationId)));
+  const updatedConv = await qone(db.select().from(agentConversations).where(eq(agentConversations.id, conversationId)));
   if (updatedConv) wsHub.broadcast("conversations:updated", updatedConv);
 
   const { abort, runId } = runRegistry.create(conversationId, agentId);
@@ -156,7 +157,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
       switch (event.type) {
         case "text-delta":
           if (thinkingText) {
-            saveMessage({
+            await saveMessage({
               agentId: msgAgentId,
               conversationId,
               role: "thinking",
@@ -167,7 +168,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
             thinkingStart = 0;
           }
           if (inToolGroup && lastAssistantMsgId && fillEmptyAssistant) {
-            appendMessageContent(lastAssistantMsgId, event.text);
+            await appendMessageContent(lastAssistantMsgId, event.text);
             break;
           }
           inToolGroup = false;
@@ -182,7 +183,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
           fillEmptyAssistant = false;
           if (!thinkingStart) {
             if (fullText.trim()) {
-              saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
+              await saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
               hasSavedSegments = true;
               fullText = "";
             }
@@ -195,7 +196,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
           // Upsert: early tool_call_chunk may already have saved a row; complete args follow
           const existingToolMsgId = toolMsgIds.get(event.toolCallId);
           if (existingToolMsgId) {
-            patchMessageMetadata(existingToolMsgId, {
+            await patchMessageMetadata(existingToolMsgId, {
               toolInput: event.input,
               toolLabel: event.toolLabel,
               toolName: event.toolName,
@@ -204,7 +205,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
             break;
           }
           if (thinkingText) {
-            saveMessage({
+            await saveMessage({
               agentId: msgAgentId,
               conversationId,
               role: "thinking",
@@ -217,20 +218,20 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
           // OpenAI requires tool messages to follow an assistant with tool_calls.
           // Always persist that assistant (text or empty) before the first tool in a group.
           if (fullText.trim()) {
-            const saved = saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
+            const saved = await saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
             lastAssistantMsgId = saved.id;
             hasSavedSegments = true;
             fullText = "";
             inToolGroup = true;
             fillEmptyAssistant = false;
           } else if (!inToolGroup) {
-            const saved = saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: "", metadata: null });
+            const saved = await saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: "", metadata: null });
             lastAssistantMsgId = saved.id;
             hasSavedSegments = true;
             inToolGroup = true;
             fillEmptyAssistant = true;
           }
-          const toolMsg = saveMessage({
+          const toolMsg = await saveMessage({
             agentId: msgAgentId,
             conversationId,
             role: "tool",
@@ -264,20 +265,20 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
                 const parsed = typeof event.result === "string" ? JSON.parse(event.result) : event.result;
                 const agentId = parsed?.agent_id ?? parseCallAgentToolTargetId(event.toolName);
                 if (agentId) {
-                  const existingInput = ((): Record<string, unknown> => {
-                    const row = getDb().select().from(agentMessages).where(eq(agentMessages.id, toolMsgId)).get();
+                  const existingInput = await (async (): Promise<Record<string, unknown>> => {
+                    const row = await qone(getDb().select().from(agentMessages).where(eq(agentMessages.id, toolMsgId)));
                     const meta = row?.metadata as Record<string, unknown> | null;
                     return (meta?.toolInput as Record<string, unknown>) ?? {};
                   })();
                   patchData.toolInput = { ...existingInput, agent_id: agentId };
                   const { getCallAgentLabel } = await import("./utils/resolveTools.js");
-                  patchData.toolLabel = getCallAgentLabel({ agent_id: agentId });
+                  patchData.toolLabel = await getCallAgentLabel({ agent_id: agentId });
                 }
               } catch {
                 /* ignore parse errors */
               }
             }
-            patchMessageMetadata(toolMsgId, patchData);
+            await patchMessageMetadata(toolMsgId, patchData);
           }
           break;
         }
@@ -287,7 +288,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
           // Persist trailing thinking/text BEFORE clients see done (avoids refetch race).
           // Thinking stays thinking — never promote into assistant content.
           if (thinkingText) {
-            saveMessage({
+            await saveMessage({
               agentId: msgAgentId,
               conversationId,
               role: "thinking",
@@ -298,7 +299,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
             thinkingStart = 0;
           }
           if (fullText.trim()) {
-            saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
+            await saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
             trailingAssistantSaved = true;
             hasSavedSegments = true;
           }
@@ -349,10 +350,10 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
 
       if (failed) {
         for (const [, toolMsgId] of toolMsgIds.entries()) {
-          const row = db.select().from(agentMessages).where(eq(agentMessages.id, toolMsgId)).get();
+          const row = await qone(db.select().from(agentMessages).where(eq(agentMessages.id, toolMsgId)));
           const meta = row?.metadata as Record<string, unknown> | null;
           if (row && !meta?.toolOutput) {
-            patchMessageMetadata(toolMsgId, {
+            await patchMessageMetadata(toolMsgId, {
               toolOutput: JSON.stringify({ error: "Tool execution failed or was interrupted" }),
               toolError: true,
             });
@@ -363,7 +364,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
       // Leftover thinking/text after stream end (may already be flushed on `done`).
       // Thinking stays thinking — never promote into assistant content.
       if (thinkingText) {
-        saveMessage({
+        await saveMessage({
           agentId: msgAgentId,
           conversationId,
           role: "thinking",
@@ -373,10 +374,10 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
         thinkingText = "";
       }
       if (fullText.trim() && !trailingAssistantSaved) {
-        saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
+        await saveMessage({ agentId: msgAgentId, conversationId, role: "assistant", content: fullText, metadata: null });
       }
 
-      updateConversationStatus(conversationId, { status: failed ? "failed" : "done", finishedAt: new Date() });
+      await updateConversationStatus(conversationId, { status: failed ? "failed" : "done", finishedAt: new Date() });
 
       if (stillCurrent()) {
         if (!terminalSent) {
@@ -407,7 +408,7 @@ export async function runAgentConversation(opts: {
   isGuest?: boolean;
 }): Promise<{ text: string; failed: boolean; cancelled: boolean }> {
   const { agentId, conversationId, message, ownerId, isGuest = false } = opts;
-  const history = loadHistory(conversationId);
+  const history = await loadHistory(conversationId);
   // runChatBackground appends the user message — drop the trailing duplicate if already saved
   const hist = [...history];
   if (hist.length > 0) {
@@ -416,8 +417,8 @@ export async function runAgentConversation(opts: {
   }
 
   const db = getDb();
-  db.update(agentConversations).set({ status: "running", startedAt: new Date(), finishedAt: null, errorMessage: null }).where(eq(agentConversations.id, conversationId)).run();
-  const updatedConv = db.select().from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+  await qrun(db.update(agentConversations).set({ status: "running", startedAt: new Date(), finishedAt: null, errorMessage: null }).where(eq(agentConversations.id, conversationId)));
+  const updatedConv = await qone(db.select().from(agentConversations).where(eq(agentConversations.id, conversationId)));
   if (updatedConv) wsHub.broadcast("conversations:updated", updatedConv);
 
   const { abort, runId } = runRegistry.create(conversationId, agentId);
@@ -445,10 +446,10 @@ export async function runAgentConversation(opts: {
  * Stop a running stream. Unblocks SSE immediately and marks conversation failed
  * so the UI does not stay on spinner while a hung tool ignores abort.
  */
-export function stopStream(conversationId: string) {
+export async function stopStream(conversationId: string) {
   const cancelled = runRegistry.cancel(conversationId);
   if (cancelled) {
-    updateConversationStatus(conversationId, {
+    await updateConversationStatus(conversationId, {
       status: "failed",
       finishedAt: new Date(),
       errorMessage: "cancelled",
@@ -456,9 +457,9 @@ export function stopStream(conversationId: string) {
     return true;
   }
   // Orphan running row (e.g. legacy non-registry job call) — clear spinner in UI
-  const conv = getDb().select().from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+  const conv = await qone(getDb().select().from(agentConversations).where(eq(agentConversations.id, conversationId)));
   if (conv?.status === "running") {
-    updateConversationStatus(conversationId, {
+    await updateConversationStatus(conversationId, {
       status: "failed",
       finishedAt: new Date(),
       errorMessage: "cancelled",
@@ -471,12 +472,12 @@ export function stopStream(conversationId: string) {
 // ─── Generate (non-streaming) ─────────────────────────────────────────────────
 
 export async function generateResponse(agentId: string, message: string, conversationId?: string, maxSteps = 40, opts: { ownerId?: string } = {}) {
-  const history = conversationId ? loadHistory(conversationId) : [];
+  const history = conversationId ? await loadHistory(conversationId) : [];
   const messages = [...history, { role: "user" as const, content: message }];
 
   let ownerId = opts.ownerId ?? "user";
   if (conversationId) {
-    const conv = getDb().select({ ownerId: agentConversations.ownerId }).from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+    const conv = await qone(getDb().select({ ownerId: agentConversations.ownerId }).from(agentConversations).where(eq(agentConversations.id, conversationId)));
     if (conv?.ownerId) ownerId = conv.ownerId;
   }
 

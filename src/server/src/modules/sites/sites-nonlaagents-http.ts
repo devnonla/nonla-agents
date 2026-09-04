@@ -50,7 +50,7 @@ async function rpc(ns: string, action: string, args: Record<string, unknown> = {
 }
 
 /** HTTP bridge for site loader/action (mirrors createSiteNonlaagents). */
-export function createSiteNonlaagentsHttpClient() {
+export async function createSiteNonlaagentsHttpClient() {
   return {
     kv: {
       async get(key: string, defaultValue: unknown = null) {

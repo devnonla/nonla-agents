@@ -13,7 +13,7 @@ const app = new Hono();
 
 app.use("*", requireApiKey);
 
-app.get("/agents", (c) => c.json(listAccessibleAgents(getApiKey(c))));
+app.get("/agents", async (c) => c.json(await listAccessibleAgents(getApiKey(c))));
 app.route("/datatables", datatablesV1);
 app.route("/kv", kvV1);
 
@@ -30,8 +30,8 @@ function assertAgentAccess(apiKey: ReturnType<typeof getApiKey>, agentId: string
   }
 }
 
-function requireApiConversation(conversationId: string, apiKeyId: string, agentId: string) {
-  const conv = getConversation(conversationId);
+async function requireApiConversation(conversationId: string, apiKeyId: string, agentId: string) {
+  const conv = await getConversation(conversationId);
   if (!conv || conv.trigger !== "api" || conv.ownerId !== apiConversationOwnerId(apiKeyId) || conv.agentId !== agentId) {
     throw new ForbiddenException("Conversation not found");
   }
@@ -59,11 +59,11 @@ app.post("/chat/stop", async (c) => {
   const conversationId = body.conversationId?.trim();
   if (!conversationId) throw new BadRequestException("conversationId is required");
 
-  const conv = getConversation(conversationId);
+  const conv = await getConversation(conversationId);
   if (!conv || conv.trigger !== "api" || conv.ownerId !== apiConversationOwnerId(apiKey.id)) {
     throw new ForbiddenException("Conversation not found");
   }
-  return c.json({ ok: stopStream(conversationId) });
+  return c.json({ ok: await stopStream(conversationId) });
 });
 
 app.post("/chat", async (c) => {
@@ -77,9 +77,9 @@ app.post("/chat", async (c) => {
 
   let conversationId = body.conversationId?.trim() || "";
   if (conversationId) {
-    requireApiConversation(conversationId, apiKey.id, agentId);
+    await requireApiConversation(conversationId, apiKey.id, agentId);
   } else {
-    const conv = createConversation({
+    const conv = await createConversation({
       agentId,
       title: "API Chat",
       trigger: "api",

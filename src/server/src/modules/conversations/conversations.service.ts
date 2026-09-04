@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
-import { type AgentConversation, type NewAgentConversation, type NewAgentMessage, agentConversations, agentMessages, getDb } from "../../common/db/client.js";
+import { and, asc, desc, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
+import { type AgentConversation, type NewAgentConversation, type NewAgentMessage, agentConversations, agentMessages, getDb, getDbDialect } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, ForbiddenException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { runRegistry } from "../agents/runtime/utils/run-registry.js";
@@ -8,7 +9,7 @@ import { runRegistry } from "../agents/runtime/utils/run-registry.js";
 /** Orphan "running" rows (process crashed / lost registry) older than this become done. */
 const STALE_MS = 15 * 60_000;
 
-export function listConversations(ownerId: string, query: RawQuery = {}) {
+export async function listConversations(ownerId: string, query: RawQuery = {}) {
   // Build static WHERE: owner + exclude public/api triggers, optionally filter by agentId
   const agentId = query.agentId;
   const hiddenTriggers = notInArray(agentConversations.trigger, ["public", "api"]);
@@ -17,38 +18,48 @@ export function listConversations(ownerId: string, query: RawQuery = {}) {
   // Remove agentId from query so listQuery doesn't re-apply it as a column filter
   const { agentId: _, ...cleanQuery } = query;
 
-  const result = listQuery({ table: agentConversations, where: staticWhere }, cleanQuery);
+  const result = await listQuery({ table: agentConversations, where: staticWhere }, cleanQuery);
 
   // Heal orphan "running" conversations (no live registry entry, last start older than STALE_MS)
   const now = new Date();
   const db = getDb();
-  result.items = result.items.map((conv: any) => {
-    if (conv.status !== "running") return conv;
-    // Active background run — never force-done mid-stream
-    if (runRegistry.isActive(conv.id)) return conv;
+  const items = [];
+  for (const conv of result.items as any[]) {
+    if (conv.status !== "running") {
+      items.push(conv);
+      continue;
+    }
+    if (runRegistry.isActive(conv.id)) {
+      items.push(conv);
+      continue;
+    }
     const anchor = conv.startedAt ?? conv.createdAt ?? now;
     const age = now.getTime() - new Date(anchor as Date | string | number).getTime();
-    if (age < STALE_MS) return conv;
-    db.update(agentConversations).set({ status: "done", finishedAt: now }).where(eq(agentConversations.id, conv.id)).run();
-    return { ...conv, status: "done" as const, finishedAt: now };
-  });
+    if (age < STALE_MS) {
+      items.push(conv);
+      continue;
+    }
+    await qrun(db.update(agentConversations).set({ status: "done", finishedAt: now }).where(eq(agentConversations.id, conv.id)));
+    items.push({ ...conv, status: "done" as const, finishedAt: now });
+  }
+  result.items = items;
 
   return result;
 }
 
-export function getConversation(id: string) {
-  return getDb().select().from(agentConversations).where(eq(agentConversations.id, id)).get();
+export async function getConversation(id: string) {
+  return await qone(getDb().select().from(agentConversations).where(eq(agentConversations.id, id)));
 }
 
 /** Ensure conversation exists and belongs to the given owner. */
-export function requireOwnedConversation(id: string, ownerId: string): AgentConversation {
-  const conv = getConversation(id);
+export async function requireOwnedConversation(id: string, ownerId: string): Promise<AgentConversation> {
+  const conv = await getConversation(id);
   if (!conv || conv.trigger === "public") throw new BadRequestException("Not found");
   if (conv.ownerId !== ownerId) throw new ForbiddenException("Forbidden");
   return conv;
 }
 
-export function createConversation(body: {
+export async function createConversation(body: {
   agentId: string;
   title?: string;
   trigger?: NewAgentConversation["trigger"];
@@ -65,64 +76,60 @@ export function createConversation(body: {
     startedAt: now,
     createdAt: now,
   };
-  getDb().insert(agentConversations).values(conv).run();
+  await qrun(getDb().insert(agentConversations).values(conv));
   wsHub.emit("conversations:created", conv);
   return conv;
 }
 
-export function updateConversation(id: string, body: Partial<Pick<NewAgentConversation, "title" | "status" | "finishedAt" | "errorMessage">>) {
-  getDb().update(agentConversations).set(body).where(eq(agentConversations.id, id)).run();
-  const updated = getDb().select().from(agentConversations).where(eq(agentConversations.id, id)).get();
+export async function updateConversation(id: string, body: Partial<Pick<NewAgentConversation, "title" | "status" | "finishedAt" | "errorMessage">>) {
+  await qrun(getDb().update(agentConversations).set(body).where(eq(agentConversations.id, id)));
+  const updated = await qone(getDb().select().from(agentConversations).where(eq(agentConversations.id, id)));
   wsHub.emit("conversations:updated", updated);
   return updated;
 }
 
-export function deleteConversation(id: string) {
-  getDb().delete(agentConversations).where(eq(agentConversations.id, id)).run();
+export async function deleteConversation(id: string) {
+  await qrun(getDb().delete(agentConversations).where(eq(agentConversations.id, id)));
   wsHub.emit("conversations:deleted", { id });
 }
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
-export function listMessages(conversationId: string) {
-  return getDb()
-    .select()
-    .from(agentMessages)
-    .where(eq(agentMessages.conversationId, conversationId))
-    .orderBy(sql`rowid`)
-    .all()
-    .filter((r) => !(r.role === "tool" && r.content === ""));
+export async function listMessages(conversationId: string) {
+  const orderTiebreak = getDbDialect() === "postgres" ? sql`ctid` : sql`rowid`;
+  return (await qall(getDb().select().from(agentMessages).where(eq(agentMessages.conversationId, conversationId)).orderBy(asc(agentMessages.createdAt), orderTiebreak))).filter((r) => !(r.role === "tool" && r.content === ""));
 }
 
-export function createMessage(conversationId: string, body: Omit<NewAgentMessage, "id" | "conversationId" | "createdAt">) {
+export async function createMessage(conversationId: string, body: Omit<NewAgentMessage, "id" | "conversationId" | "createdAt">) {
   const msg: NewAgentMessage = { ...body, id: crypto.randomUUID(), conversationId, createdAt: new Date() };
-  getDb().insert(agentMessages).values(msg).run();
+  await qrun(getDb().insert(agentMessages).values(msg));
   wsHub.emit("messages:created", msg);
   return msg;
 }
 
-export function patchMessageMeta(msgId: string, patch: Record<string, unknown>) {
+export async function patchMessageMeta(msgId: string, patch: Record<string, unknown>) {
   const db = getDb();
-  const row = db.select().from(agentMessages).where(eq(agentMessages.id, msgId)).get();
+  const row = await qone(db.select().from(agentMessages).where(eq(agentMessages.id, msgId)));
   if (!row) return null;
   const merged = { ...(row.metadata ?? {}), ...patch };
-  db.update(agentMessages).set({ metadata: merged }).where(eq(agentMessages.id, msgId)).run();
+  await qrun(db.update(agentMessages).set({ metadata: merged }).where(eq(agentMessages.id, msgId)));
   return { ok: true };
 }
 
 // ─── Feed ─────────────────────────────────────────────────────────────────────
 
-export function getMessageFeed(agentId: string, ownerId: string, cursor?: string) {
+export async function getMessageFeed(agentId: string, ownerId: string, cursor?: string) {
   const PAGE = 30;
   const db = getDb();
   const cursorDate = cursor ? new Date(cursor) : undefined;
 
-  const convRows = db
-    .select()
-    .from(agentConversations)
-    .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.ownerId, ownerId)))
-    .orderBy(desc(agentConversations.createdAt))
-    .all();
+  const convRows = await qall(
+    db
+      .select()
+      .from(agentConversations)
+      .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.ownerId, ownerId)))
+      .orderBy(desc(agentConversations.createdAt)),
+  );
 
   if (convRows.length === 0) return { items: [], hasMore: false };
 
@@ -131,13 +138,14 @@ export function getMessageFeed(agentId: string, ownerId: string, cursor?: string
 
   const whereClause = cursorDate ? and(eq(agentMessages.agentId, agentId), inArray(agentMessages.conversationId, ownedConvIds), lt(agentMessages.createdAt, cursorDate)) : and(eq(agentMessages.agentId, agentId), inArray(agentMessages.conversationId, ownedConvIds));
 
-  const msgRows = db
-    .select()
-    .from(agentMessages)
-    .where(whereClause)
-    .orderBy(desc(agentMessages.createdAt))
-    .limit(PAGE + 1)
-    .all();
+  const msgRows = await qall(
+    db
+      .select()
+      .from(agentMessages)
+      .where(whereClause)
+      .orderBy(desc(agentMessages.createdAt))
+      .limit(PAGE + 1),
+  );
 
   const filtered = msgRows.filter((r) => !(r.role === "tool" && r.content === ""));
   const hasMore = filtered.length > PAGE;
@@ -158,46 +166,48 @@ export function getMessageFeed(agentId: string, ownerId: string, cursor?: string
 /**
  * Save a message to DB.
  */
-export function saveMessage(data: Omit<NewAgentMessage, "id" | "createdAt">): { id: string } & NewAgentMessage {
+export async function saveMessage(data: Omit<NewAgentMessage, "id" | "createdAt">): Promise<{ id: string } & NewAgentMessage> {
   const db = getDb();
   const id = crypto.randomUUID();
   const msg = { ...data, id, createdAt: new Date() } as NewAgentMessage;
-  db.insert(agentMessages).values(msg).run();
+  await qrun(db.insert(agentMessages).values(msg));
   return { ...msg, id };
 }
 
 /**
  * Append suffix to an existing message's content.
  */
-export function appendMessageContent(msgId: string, suffix: string) {
+export async function appendMessageContent(msgId: string, suffix: string) {
   if (!suffix) return;
   const db = getDb();
-  const row = db.select().from(agentMessages).where(eq(agentMessages.id, msgId)).get();
+  const row = await qone(db.select().from(agentMessages).where(eq(agentMessages.id, msgId)));
   if (!row) return;
-  db.update(agentMessages)
-    .set({ content: `${row.content ?? ""}${suffix}` })
-    .where(eq(agentMessages.id, msgId))
-    .run();
+  await qrun(
+    db
+      .update(agentMessages)
+      .set({ content: `${row.content ?? ""}${suffix}` })
+      .where(eq(agentMessages.id, msgId)),
+  );
 }
 
 /**
  * Merge patch into message metadata.
  */
-export function patchMessageMetadata(msgId: string, patch: Record<string, unknown>) {
+export async function patchMessageMetadata(msgId: string, patch: Record<string, unknown>) {
   const db = getDb();
-  const row = db.select().from(agentMessages).where(eq(agentMessages.id, msgId)).get();
+  const row = await qone(db.select().from(agentMessages).where(eq(agentMessages.id, msgId)));
   if (!row) return;
   const merged = { ...(row.metadata ?? {}), ...patch } as Record<string, unknown>;
-  db.update(agentMessages).set({ metadata: merged }).where(eq(agentMessages.id, msgId)).run();
+  await qrun(db.update(agentMessages).set({ metadata: merged }).where(eq(agentMessages.id, msgId)));
 }
 
 /**
  * Update conversation status (done/failed) and broadcast via WS.
  */
-export function updateConversationStatus(conversationId: string, data: { status: "done" | "failed"; finishedAt: Date; errorMessage?: string }) {
+export async function updateConversationStatus(conversationId: string, data: { status: "done" | "failed"; finishedAt: Date; errorMessage?: string }) {
   const db = getDb();
-  db.update(agentConversations).set(data).where(eq(agentConversations.id, conversationId)).run();
-  const updated = db.select().from(agentConversations).where(eq(agentConversations.id, conversationId)).get();
+  await qrun(db.update(agentConversations).set(data).where(eq(agentConversations.id, conversationId)));
+  const updated = await qone(db.select().from(agentConversations).where(eq(agentConversations.id, conversationId)));
   if (updated) {
     // Always broadcast to ALL clients so other tabs can update their UI
     wsHub.broadcast("conversations:updated", updated);

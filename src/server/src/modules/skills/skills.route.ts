@@ -6,7 +6,7 @@ import { createReference, createSkill, deleteReference, deleteSkill, getReferenc
 
 const app = new Hono();
 
-app.get("/", (c) => c.json(listSkills(c.req.query())));
+app.get("/", async (c) => c.json(await listSkills(c.req.query())));
 
 app.post("/:id/assistant/stream", async (c) => {
   const skillId = c.req.param("id");
@@ -21,46 +21,46 @@ app.post("/:id/assistant/stream", async (c) => {
   });
 });
 
-app.get("/:id", (c) => {
-  const row = getSkill(c.req.param("id"));
+app.get("/:id", async (c) => {
+  const row = await getSkill(c.req.param("id"));
   if (!row) throw new BadRequestException("Skill not found");
   return c.json(row);
 });
 
 app.post("/", async (c) => {
   const body = await c.req.json();
-  return c.json(createSkill(body), 201);
+  return c.json(await createSkill(body), 201);
 });
 
 app.put("/:id", async (c) => {
   const body = await c.req.json();
-  return c.json(updateSkill(c.req.param("id"), body));
+  return c.json(await updateSkill(c.req.param("id"), body));
 });
 
-app.delete("/:id", (c) => {
-  deleteSkill(c.req.param("id"));
+app.delete("/:id", async (c) => {
+  await deleteSkill(c.req.param("id"));
   return c.json({ ok: true });
 });
 
-app.get("/:id/references", (c) => c.json(listReferences(c.req.param("id"))));
+app.get("/:id/references", async (c) => c.json(await listReferences(c.req.param("id"))));
 
 app.post("/:id/references", async (c) => {
   const body = await c.req.json();
-  return c.json(createReference(c.req.param("id"), body), 201);
+  return c.json(await createReference(c.req.param("id"), body), 201);
 });
 
 app.put("/:id/references/:refId", async (c) => {
   const body = await c.req.json();
-  return c.json(updateReference(c.req.param("id"), c.req.param("refId"), body));
+  return c.json(await updateReference(c.req.param("id"), c.req.param("refId"), body));
 });
 
-app.delete("/:id/references/:refId", (c) => {
-  deleteReference(c.req.param("id"), c.req.param("refId"));
+app.delete("/:id/references/:refId", async (c) => {
+  await deleteReference(c.req.param("id"), c.req.param("refId"));
   return c.json({ ok: true });
 });
 
-app.get("/:id/references/:refId", (c) => {
-  const row = getReference(c.req.param("id"), c.req.param("refId"));
+app.get("/:id/references/:refId", async (c) => {
+  const row = await getReference(c.req.param("id"), c.req.param("refId"));
   if (!row) throw new BadRequestException("Reference not found");
   return c.json(row);
 });

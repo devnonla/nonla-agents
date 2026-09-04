@@ -23,8 +23,8 @@ function siteAccessFromRequest(c: { req: { header: (name: string) => string | un
 const app = new Hono();
 
 // GET /api/public/agents/:id
-app.get("/agents/:id", (c) => {
-  const result = getPublicAgent(c.req.param("id"));
+app.get("/agents/:id", async (c) => {
+  const result = await getPublicAgent(c.req.param("id"));
   return c.json(result.data);
 });
 
@@ -45,36 +45,36 @@ app.post("/agents/:id/verify-token", async (c) => {
 
 // GET /api/public/agents/:id/conversations?fp=<fingerprint>
 // List all conversations for this fingerprint
-app.get("/agents/:id/conversations", (c) => {
+app.get("/agents/:id/conversations", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) return c.json({ error: "Fingerprint required" }, 400);
-  const result = listPublicConversations(c.req.param("id"), fp);
+  const result = await listPublicConversations(c.req.param("id"), fp);
   return c.json(result.data);
 });
 
 // POST /api/public/agents/:id/conversations?fp=<fingerprint>
 // Create a new conversation
-app.post("/agents/:id/conversations", (c) => {
+app.post("/agents/:id/conversations", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) return c.json({ error: "Fingerprint required" }, 400);
-  const result = createPublicConversation(c.req.param("id"), fp);
+  const result = await createPublicConversation(c.req.param("id"), fp);
   return c.json(result.data);
 });
 
 // GET /api/public/agents/:id/conversations/:convId?fp=<fingerprint>
 // Load a specific conversation + messages
-app.get("/agents/:id/conversations/:convId", (c) => {
+app.get("/agents/:id/conversations/:convId", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) return c.json({ error: "Fingerprint required" }, 400);
-  const result = getPublicConversation(c.req.param("id"), c.req.param("convId"), fp);
+  const result = await getPublicConversation(c.req.param("id"), c.req.param("convId"), fp);
   return c.json(result.data);
 });
 
 // DELETE /api/public/agents/:id/conversations/:convId?fp=<fingerprint>
-app.delete("/agents/:id/conversations/:convId", (c) => {
+app.delete("/agents/:id/conversations/:convId", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) return c.json({ error: "Fingerprint required" }, 400);
-  deletePublicConversation(c.req.param("id"), c.req.param("convId"), fp);
+  await deletePublicConversation(c.req.param("id"), c.req.param("convId"), fp);
   return c.json({ ok: true });
 });
 
@@ -86,7 +86,7 @@ app.post("/agents/:id/conversations/:convId/chat", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) throw new BadRequestException("Fingerprint required");
 
-  requirePublicConversation(agentId, convId, fp);
+  await requirePublicConversation(agentId, convId, fp);
 
   const body = await c.req.json<{ message: string; password?: string; token?: string }>();
 
@@ -104,7 +104,7 @@ app.get("/agents/:id/conversations/:convId/stream", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) throw new BadRequestException("Fingerprint required");
 
-  requirePublicConversation(agentId, convId, fp);
+  await requirePublicConversation(agentId, convId, fp);
 
   // Wait briefly — client may open stream right as POST registers the run
   const maxWait = 5000;

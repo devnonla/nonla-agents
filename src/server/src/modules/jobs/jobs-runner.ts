@@ -160,7 +160,7 @@ export async function executeJobRun(opts: {
 
   try {
     if (abort.signal.aborted) {
-      finishJobRun({
+      await finishJobRun({
         jobId: opts.jobId,
         runId: opts.runId,
         status: "failed",
@@ -171,9 +171,9 @@ export async function executeJobRun(opts: {
       return;
     }
 
-    const job = getJob(opts.jobId);
+    const job = await getJob(opts.jobId);
     if (!job) {
-      finishJobRun({
+      await finishJobRun({
         jobId: opts.jobId,
         runId: opts.runId,
         status: "failed",
@@ -184,27 +184,35 @@ export async function executeJobRun(opts: {
       return;
     }
 
-    const run = getJobRun(opts.runId);
+    const run = await getJobRun(opts.runId);
     const startedAtMs = run?.startedAt ? new Date(run.startedAt).getTime() : Date.now();
     const code = opts.codeOverride ?? job.code;
     const timeoutMs = job.timeoutMs > 0 ? job.timeoutMs : 300_000;
 
-    appendRunLogEntries(opts.runId, [{ t: 0, level: "system", message: "Run started", kind: "system" }]);
+    await appendRunLogEntries(opts.runId, [{ t: 0, level: "system", message: "Run started", kind: "system" }]);
 
+    let logChain: Promise<void> = Promise.resolve();
     const result = await runBunScript({
       code,
       workspaceId: opts.runId,
       timeoutMs,
       startedAtMs,
       abortSignal: abort.signal,
-      onLogEntries: (batch) => appendRunLogEntries(opts.runId, batch),
+      onLogEntries: (batch) => {
+        logChain = logChain
+          .then(() => appendRunLogEntries(opts.runId, batch))
+          .catch((err) => {
+            console.error("[jobs] append logs failed", err);
+          });
+      },
     });
+    await logChain;
 
-    const live = getJobRun(opts.runId);
+    const live = await getJobRun(opts.runId);
     const logs = live ? undefined : result.entries;
 
     if (result.cancelled || abort.signal.aborted) {
-      finishJobRun({
+      await finishJobRun({
         jobId: opts.jobId,
         runId: opts.runId,
         status: "failed",
@@ -216,7 +224,7 @@ export async function executeJobRun(opts: {
     }
 
     if (result.timedOut) {
-      finishJobRun({
+      await finishJobRun({
         jobId: opts.jobId,
         runId: opts.runId,
         status: "failed",
@@ -228,7 +236,7 @@ export async function executeJobRun(opts: {
     }
 
     if (result.exitCode !== 0) {
-      finishJobRun({
+      await finishJobRun({
         jobId: opts.jobId,
         runId: opts.runId,
         status: "failed",
@@ -239,7 +247,7 @@ export async function executeJobRun(opts: {
       return;
     }
 
-    finishJobRun({
+    await finishJobRun({
       jobId: opts.jobId,
       runId: opts.runId,
       status: "success",
@@ -249,7 +257,7 @@ export async function executeJobRun(opts: {
     });
   } catch (err) {
     if (abort.signal.aborted) {
-      finishJobRun({
+      await finishJobRun({
         jobId: opts.jobId,
         runId: opts.runId,
         status: "failed",
@@ -259,7 +267,7 @@ export async function executeJobRun(opts: {
       });
       return;
     }
-    finishJobRun({
+    await finishJobRun({
       jobId: opts.jobId,
       runId: opts.runId,
       status: "failed",
@@ -274,20 +282,20 @@ export async function executeJobRun(opts: {
 }
 
 /** Cancel a running job run — kills the Bun process and marks the run failed. */
-export function cancelJobRun(jobId: string, runId: string) {
-  const run = getJobRun(runId);
+export async function cancelJobRun(jobId: string, runId: string) {
+  const run = await getJobRun(runId);
   if (!run || run.jobId !== jobId) throw new BadRequestException("Run not found");
   if (run.status !== "running") throw new BadRequestException("Run is not running");
 
   const abort = runAborts.get(runId);
   if (abort) {
     abort.abort();
-    appendRunLogEntries(runId, [{ t: Math.max(0, Date.now() - new Date(run.startedAt).getTime()), level: "system", message: "Cancel requested", kind: "system" }]);
-    return toPublicJobRun(getJobRun(runId)!);
+    await appendRunLogEntries(runId, [{ t: Math.max(0, Date.now() - new Date(run.startedAt).getTime()), level: "system", message: "Cancel requested", kind: "system" }]);
+    return toPublicJobRun((await getJobRun(runId))!);
   }
 
   // Process not tracked (orphaned / different instance) — mark failed and clear lease
-  finishJobRun({
+  await finishJobRun({
     jobId,
     runId,
     status: "failed",
@@ -295,17 +303,17 @@ export function cancelJobRun(jobId: string, runId: string) {
     error: "Cancelled",
     advanceSchedule: false,
   });
-  return toPublicJobRun(getJobRun(runId)!);
+  return toPublicJobRun((await getJobRun(runId))!);
 }
 
 /** Start a draft run for the coding agent — returns immediately; logs stream in Runs. */
-export function runDraftJobCode(jobId: string): { started: boolean; runId?: string; error?: string } {
-  const job = getJob(jobId);
+export async function runDraftJobCode(jobId: string): Promise<{ started: boolean; runId?: string; error?: string }> {
+  const job = await getJob(jobId);
   if (!job) return { started: false, error: "Job not found" };
-  const code = getDraftCode(jobId);
+  const code = await getDraftCode(jobId);
   if (!code?.trim()) return { started: false, error: "No draft code available. Use edit_code first." };
 
-  const claimed = tryClaimJob(jobId, "manual");
+  const claimed = await tryClaimJob(jobId, "manual");
   if (!claimed) {
     return { started: false, error: "Job is already running or could not be claimed" };
   }

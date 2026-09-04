@@ -1,6 +1,7 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { SignJWT, jwtVerify } from "jose";
 import { type McpCatalogTool, agentConversations, agentMessages, agentToolAssignments, agentTools, agents, getDb, llmProviders, mcpServers } from "../../common/db/client.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { buildMcpLangGraphName, parseMcpToolId } from "../mcp-servers/mcp-tool-id.js";
 import { getBuiltinTool } from "../tools/tools.service.js";
@@ -20,7 +21,7 @@ async function generatePublicToken(agentId: string, password: string): Promise<s
 /** Verify a public access token. Returns true if valid and matches agentId. */
 export async function verifyPublicToken(agentId: string, token: string): Promise<boolean> {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent || !agent.isPublic || !agent.publicPassword) return false;
   try {
     const { payload } = await jwtVerify(token, getPublicTokenSecret(agent.publicPassword));
@@ -32,39 +33,43 @@ export async function verifyPublicToken(agentId: string, token: string): Promise
 
 export type PublicAgentTool = { name: string; label: string; icon: string | null };
 
-export function listPublicAgentTools(agentId: string): PublicAgentTool[] {
+export async function listPublicAgentTools(agentId: string): Promise<PublicAgentTool[]> {
   const db = getDb();
-  const toolRows = db.select({ toolId: agentToolAssignments.toolId, name: agentTools.name, label: agentTools.label, icon: agentTools.icon }).from(agentToolAssignments).leftJoin(agentTools, eq(agentToolAssignments.toolId, agentTools.id)).where(eq(agentToolAssignments.agentId, agentId)).all();
+  const toolRows = await qall(db.select({ toolId: agentToolAssignments.toolId, name: agentTools.name, label: agentTools.label, icon: agentTools.icon }).from(agentToolAssignments).leftJoin(agentTools, eq(agentToolAssignments.toolId, agentTools.id)).where(eq(agentToolAssignments.agentId, agentId)));
 
-  return toolRows.map((t) => {
+  const result: PublicAgentTool[] = [];
+  for (const t of toolRows) {
     if (t.toolId.startsWith("builtin:")) {
       const builtin = getBuiltinTool(t.toolId);
-      return { name: builtin?.name ?? t.toolId, label: builtin?.label ?? t.toolId, icon: null };
+      result.push({ name: builtin?.name ?? t.toolId, label: builtin?.label ?? t.toolId, icon: null });
+      continue;
     }
     const mcp = parseMcpToolId(t.toolId);
     if (mcp) {
-      const server = db.select().from(mcpServers).where(eq(mcpServers.id, mcp.serverId)).get();
+      const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, mcp.serverId)));
       const catalog = (server?.tools ?? []) as McpCatalogTool[];
       const def = catalog.find((d) => d.name === mcp.toolName);
-      return {
+      result.push({
         name: buildMcpLangGraphName(server?.name ?? "mcp", mcp.toolName),
         label: `${server?.name ?? "mcp"} → ${def?.name ?? mcp.toolName}`,
         icon: null,
-      };
+      });
+      continue;
     }
-    return { name: t.name ?? "", label: t.label ?? "", icon: t.icon ?? null };
-  });
+    result.push({ name: t.name ?? "", label: t.label ?? "", icon: t.icon ?? null });
+  }
+  return result;
 }
 
-export function getPublicAgent(agentId: string) {
+export async function getPublicAgent(agentId: string) {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent) throw new BadRequestException("Agent not found");
   if (!agent.isPublic) throw new BadRequestException("Thật đáng tiếc, Agent này không được chia sẻ công khai.");
 
   let providerLabel: string | undefined;
   if (agent.aiProvider) {
-    const provider = db.select().from(llmProviders).where(eq(llmProviders.id, agent.aiProvider)).get();
+    const provider = await qone(db.select().from(llmProviders).where(eq(llmProviders.id, agent.aiProvider)));
     providerLabel = provider?.label;
   }
 
@@ -76,14 +81,14 @@ export function getPublicAgent(agentId: string) {
       requiresPassword: !!agent.publicPassword && agent.publicPassword.length > 0,
       model: agent.aiModel ?? undefined,
       providerLabel: providerLabel ?? undefined,
-      tools: listPublicAgentTools(agentId),
+      tools: await listPublicAgentTools(agentId),
     },
   };
 }
 
 export async function verifyPublicPassword(agentId: string, password?: string) {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent || !agent.isPublic) throw new BadRequestException("Agent unavailable");
   if (agent.publicPassword && agent.publicPassword !== password) {
     throw new BadRequestException("Mật khẩu không chính xác.");
@@ -94,59 +99,56 @@ export async function verifyPublicPassword(agentId: string, password?: string) {
 
 // ── Conversation helpers ───────────────────────────────────────────────────────
 
-function loadConvMessages(convId: string) {
-  return getDb()
-    .select()
-    .from(agentMessages)
-    .where(eq(agentMessages.conversationId, convId))
-    .orderBy(sql`rowid`)
-    .all()
-    .filter((r) => !(r.role === "tool" && r.content === ""));
+async function loadConvMessages(convId: string) {
+  return (await qall(getDb().select().from(agentMessages).where(eq(agentMessages.conversationId, convId)).orderBy(asc(agentMessages.createdAt), asc(agentMessages.id)))).filter((r) => !(r.role === "tool" && r.content === ""));
 }
 
 /** List all public conversations for a fingerprint, newest first. */
-export function listPublicConversations(agentId: string, fingerprint: string) {
+export async function listPublicConversations(agentId: string, fingerprint: string) {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent || !agent.isPublic) throw new BadRequestException("Agent unavailable");
 
-  const convs = db
-    .select()
-    .from(agentConversations)
-    .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), eq(agentConversations.ownerId, fingerprint)))
-    .orderBy(desc(agentConversations.createdAt))
-    .all();
+  const convs = await qall(
+    db
+      .select()
+      .from(agentConversations)
+      .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), eq(agentConversations.ownerId, fingerprint)))
+      .orderBy(desc(agentConversations.createdAt)),
+  );
 
   // Use first user message as title/preview
-  const result = convs.map((conv) => {
-    const firstMsg = db
-      .select()
-      .from(agentMessages)
-      .where(and(eq(agentMessages.conversationId, conv.id), eq(agentMessages.role, "user")))
-      .orderBy(sql`rowid`)
-      .get();
-    return {
+  const result = [];
+  for (const conv of convs) {
+    const firstMsg = await qone(
+      db
+        .select()
+        .from(agentMessages)
+        .where(and(eq(agentMessages.conversationId, conv.id), eq(agentMessages.role, "user")))
+        .orderBy(asc(agentMessages.createdAt), asc(agentMessages.id)),
+    );
+    result.push({
       id: conv.id,
       title: firstMsg ? firstMsg.content.slice(0, 60) : "New Chat",
       createdAt: conv.createdAt,
       isEmpty: !firstMsg,
       status: conv.status,
-    };
-  });
+    });
+  }
 
   return { data: result };
 }
 
 /** Create a brand-new public conversation for this fingerprint. */
-export function createPublicConversation(agentId: string, fingerprint: string) {
+export async function createPublicConversation(agentId: string, fingerprint: string) {
   const db = getDb();
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent || !agent.isPublic) throw new BadRequestException("Agent unavailable");
 
   const convId = crypto.randomUUID();
   const now = new Date();
-  db.insert(agentConversations)
-    .values({
+  await qrun(
+    db.insert(agentConversations).values({
       id: convId,
       agentId,
       title: "New Chat",
@@ -155,34 +157,35 @@ export function createPublicConversation(agentId: string, fingerprint: string) {
       status: "done",
       startedAt: now,
       createdAt: now,
-    })
-    .run();
+    }),
+  );
 
   return { data: { conversationId: convId, messages: [] } };
 }
 
 /** Ensure public conversation exists and belongs to this fingerprint. */
-export function requirePublicConversation(agentId: string, convId: string, fingerprint: string) {
-  const conv = getDb()
-    .select()
-    .from(agentConversations)
-    .where(and(eq(agentConversations.id, convId), eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), eq(agentConversations.ownerId, fingerprint)))
-    .get();
+export async function requirePublicConversation(agentId: string, convId: string, fingerprint: string) {
+  const conv = await qone(
+    getDb()
+      .select()
+      .from(agentConversations)
+      .where(and(eq(agentConversations.id, convId), eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), eq(agentConversations.ownerId, fingerprint))),
+  );
   if (!conv) throw new BadRequestException("Conversation not found");
   return conv;
 }
 
 /** Load an existing public conversation by ID (validates ownership). */
-export function getPublicConversation(agentId: string, convId: string, fingerprint: string) {
-  requirePublicConversation(agentId, convId, fingerprint);
-  const msgs = loadConvMessages(convId);
+export async function getPublicConversation(agentId: string, convId: string, fingerprint: string) {
+  await requirePublicConversation(agentId, convId, fingerprint);
+  const msgs = await loadConvMessages(convId);
   return { data: { conversationId: convId, messages: msgs } };
 }
 
 /** Delete a public conversation (validates ownership). */
-export function deletePublicConversation(agentId: string, convId: string, fingerprint: string) {
-  requirePublicConversation(agentId, convId, fingerprint);
+export async function deletePublicConversation(agentId: string, convId: string, fingerprint: string) {
+  await requirePublicConversation(agentId, convId, fingerprint);
   const db = getDb();
-  db.delete(agentMessages).where(eq(agentMessages.conversationId, convId)).run();
-  db.delete(agentConversations).where(eq(agentConversations.id, convId)).run();
+  await qrun(db.delete(agentMessages).where(eq(agentMessages.conversationId, convId)));
+  await qrun(db.delete(agentConversations).where(eq(agentConversations.id, convId)));
 }

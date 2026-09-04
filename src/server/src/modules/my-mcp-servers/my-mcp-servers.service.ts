@@ -5,6 +5,7 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import { agentTools, getDb, myMcpServerTools, myMcpServers } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, NotFoundException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 
@@ -55,7 +56,7 @@ function uniqueIds(ids: string[]): string[] {
   return [...new Set(ids.filter((id) => typeof id === "string" && id.trim()))];
 }
 
-function assertCustomToolIds(ids: string[]): string[] {
+async function assertCustomToolIds(ids: string[]): Promise<string[]> {
   const unique = uniqueIds(ids);
   if (unique.length === 0) return [];
   for (const id of unique) {
@@ -63,32 +64,30 @@ function assertCustomToolIds(ids: string[]): string[] {
       throw new BadRequestException("Only custom tools can be assigned");
     }
   }
-  const found = getDb().select({ id: agentTools.id }).from(agentTools).where(inArray(agentTools.id, unique)).all();
+  const found = await qall(getDb().select({ id: agentTools.id }).from(agentTools).where(inArray(agentTools.id, unique)));
   if (found.length !== unique.length) {
     throw new BadRequestException("One or more tools were not found");
   }
   return unique;
 }
 
-function replaceTools(serverId: string, toolIds: string[]) {
+async function replaceTools(serverId: string, toolIds: string[]) {
   const db = getDb();
-  db.delete(myMcpServerTools).where(eq(myMcpServerTools.serverId, serverId)).run();
+  await qrun(db.delete(myMcpServerTools).where(eq(myMcpServerTools.serverId, serverId)));
   if (toolIds.length === 0) return;
-  db.insert(myMcpServerTools)
-    .values(toolIds.map((toolId) => ({ serverId, toolId })))
-    .run();
+  await qrun(db.insert(myMcpServerTools).values(toolIds.map((toolId) => ({ serverId, toolId }))));
 }
 
-function loadToolCountMap(serverIds: string[]): Map<string, number> {
+async function loadToolCountMap(serverIds: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (serverIds.length === 0) return map;
-  const rows = getDb().select({ serverId: myMcpServerTools.serverId, n: count() }).from(myMcpServerTools).where(inArray(myMcpServerTools.serverId, serverIds)).groupBy(myMcpServerTools.serverId).all();
+  const rows = await qall(getDb().select({ serverId: myMcpServerTools.serverId, n: count() }).from(myMcpServerTools).where(inArray(myMcpServerTools.serverId, serverIds)).groupBy(myMcpServerTools.serverId));
   for (const row of rows) map.set(row.serverId, Number(row.n));
   return map;
 }
 
-function loadToolCount(serverId: string): number {
-  const row = getDb().select({ n: count() }).from(myMcpServerTools).where(eq(myMcpServerTools.serverId, serverId)).get();
+async function loadToolCount(serverId: string): Promise<number> {
+  const row = await qone(getDb().select({ n: count() }).from(myMcpServerTools).where(eq(myMcpServerTools.serverId, serverId)));
   return Number(row?.n ?? 0);
 }
 
@@ -106,40 +105,41 @@ function toListItem(row: typeof myMcpServers.$inferSelect, toolCount: number): M
   };
 }
 
-function loadAssignedTools(serverId: string): MyMcpServerToolInfo[] {
-  return getDb()
-    .select({
-      id: agentTools.id,
-      name: agentTools.name,
-      label: agentTools.label,
-      description: agentTools.description,
-    })
-    .from(myMcpServerTools)
-    .innerJoin(agentTools, eq(myMcpServerTools.toolId, agentTools.id))
-    .where(eq(myMcpServerTools.serverId, serverId))
-    .all();
+async function loadAssignedTools(serverId: string): Promise<MyMcpServerToolInfo[]> {
+  return await qall(
+    getDb()
+      .select({
+        id: agentTools.id,
+        name: agentTools.name,
+        label: agentTools.label,
+        description: agentTools.description,
+      })
+      .from(myMcpServerTools)
+      .innerJoin(agentTools, eq(myMcpServerTools.toolId, agentTools.id))
+      .where(eq(myMcpServerTools.serverId, serverId)),
+  );
 }
 
-export function listMyMcpServers(query: RawQuery = {}) {
-  const result = listQuery({ table: myMcpServers, searchColumns: ["name", "description"] }, query);
+export async function listMyMcpServers(query: RawQuery = {}) {
+  const result = await listQuery({ table: myMcpServers, searchColumns: ["name", "description"] }, query);
   const items = result.items as (typeof myMcpServers.$inferSelect)[];
-  const counts = loadToolCountMap(items.map((row) => row.id));
+  const counts = await loadToolCountMap(items.map((row) => row.id));
   return {
     ...result,
     items: items.map((row) => toListItem(row, counts.get(row.id) ?? 0)),
   };
 }
 
-export function getMyMcpServer(id: string): MyMcpServerDetail {
-  const row = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get();
+export async function getMyMcpServer(id: string): Promise<MyMcpServerDetail> {
+  const row = await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)));
   if (!row) throw new NotFoundException("MCP server not found");
-  return { ...toListItem(row, loadToolCount(id)), tools: loadAssignedTools(id) };
+  return { ...toListItem(row, await loadToolCount(id)), tools: await loadAssignedTools(id) };
 }
 
-export function createMyMcpServer(body: MyMcpServerWriteBody): MyMcpServerListItem & { key: string } {
+export async function createMyMcpServer(body: MyMcpServerWriteBody): Promise<MyMcpServerListItem & { key: string }> {
   const name = body.name?.trim() ?? "";
   if (!name) throw new BadRequestException("name is required");
-  const toolIds = assertCustomToolIds(body.toolIds ?? []);
+  const toolIds = await assertCustomToolIds(body.toolIds ?? []);
   const raw = generateRawKey();
   const now = new Date();
   const row = {
@@ -153,15 +153,15 @@ export function createMyMcpServer(body: MyMcpServerWriteBody): MyMcpServerListIt
     createdAt: now,
     updatedAt: now,
   };
-  getDb().insert(myMcpServers).values(row).run();
-  replaceTools(row.id, toolIds);
+  await qrun(getDb().insert(myMcpServers).values(row));
+  await replaceTools(row.id, toolIds);
   const item = toListItem(row, toolIds.length);
   wsHub.emit("my-mcp-servers:created", item);
   return { ...item, key: raw };
 }
 
-export function updateMyMcpServer(id: string, body: MyMcpServerWriteBody): MyMcpServerListItem {
-  const existing = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get();
+export async function updateMyMcpServer(id: string, body: MyMcpServerWriteBody): Promise<MyMcpServerListItem> {
+  const existing = await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)));
   if (!existing) throw new NotFoundException("MCP server not found");
 
   const patch: Partial<typeof myMcpServers.$inferInsert> = { updatedAt: new Date() };
@@ -173,52 +173,53 @@ export function updateMyMcpServer(id: string, body: MyMcpServerWriteBody): MyMcp
   if (body.description !== undefined) patch.description = body.description?.trim() || null;
   if (body.isActive !== undefined) patch.isActive = Boolean(body.isActive);
 
-  getDb().update(myMcpServers).set(patch).where(eq(myMcpServers.id, id)).run();
+  await qrun(getDb().update(myMcpServers).set(patch).where(eq(myMcpServers.id, id)));
 
   if (body.toolIds !== undefined) {
-    replaceTools(id, assertCustomToolIds(body.toolIds));
+    await replaceTools(id, await assertCustomToolIds(body.toolIds));
   }
 
-  const updated = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get() ?? existing;
-  const item = toListItem(updated, loadToolCount(id));
+  const updated = (await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)))) ?? existing;
+  const item = toListItem(updated, await loadToolCount(id));
   wsHub.emit("my-mcp-servers:updated", item);
   return item;
 }
 
-export function rotateMyMcpServerKey(id: string): MyMcpServerListItem & { key: string } {
-  const existing = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get();
+export async function rotateMyMcpServerKey(id: string): Promise<MyMcpServerListItem & { key: string }> {
+  const existing = await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)));
   if (!existing) throw new NotFoundException("MCP server not found");
   const raw = generateRawKey();
-  getDb()
-    .update(myMcpServers)
-    .set({
-      keyPrefix: raw.slice(0, KEY_PREFIX_LEN),
-      keyHash: hashMcpKey(raw),
-      updatedAt: new Date(),
-    })
-    .where(eq(myMcpServers.id, id))
-    .run();
-  const updated = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get() ?? existing;
-  const item = toListItem(updated, loadToolCount(id));
+  await qrun(
+    getDb()
+      .update(myMcpServers)
+      .set({
+        keyPrefix: raw.slice(0, KEY_PREFIX_LEN),
+        keyHash: hashMcpKey(raw),
+        updatedAt: new Date(),
+      })
+      .where(eq(myMcpServers.id, id)),
+  );
+  const updated = (await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)))) ?? existing;
+  const item = toListItem(updated, await loadToolCount(id));
   wsHub.emit("my-mcp-servers:updated", item);
   return { ...item, key: raw };
 }
 
-export function deleteMyMcpServer(id: string) {
-  const existing = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get();
+export async function deleteMyMcpServer(id: string) {
+  const existing = await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)));
   if (!existing) throw new NotFoundException("MCP server not found");
-  getDb().delete(myMcpServers).where(eq(myMcpServers.id, id)).run();
+  await qrun(getDb().delete(myMcpServers).where(eq(myMcpServers.id, id)));
   wsHub.emit("my-mcp-servers:deleted", { id });
 }
 
 export type AuthenticatedMyMcpServer = typeof myMcpServers.$inferSelect;
 
-export function authenticateMyMcpServer(id: string, rawKey: string): AuthenticatedMyMcpServer | "missing" | "unauthorized" | "inactive" {
-  const row = getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)).get();
+export async function authenticateMyMcpServer(id: string, rawKey: string): Promise<AuthenticatedMyMcpServer | "missing" | "unauthorized" | "inactive"> {
+  const row = await qone(getDb().select().from(myMcpServers).where(eq(myMcpServers.id, id)));
   if (!row) return "missing";
   if (row.keyHash !== hashMcpKey(rawKey)) return "unauthorized";
   if (!row.isActive) return "inactive";
-  getDb().update(myMcpServers).set({ lastUsedAt: new Date() }).where(eq(myMcpServers.id, id)).run();
+  await qrun(getDb().update(myMcpServers).set({ lastUsedAt: new Date() }).where(eq(myMcpServers.id, id)));
   return row;
 }
 
@@ -231,20 +232,21 @@ export type LiveMcpTool = {
   isActive: boolean;
 };
 
-export function listLiveMcpTools(serverId: string): LiveMcpTool[] {
-  const rows = getDb()
-    .select({
-      id: agentTools.id,
-      name: agentTools.name,
-      description: agentTools.description,
-      parameters: agentTools.parameters,
-      codeContent: agentTools.codeContent,
-      isActive: agentTools.isActive,
-    })
-    .from(myMcpServerTools)
-    .innerJoin(agentTools, eq(myMcpServerTools.toolId, agentTools.id))
-    .where(and(eq(myMcpServerTools.serverId, serverId), eq(agentTools.isActive, true)))
-    .all();
+export async function listLiveMcpTools(serverId: string): Promise<LiveMcpTool[]> {
+  const rows = await qall(
+    getDb()
+      .select({
+        id: agentTools.id,
+        name: agentTools.name,
+        description: agentTools.description,
+        parameters: agentTools.parameters,
+        codeContent: agentTools.codeContent,
+        isActive: agentTools.isActive,
+      })
+      .from(myMcpServerTools)
+      .innerJoin(agentTools, eq(myMcpServerTools.toolId, agentTools.id))
+      .where(and(eq(myMcpServerTools.serverId, serverId), eq(agentTools.isActive, true))),
+  );
 
   return rows.map((row) => ({
     id: row.id,
@@ -256,20 +258,21 @@ export function listLiveMcpTools(serverId: string): LiveMcpTool[] {
   }));
 }
 
-export function getAssignedToolForCall(serverId: string, toolName: string): LiveMcpTool | null {
-  const row = getDb()
-    .select({
-      id: agentTools.id,
-      name: agentTools.name,
-      description: agentTools.description,
-      parameters: agentTools.parameters,
-      codeContent: agentTools.codeContent,
-      isActive: agentTools.isActive,
-    })
-    .from(myMcpServerTools)
-    .innerJoin(agentTools, eq(myMcpServerTools.toolId, agentTools.id))
-    .where(and(eq(myMcpServerTools.serverId, serverId), eq(agentTools.name, toolName)))
-    .get();
+export async function getAssignedToolForCall(serverId: string, toolName: string): Promise<LiveMcpTool | null> {
+  const row = await qone(
+    getDb()
+      .select({
+        id: agentTools.id,
+        name: agentTools.name,
+        description: agentTools.description,
+        parameters: agentTools.parameters,
+        codeContent: agentTools.codeContent,
+        isActive: agentTools.isActive,
+      })
+      .from(myMcpServerTools)
+      .innerJoin(agentTools, eq(myMcpServerTools.toolId, agentTools.id))
+      .where(and(eq(myMcpServerTools.serverId, serverId), eq(agentTools.name, toolName))),
+  );
   if (!row) return null;
   return {
     id: row.id,

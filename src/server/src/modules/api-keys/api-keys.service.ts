@@ -1,5 +1,6 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { agents, apiKeyAgents, apiKeyDatatableProjects, apiKeyKvEntries, apiKeys, datatableProjects, getDb, kvStore } from "../../common/db/client.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 
 const KEY_PREFIX_LEN = 12;
@@ -56,38 +57,23 @@ function uniqueIds(ids: string[]): string[] {
   return [...new Set(ids.filter((id) => typeof id === "string" && id.trim()))];
 }
 
-function loadAgentIds(keyId: string): string[] {
-  return getDb()
-    .select({ agentId: apiKeyAgents.agentId })
-    .from(apiKeyAgents)
-    .where(eq(apiKeyAgents.apiKeyId, keyId))
-    .all()
-    .map((r) => r.agentId);
+async function loadAgentIds(keyId: string): Promise<string[]> {
+  return (await qall(getDb().select({ agentId: apiKeyAgents.agentId }).from(apiKeyAgents).where(eq(apiKeyAgents.apiKeyId, keyId)))).map((r) => r.agentId);
 }
 
-function loadDatatableProjectIds(keyId: string): string[] {
-  return getDb()
-    .select({ projectId: apiKeyDatatableProjects.projectId })
-    .from(apiKeyDatatableProjects)
-    .where(eq(apiKeyDatatableProjects.apiKeyId, keyId))
-    .all()
-    .map((r) => r.projectId);
+async function loadDatatableProjectIds(keyId: string): Promise<string[]> {
+  return (await qall(getDb().select({ projectId: apiKeyDatatableProjects.projectId }).from(apiKeyDatatableProjects).where(eq(apiKeyDatatableProjects.apiKeyId, keyId)))).map((r) => r.projectId);
 }
 
-function loadKvEntryIds(keyId: string): string[] {
-  return getDb()
-    .select({ kvEntryId: apiKeyKvEntries.kvEntryId })
-    .from(apiKeyKvEntries)
-    .where(eq(apiKeyKvEntries.apiKeyId, keyId))
-    .all()
-    .map((r) => r.kvEntryId);
+async function loadKvEntryIds(keyId: string): Promise<string[]> {
+  return (await qall(getDb().select({ kvEntryId: apiKeyKvEntries.kvEntryId }).from(apiKeyKvEntries).where(eq(apiKeyKvEntries.apiKeyId, keyId)))).map((r) => r.kvEntryId);
 }
 
-function loadScope(keyId: string) {
+async function loadScope(keyId: string) {
   return {
-    agentIds: loadAgentIds(keyId),
-    datatableProjectIds: loadDatatableProjectIds(keyId),
-    kvEntryIds: loadKvEntryIds(keyId),
+    agentIds: await loadAgentIds(keyId),
+    datatableProjectIds: await loadDatatableProjectIds(keyId),
+    kvEntryIds: await loadKvEntryIds(keyId),
   };
 }
 
@@ -109,8 +95,8 @@ function toMeta(row: typeof apiKeys.$inferSelect, scope: { agentIds: string[]; d
   };
 }
 
-function toContext(row: typeof apiKeys.$inferSelect): ApiKeyContext {
-  const scope = loadScope(row.id);
+async function toContext(row: typeof apiKeys.$inferSelect): Promise<ApiKeyContext> {
+  const scope = await loadScope(row.id);
   return {
     id: row.id,
     createdBy: row.createdBy,
@@ -123,41 +109,35 @@ function toContext(row: typeof apiKeys.$inferSelect): ApiKeyContext {
   };
 }
 
-function assertExistingIds(ids: string[], table: typeof agents | typeof datatableProjects | typeof kvStore, label: string): string[] {
+async function assertExistingIds(ids: string[], table: typeof agents | typeof datatableProjects | typeof kvStore, label: string): Promise<string[]> {
   const unique = uniqueIds(ids);
   if (unique.length === 0) return [];
-  const found = getDb().select({ id: table.id }).from(table).where(inArray(table.id, unique)).all();
+  const found = await qall(getDb().select({ id: table.id }).from(table).where(inArray(table.id, unique)));
   if (found.length !== unique.length) {
     throw new BadRequestException(`One or more ${label} were not found`);
   }
   return unique;
 }
 
-function replaceAgents(keyId: string, agentIds: string[]) {
+async function replaceAgents(keyId: string, agentIds: string[]) {
   const db = getDb();
-  db.delete(apiKeyAgents).where(eq(apiKeyAgents.apiKeyId, keyId)).run();
+  await qrun(db.delete(apiKeyAgents).where(eq(apiKeyAgents.apiKeyId, keyId)));
   if (agentIds.length === 0) return;
-  db.insert(apiKeyAgents)
-    .values(agentIds.map((agentId) => ({ apiKeyId: keyId, agentId })))
-    .run();
+  await qrun(db.insert(apiKeyAgents).values(agentIds.map((agentId) => ({ apiKeyId: keyId, agentId }))));
 }
 
-function replaceDatatableProjects(keyId: string, projectIds: string[]) {
+async function replaceDatatableProjects(keyId: string, projectIds: string[]) {
   const db = getDb();
-  db.delete(apiKeyDatatableProjects).where(eq(apiKeyDatatableProjects.apiKeyId, keyId)).run();
+  await qrun(db.delete(apiKeyDatatableProjects).where(eq(apiKeyDatatableProjects.apiKeyId, keyId)));
   if (projectIds.length === 0) return;
-  db.insert(apiKeyDatatableProjects)
-    .values(projectIds.map((projectId) => ({ apiKeyId: keyId, projectId })))
-    .run();
+  await qrun(db.insert(apiKeyDatatableProjects).values(projectIds.map((projectId) => ({ apiKeyId: keyId, projectId }))));
 }
 
-function replaceKvEntries(keyId: string, kvEntryIds: string[]) {
+async function replaceKvEntries(keyId: string, kvEntryIds: string[]) {
   const db = getDb();
-  db.delete(apiKeyKvEntries).where(eq(apiKeyKvEntries.apiKeyId, keyId)).run();
+  await qrun(db.delete(apiKeyKvEntries).where(eq(apiKeyKvEntries.apiKeyId, keyId)));
   if (kvEntryIds.length === 0) return;
-  db.insert(apiKeyKvEntries)
-    .values(kvEntryIds.map((kvEntryId) => ({ apiKeyId: keyId, kvEntryId })))
-    .run();
+  await qrun(db.insert(apiKeyKvEntries).values(kvEntryIds.map((kvEntryId) => ({ apiKeyId: keyId, kvEntryId }))));
 }
 
 export function canAccessAgent(apiKey: ApiKeyContext, agentId: string): boolean {
@@ -172,18 +152,21 @@ export function canAccessKvEntry(apiKey: ApiKeyContext, entryId: string): boolea
   return apiKey.kvUnrestricted || apiKey.kvEntryIds.includes(entryId);
 }
 
-export function listApiKeys(): { items: ApiKeyMeta[]; total: number } {
-  const rows = getDb().select().from(apiKeys).all();
-  const items = rows.map((row) => toMeta(row, loadScope(row.id)));
+export async function listApiKeys(): Promise<{ items: ApiKeyMeta[]; total: number }> {
+  const rows = await qall(getDb().select().from(apiKeys));
+  const items = [];
+  for (const row of rows) {
+    items.push(toMeta(row, await loadScope(row.id)));
+  }
   return { items, total: items.length };
 }
 
-export function createApiKey(body: ApiKeyWriteBody & { name: string; createdBy: string }): ApiKeyMeta & { key: string } {
+export async function createApiKey(body: ApiKeyWriteBody & { name: string; createdBy: string }): Promise<ApiKeyMeta & { key: string }> {
   const name = body.name?.trim() ?? "";
   if (!name) throw new BadRequestException("name is required");
-  const agentIds = assertExistingIds(body.agentIds ?? [], agents, "agents");
-  const datatableProjectIds = assertExistingIds(body.datatableProjectIds ?? [], datatableProjects, "datatable projects");
-  const kvEntryIds = assertExistingIds(body.kvEntryIds ?? [], kvStore, "KV entries");
+  const agentIds = await assertExistingIds(body.agentIds ?? [], agents, "agents");
+  const datatableProjectIds = await assertExistingIds(body.datatableProjectIds ?? [], datatableProjects, "datatable projects");
+  const kvEntryIds = await assertExistingIds(body.kvEntryIds ?? [], kvStore, "KV entries");
   const agentsUnrestricted = Boolean(body.agentsUnrestricted);
   const datatablesUnrestricted = Boolean(body.datatablesUnrestricted);
   const kvUnrestricted = Boolean(body.kvUnrestricted);
@@ -203,15 +186,15 @@ export function createApiKey(body: ApiKeyWriteBody & { name: string; createdBy: 
     datatablesUnrestricted,
     kvUnrestricted,
   };
-  getDb().insert(apiKeys).values(row).run();
-  replaceAgents(row.id, agentIds);
-  replaceDatatableProjects(row.id, datatableProjectIds);
-  replaceKvEntries(row.id, kvEntryIds);
+  await qrun(getDb().insert(apiKeys).values(row));
+  await replaceAgents(row.id, agentIds);
+  await replaceDatatableProjects(row.id, datatableProjectIds);
+  await replaceKvEntries(row.id, kvEntryIds);
   return { ...toMeta(row, { agentIds, datatableProjectIds, kvEntryIds }), key: raw };
 }
 
-export function updateApiKey(id: string, body: ApiKeyWriteBody): ApiKeyMeta {
-  const existing = getDb().select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+export async function updateApiKey(id: string, body: ApiKeyWriteBody): Promise<ApiKeyMeta> {
+  const existing = await qone(getDb().select().from(apiKeys).where(eq(apiKeys.id, id)));
   if (!existing) throw new BadRequestException("API key not found");
 
   const name = body.name !== undefined ? body.name.trim() : existing.name;
@@ -223,62 +206,63 @@ export function updateApiKey(id: string, body: ApiKeyWriteBody): ApiKeyMeta {
   if (body.datatablesUnrestricted !== undefined) patch.datatablesUnrestricted = Boolean(body.datatablesUnrestricted);
   if (body.kvUnrestricted !== undefined) patch.kvUnrestricted = Boolean(body.kvUnrestricted);
   if (Object.keys(patch).length > 0) {
-    getDb().update(apiKeys).set(patch).where(eq(apiKeys.id, id)).run();
+    await qrun(getDb().update(apiKeys).set(patch).where(eq(apiKeys.id, id)));
   }
 
-  let agentIds = loadAgentIds(id);
+  let agentIds = await loadAgentIds(id);
   if (body.agentIds !== undefined) {
-    agentIds = assertExistingIds(body.agentIds, agents, "agents");
-    replaceAgents(id, agentIds);
+    agentIds = await assertExistingIds(body.agentIds, agents, "agents");
+    await replaceAgents(id, agentIds);
   }
-  let datatableProjectIds = loadDatatableProjectIds(id);
+  let datatableProjectIds = await loadDatatableProjectIds(id);
   if (body.datatableProjectIds !== undefined) {
-    datatableProjectIds = assertExistingIds(body.datatableProjectIds, datatableProjects, "datatable projects");
-    replaceDatatableProjects(id, datatableProjectIds);
+    datatableProjectIds = await assertExistingIds(body.datatableProjectIds, datatableProjects, "datatable projects");
+    await replaceDatatableProjects(id, datatableProjectIds);
   }
-  let kvEntryIds = loadKvEntryIds(id);
+  let kvEntryIds = await loadKvEntryIds(id);
   if (body.kvEntryIds !== undefined) {
-    kvEntryIds = assertExistingIds(body.kvEntryIds, kvStore, "KV entries");
-    replaceKvEntries(id, kvEntryIds);
+    kvEntryIds = await assertExistingIds(body.kvEntryIds, kvStore, "KV entries");
+    await replaceKvEntries(id, kvEntryIds);
   }
 
-  const updated = getDb().select().from(apiKeys).where(eq(apiKeys.id, id)).get() ?? { ...existing, name };
+  const updated = (await qone(getDb().select().from(apiKeys).where(eq(apiKeys.id, id)))) ?? { ...existing, name };
   return toMeta(updated, { agentIds, datatableProjectIds, kvEntryIds });
 }
 
-export function revokeApiKey(id: string): ApiKeyMeta {
-  const existing = getDb().select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+export async function revokeApiKey(id: string): Promise<ApiKeyMeta> {
+  const existing = await qone(getDb().select().from(apiKeys).where(eq(apiKeys.id, id)));
   if (!existing) throw new BadRequestException("API key not found");
   if (!existing.revokedAt) {
-    getDb().update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.id, id)).run();
+    await qrun(getDb().update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.id, id)));
   }
-  const updated = getDb().select().from(apiKeys).where(eq(apiKeys.id, id)).get() ?? existing;
-  return toMeta(updated, loadScope(id));
+  const updated = (await qone(getDb().select().from(apiKeys).where(eq(apiKeys.id, id)))) ?? existing;
+  return toMeta(updated, await loadScope(id));
 }
 
-export function deleteApiKey(id: string) {
-  const existing = getDb().select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+export async function deleteApiKey(id: string) {
+  const existing = await qone(getDb().select().from(apiKeys).where(eq(apiKeys.id, id)));
   if (!existing) throw new BadRequestException("API key not found");
-  getDb().delete(apiKeys).where(eq(apiKeys.id, id)).run();
+  await qrun(getDb().delete(apiKeys).where(eq(apiKeys.id, id)));
 }
 
-export function authenticateApiKey(raw: string): ApiKeyContext | null {
+export async function authenticateApiKey(raw: string): Promise<ApiKeyContext | null> {
   if (!raw.startsWith("ra_")) return null;
-  const row = getDb()
-    .select()
-    .from(apiKeys)
-    .where(eq(apiKeys.keyHash, hashApiKey(raw)))
-    .get();
+  const row = await qone(
+    getDb()
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.keyHash, hashApiKey(raw))),
+  );
   if (!row || row.revokedAt) return null;
-  getDb().update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id)).run();
-  return toContext(row);
+  await qrun(getDb().update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id)));
+  return await toContext(row);
 }
 
 export function apiConversationOwnerId(apiKeyId: string): string {
   return `api:${apiKeyId}`;
 }
 
-export function listAccessibleAgents(apiKey: ApiKeyContext) {
+export async function listAccessibleAgents(apiKey: ApiKeyContext) {
   const select = {
     id: agents.id,
     name: agents.name,
@@ -286,10 +270,10 @@ export function listAccessibleAgents(apiKey: ApiKeyContext) {
     avatar: agents.avatar,
   };
   if (apiKey.agentsUnrestricted) {
-    return { items: getDb().select(select).from(agents).orderBy(asc(agents.name)).all() };
+    return { items: await qall(getDb().select(select).from(agents).orderBy(asc(agents.name))) };
   }
   if (apiKey.agentIds.length === 0) return { items: [] as { id: string; name: string; description: string | null; avatar: string | null }[] };
-  const rows = getDb().select(select).from(agents).where(inArray(agents.id, apiKey.agentIds)).all();
+  const rows = await qall(getDb().select(select).from(agents).where(inArray(agents.id, apiKey.agentIds)));
   const byId = new Map(rows.map((row) => [row.id, row]));
   return { items: apiKey.agentIds.map((id) => byId.get(id)).filter((row): row is NonNullable<typeof row> => !!row) };
 }

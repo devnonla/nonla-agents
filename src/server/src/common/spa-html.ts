@@ -7,6 +7,7 @@
 
 import { eq } from "drizzle-orm";
 import { agents, getDb, sites } from "./db/client.js";
+import { qone } from "./db/query.js";
 
 const DEFAULT_TITLE = "Nonla Agents";
 const DEFAULT_DESCRIPTION = "Nonla Agents — AI Agent Management Platform";
@@ -65,10 +66,9 @@ export function resolvePublicBaseUrl(opts: { request?: Request; clientOrigin?: s
   return "";
 }
 
-function loadPublicChatOg(agentId: string): { title: string; description: string } | null {
+async function loadPublicChatOg(agentId: string): Promise<{ title: string; description: string } | null> {
   try {
-    const db = getDb();
-    const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+    const agent = await qone(getDb().select().from(agents).where(eq(agents.id, agentId)));
     if (!agent?.isPublic) return null;
     const name = agent.name?.trim() || "AI Agent";
     const title = `${name} · Nonla Agents`;
@@ -79,10 +79,9 @@ function loadPublicChatOg(agentId: string): { title: string; description: string
   }
 }
 
-function loadPublicSiteOg(slug: string): { title: string; description: string } | null {
+async function loadPublicSiteOg(slug: string): Promise<{ title: string; description: string } | null> {
   try {
-    const db = getDb();
-    const site = db.select().from(sites).where(eq(sites.slug, slug.trim().toLowerCase())).get();
+    const site = await qone(getDb().select().from(sites).where(eq(sites.slug, slug.trim().toLowerCase())));
     if (!site?.isPublished) return null;
     const name = site.name?.trim() || "Site";
     return {
@@ -122,7 +121,7 @@ export function ogMetaTags(opts: { title: string; description: string; pageUrl: 
  * Rewrite index.html with absolute OG/Twitter tags.
  * For `/chat/:agentId` and `/public/sites/:slug`, title/description/image come from the public entity.
  */
-export function buildSpaHtml(baseHtml: string, opts: { origin: string; path: string }): string {
+export async function buildSpaHtml(baseHtml: string, opts: { origin: string; path: string }): Promise<string> {
   const origin = opts.origin.replace(/\/$/, "");
   const path = opts.path.startsWith("/") ? opts.path : `/${opts.path}`;
   const pageUrl = `${origin}${path === "/" ? "/" : path}`;
@@ -134,7 +133,7 @@ export function buildSpaHtml(baseHtml: string, opts: { origin: string; path: str
   const chatMatch = path.match(/^\/chat\/([^/?#]+)\/?$/);
   if (chatMatch) {
     const agentId = decodeURIComponent(chatMatch[1]);
-    const meta = loadPublicChatOg(agentId);
+    const meta = await loadPublicChatOg(agentId);
     if (meta) {
       title = meta.title;
       description = meta.description;
@@ -145,7 +144,7 @@ export function buildSpaHtml(baseHtml: string, opts: { origin: string; path: str
   const siteMatch = path.match(/^\/public\/sites\/([^/?#]+)\/?$/);
   if (siteMatch) {
     const slug = decodeURIComponent(siteMatch[1]);
-    const meta = loadPublicSiteOg(slug);
+    const meta = await loadPublicSiteOg(slug);
     if (meta) {
       title = meta.title;
       description = meta.description;

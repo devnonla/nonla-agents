@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { type Job, type JobRun, type JobRunTrigger, type NewJob, type NewJobRun, getDb, jobRuns, jobs } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { cronNextDateMulti, parseJobCrons } from "../../common/utils/cronHelper.js";
 import { wsHub } from "../../common/ws/wsHub.js";
@@ -62,16 +63,16 @@ function resolveSchedule(cron: string): { enabled: boolean; nextRunAt: Date | nu
   return { enabled: true, nextRunAt: next };
 }
 
-export function listJobs(query?: RawQuery) {
-  const result = listQuery({ table: jobs, searchColumns: ["name", "description"] }, query);
+export async function listJobs(query?: RawQuery) {
+  const result = await listQuery({ table: jobs, searchColumns: ["name", "description"] }, query);
   return { ...result, items: result.items.map(toPublicJob) };
 }
 
-export function getJob(id: string): Job | undefined {
-  return getDb().select().from(jobs).where(eq(jobs.id, id)).get();
+export async function getJob(id: string): Promise<Job | undefined> {
+  return await qone(getDb().select().from(jobs).where(eq(jobs.id, id)));
 }
 
-export function createJob(body: {
+export async function createJob(body: {
   name?: string;
   description?: string | null;
   code?: string;
@@ -102,14 +103,14 @@ export function createJob(body: {
     updatedAt: now,
   };
 
-  getDb().insert(jobs).values(entry).run();
-  const created = toPublicJob(getJob(entry.id as string)!);
+  await qrun(getDb().insert(jobs).values(entry));
+  const created = toPublicJob((await getJob(entry.id as string))!);
   wsHub.emit("jobs:created", created);
   wakeScheduler();
   return created;
 }
 
-export function updateJob(
+export async function updateJob(
   id: string,
   body: {
     name?: string;
@@ -119,7 +120,7 @@ export function updateJob(
     timeoutMs?: number;
   },
 ) {
-  const existing = getJob(id);
+  const existing = await getJob(id);
   if (!existing) throw new BadRequestException("Job not found");
 
   const now = new Date();
@@ -161,23 +162,23 @@ export function updateJob(
     }
   }
 
-  getDb().update(jobs).set(patch).where(eq(jobs.id, id)).run();
-  const updated = toPublicJob(getJob(id)!);
+  await qrun(getDb().update(jobs).set(patch).where(eq(jobs.id, id)));
+  const updated = toPublicJob((await getJob(id))!);
   wsHub.emit("jobs:updated", updated);
   wakeScheduler();
   return updated;
 }
 
-export function deleteJob(id: string) {
-  const existing = getJob(id);
+export async function deleteJob(id: string) {
+  const existing = await getJob(id);
   if (!existing) throw new BadRequestException("Job not found");
-  getDb().delete(jobs).where(eq(jobs.id, id)).run();
+  await qrun(getDb().delete(jobs).where(eq(jobs.id, id)));
   wsHub.emit("jobs:deleted", { id });
   wakeScheduler();
 }
 
-export function listJobRuns(jobId: string, query?: RawQuery) {
-  const job = getJob(jobId);
+export async function listJobRuns(jobId: string, query?: RawQuery) {
+  const job = await getJob(jobId);
   if (!job) throw new BadRequestException("Job not found");
 
   const page = Math.max(1, Number(query?.page ?? 1) || 1);
@@ -185,54 +186,57 @@ export function listJobRuns(jobId: string, query?: RawQuery) {
   const offset = (page - 1) * limit;
 
   const db = getDb();
-  const rows = db.select().from(jobRuns).where(eq(jobRuns.jobId, jobId)).orderBy(desc(jobRuns.startedAt)).limit(limit).offset(offset).all();
-  const totalRow = db.select({ count: sql<number>`count(*)` }).from(jobRuns).where(eq(jobRuns.jobId, jobId)).get();
+  const rows = await qall(db.select().from(jobRuns).where(eq(jobRuns.jobId, jobId)).orderBy(desc(jobRuns.startedAt)).limit(limit).offset(offset));
+  const totalRow = await qone(db.select({ count: sql<number>`count(*)` }).from(jobRuns).where(eq(jobRuns.jobId, jobId)));
   const total = Number(totalRow?.count ?? 0);
 
   return { items: rows.map(toPublicJobRun), total, page, limit };
 }
 
-export function getJobRun(runId: string): JobRun | undefined {
-  return getDb().select().from(jobRuns).where(eq(jobRuns.id, runId)).get();
+export async function getJobRun(runId: string): Promise<JobRun | undefined> {
+  return await qone(getDb().select().from(jobRuns).where(eq(jobRuns.id, runId)));
 }
 
 /** Recalculate next_run_at for all enabled jobs (e.g. timezone change). */
-export function recalculateAllJobSchedules() {
+export async function recalculateAllJobSchedules() {
   const db = getDb();
-  const enabledJobs = db.select().from(jobs).where(eq(jobs.enabled, true)).all();
+  const enabledJobs = await qall(db.select().from(jobs).where(eq(jobs.enabled, true)));
   const now = new Date();
   for (const job of enabledJobs) {
     const next = cronNextDateMulti(job.cron, now);
-    db.update(jobs).set({ nextRunAt: next, updatedAt: now }).where(eq(jobs.id, job.id)).run();
+    await qrun(db.update(jobs).set({ nextRunAt: next, updatedAt: now }).where(eq(jobs.id, job.id)));
   }
   wakeScheduler();
 }
 
-export function listDueJobs(now: Date = new Date()): Job[] {
-  return getDb()
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.enabled, true), lte(jobs.nextRunAt, now), or(isNull(jobs.leaseUntil), lte(jobs.leaseUntil, now))))
-    .all();
+export async function listDueJobs(now: Date = new Date()): Promise<Job[]> {
+  return await qall(
+    getDb()
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.enabled, true), lte(jobs.nextRunAt, now), or(isNull(jobs.leaseUntil), lte(jobs.leaseUntil, now)))),
+  );
 }
 
-export function getMinNextRunAt(): Date | null {
-  const row = getDb()
-    .select({ nextRunAt: jobs.nextRunAt })
-    .from(jobs)
-    .where(and(eq(jobs.enabled, true), sql`${jobs.nextRunAt} IS NOT NULL`))
-    .orderBy(asc(jobs.nextRunAt))
-    .limit(1)
-    .get();
+export async function getMinNextRunAt(): Promise<Date | null> {
+  const row = await qone(
+    getDb()
+      .select({ nextRunAt: jobs.nextRunAt })
+      .from(jobs)
+      .where(and(eq(jobs.enabled, true), sql`${jobs.nextRunAt} IS NOT NULL`))
+      .orderBy(asc(jobs.nextRunAt))
+      .limit(1),
+  );
   return row?.nextRunAt ?? null;
 }
 
-function hasActiveRun(jobId: string): boolean {
-  const row = getDb()
-    .select({ id: jobRuns.id })
-    .from(jobRuns)
-    .where(and(eq(jobRuns.jobId, jobId), eq(jobRuns.status, "running")))
-    .get();
+async function hasActiveRun(jobId: string): Promise<boolean> {
+  const row = await qone(
+    getDb()
+      .select({ id: jobRuns.id })
+      .from(jobRuns)
+      .where(and(eq(jobRuns.jobId, jobId), eq(jobRuns.status, "running"))),
+  );
   return !!row;
 }
 
@@ -240,15 +244,15 @@ function hasActiveRun(jobId: string): boolean {
  * Atomically claim a due job for this instance.
  * Returns job_run id if won, null if lost / overlap.
  */
-export function tryClaimJob(jobId: string, trigger: JobRunTrigger = "cron"): { job: Job; run: PublicJobRun } | null {
+export async function tryClaimJob(jobId: string, trigger: JobRunTrigger = "cron"): Promise<{ job: Job; run: PublicJobRun } | null> {
   const db = getDb();
   const now = new Date();
   const instanceId = getInstanceId();
 
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job) return null;
   if (!job.enabled && trigger === "cron") return null;
-  if (hasActiveRun(jobId)) return null;
+  if (await hasActiveRun(jobId)) return null;
 
   const leaseUntil = new Date(now.getTime() + job.timeoutMs + 60_000);
 
@@ -263,17 +267,18 @@ export function tryClaimJob(jobId: string, trigger: JobRunTrigger = "cron"): { j
 
   const nextAfterClaim = trigger === "cron" && job.enabled ? cronNextDateMulti(job.cron, now) : undefined;
 
-  const updated = db
-    .update(jobs)
-    .set({
-      leaseOwner: instanceId,
-      leaseUntil,
-      ...(nextAfterClaim && nextAfterClaim.getTime() > now.getTime() ? { nextRunAt: nextAfterClaim } : {}),
-      updatedAt: now,
-    })
-    .where(claimWhere)
-    .returning({ id: jobs.id })
-    .all();
+  const updated = await qall(
+    db
+      .update(jobs)
+      .set({
+        leaseOwner: instanceId,
+        leaseUntil,
+        ...(nextAfterClaim && nextAfterClaim.getTime() > now.getTime() ? { nextRunAt: nextAfterClaim } : {}),
+        updatedAt: now,
+      })
+      .where(claimWhere)
+      .returning({ id: jobs.id }),
+  );
 
   if (updated.length === 0) return null;
 
@@ -289,17 +294,17 @@ export function tryClaimJob(jobId: string, trigger: JobRunTrigger = "cron"): { j
     startedAt: now,
     finishedAt: null,
   };
-  db.insert(jobRuns).values(run).run();
+  await qrun(db.insert(jobRuns).values(run));
 
-  const claimed = toPublicJob(getJob(jobId)!);
-  const createdRun = getJobRun(runId)!;
+  const claimed = toPublicJob((await getJob(jobId))!);
+  const createdRun = (await getJobRun(runId))!;
   const publicRun = toPublicJobRun(createdRun);
   wsHub.emit("jobs:updated", claimed);
   wsHub.emit("job_runs:created", publicRun);
   return { job: claimed, run: publicRun };
 }
 
-export function finishJobRun(opts: {
+export async function finishJobRun(opts: {
   jobId: string;
   runId: string;
   status: "success" | "failed";
@@ -309,8 +314,8 @@ export function finishJobRun(opts: {
 }) {
   const db = getDb();
   const now = new Date();
-  const job = getJob(opts.jobId);
-  const existing = getJobRun(opts.runId);
+  const job = await getJob(opts.jobId);
+  const existing = await getJobRun(opts.runId);
   const baseEntries = opts.logs !== undefined ? (typeof opts.logs === "string" ? parseJobLogs(opts.logs) : opts.logs) : parseJobLogs(existing?.logs);
   const startedMs = existing?.startedAt ? new Date(existing.startedAt).getTime() : now.getTime();
   const t = Math.max(0, now.getTime() - startedMs);
@@ -321,15 +326,17 @@ export function finishJobRun(opts: {
     entries.push({ t, level: "system", message: "Completed successfully", kind: "system" });
   }
 
-  db.update(jobRuns)
-    .set({
-      status: opts.status,
-      logs: serializeJobLogs(entries),
-      error: opts.error ?? null,
-      finishedAt: now,
-    })
-    .where(eq(jobRuns.id, opts.runId))
-    .run();
+  await qrun(
+    db
+      .update(jobRuns)
+      .set({
+        status: opts.status,
+        logs: serializeJobLogs(entries),
+        error: opts.error ?? null,
+        finishedAt: now,
+      })
+      .where(eq(jobRuns.id, opts.runId)),
+  );
 
   let nextRunAt = asDate(job?.nextRunAt);
   if (job?.enabled && parseJobCrons(job.cron).length > 0) {
@@ -341,94 +348,102 @@ export function finishJobRun(opts: {
     nextRunAt = null;
   }
 
-  db.update(jobs)
-    .set({
-      leaseOwner: null,
-      leaseUntil: null,
-      lastRunAt: now,
-      nextRunAt: nextRunAt ?? null,
-      updatedAt: now,
-    })
-    .where(eq(jobs.id, opts.jobId))
-    .run();
+  await qrun(
+    db
+      .update(jobs)
+      .set({
+        leaseOwner: null,
+        leaseUntil: null,
+        lastRunAt: now,
+        nextRunAt: nextRunAt ?? null,
+        updatedAt: now,
+      })
+      .where(eq(jobs.id, opts.jobId)),
+  );
 
-  const updatedJob = getJob(opts.jobId);
-  const updatedRun = getJobRun(opts.runId);
+  const updatedJob = await getJob(opts.jobId);
+  const updatedRun = await getJobRun(opts.runId);
   if (updatedJob) wsHub.emit("jobs:updated", toPublicJob(updatedJob));
   if (updatedRun) wsHub.emit("job_runs:updated", toPublicJobRun(updatedRun));
   wakeScheduler();
 }
 
 /** Mark orphaned running runs as failed when lease expired or missing. */
-export function healOrphanedRuns(now: Date = new Date()) {
+export async function healOrphanedRuns(now: Date = new Date()) {
   const db = getDb();
-  const staleJobs = db
-    .select()
-    .from(jobs)
-    .where(and(sql`${jobs.leaseOwner} IS NOT NULL`, lte(jobs.leaseUntil, now)))
-    .all();
+  const staleJobs = await qall(
+    db
+      .select()
+      .from(jobs)
+      .where(and(sql`${jobs.leaseOwner} IS NOT NULL`, lte(jobs.leaseUntil, now))),
+  );
 
   for (const job of staleJobs) {
-    const running = db
-      .select()
-      .from(jobRuns)
-      .where(and(eq(jobRuns.jobId, job.id), eq(jobRuns.status, "running")))
-      .all();
+    const running = await qall(
+      db
+        .select()
+        .from(jobRuns)
+        .where(and(eq(jobRuns.jobId, job.id), eq(jobRuns.status, "running"))),
+    );
     for (const run of running) {
-      db.update(jobRuns)
-        .set({
-          status: "failed",
-          error: "Run orphaned: lease expired (instance may have crashed)",
-          finishedAt: now,
-        })
-        .where(eq(jobRuns.id, run.id))
-        .run();
-      const orphan = getJobRun(run.id);
+      await qrun(
+        db
+          .update(jobRuns)
+          .set({
+            status: "failed",
+            error: "Run orphaned: lease expired (instance may have crashed)",
+            finishedAt: now,
+          })
+          .where(eq(jobRuns.id, run.id)),
+      );
+      const orphan = await getJobRun(run.id);
       if (orphan) wsHub.emit("job_runs:updated", toPublicJobRun(orphan));
     }
-    db.update(jobs).set({ leaseOwner: null, leaseUntil: null, updatedAt: now }).where(eq(jobs.id, job.id)).run();
+    await qrun(db.update(jobs).set({ leaseOwner: null, leaseUntil: null, updatedAt: now }).where(eq(jobs.id, job.id)));
   }
 
-  const stuckRuns = db.select().from(jobRuns).where(eq(jobRuns.status, "running")).all();
+  const stuckRuns = await qall(db.select().from(jobRuns).where(eq(jobRuns.status, "running")));
   for (const run of stuckRuns) {
-    const job = getJob(run.jobId);
+    const job = await getJob(run.jobId);
     if (!job) continue;
     const leaseUntil = asDate(job.leaseUntil);
     if (leaseUntil && leaseUntil.getTime() > now.getTime()) continue;
-    db.update(jobRuns)
-      .set({
-        status: "failed",
-        error: "Run orphaned: no active lease",
-        finishedAt: now,
-      })
-      .where(eq(jobRuns.id, run.id))
-      .run();
-    db.update(jobs).set({ leaseOwner: null, leaseUntil: null, updatedAt: now }).where(eq(jobs.id, job.id)).run();
-    const orphan = getJobRun(run.id);
+    await qrun(
+      db
+        .update(jobRuns)
+        .set({
+          status: "failed",
+          error: "Run orphaned: no active lease",
+          finishedAt: now,
+        })
+        .where(eq(jobRuns.id, run.id)),
+    );
+    await qrun(db.update(jobs).set({ leaseOwner: null, leaseUntil: null, updatedAt: now }).where(eq(jobs.id, job.id)));
+    const orphan = await getJobRun(run.id);
     if (orphan) wsHub.emit("job_runs:updated", toPublicJobRun(orphan));
-    if (job.enabled) wsHub.emit("jobs:updated", toPublicJob(getJob(job.id)!));
+    if (job.enabled) wsHub.emit("jobs:updated", toPublicJob((await getJob(job.id))!));
   }
 }
 
-export function updateDraftCode(id: string, draftCode: string): void {
-  getDb().update(jobs).set({ draftCode, updatedAt: new Date() }).where(eq(jobs.id, id)).run();
+export async function updateDraftCode(id: string, draftCode: string): Promise<void> {
+  await qrun(getDb().update(jobs).set({ draftCode, updatedAt: new Date() }).where(eq(jobs.id, id)));
   wsHub.emit("jobs:updated", { id, draftCode });
 }
 
-export function getDraftCode(id: string): string | null {
-  const row = getDb().select({ draftCode: jobs.draftCode, code: jobs.code }).from(jobs).where(eq(jobs.id, id)).get();
+export async function getDraftCode(id: string): Promise<string | null> {
+  const row = await qone(getDb().select({ draftCode: jobs.draftCode, code: jobs.code }).from(jobs).where(eq(jobs.id, id)));
   if (!row) return null;
   return row.draftCode ?? row.code ?? null;
 }
 
 /** Append structured log entries while run is in progress; emit WS for live UI. */
-export function appendRunLogEntries(runId: string, entries: JobLogEntry[]) {
+export async function appendRunLogEntries(runId: string, entries: JobLogEntry[]) {
   if (!entries.length) return;
-  const run = getJobRun(runId);
+  const run = await getJobRun(runId);
   if (!run || run.status !== "running") return;
   const next = [...parseJobLogs(run.logs), ...entries];
   const logs = serializeJobLogs(next);
-  getDb().update(jobRuns).set({ logs }).where(eq(jobRuns.id, runId)).run();
+  await qrun(getDb().update(jobRuns).set({ logs }).where(eq(jobRuns.id, runId)));
   wsHub.emit("job_runs:log", { id: runId, jobId: run.jobId, entries, logs: parseJobLogs(logs) });
 }
 

@@ -7,26 +7,26 @@ const app = new Hono();
 
 app.use("*", requireRole("admin"));
 
-app.get("/", (c) => c.json(listSecrets(c.req.query())));
+app.get("/", async (c) => c.json(await listSecrets(c.req.query())));
 
-app.get("/:id", (c) => {
-  const entry = getSecretMeta(c.req.param("id"));
+app.get("/:id", async (c) => {
+  const entry = await getSecretMeta(c.req.param("id"));
   if (!entry) throw new BadRequestException("Secret not found");
   return c.json(entry);
 });
 
 app.post("/", async (c) => {
   const body = await c.req.json();
-  return c.json(createSecret(body), 201);
+  return c.json(await createSecret(body), 201);
 });
 
 app.put("/:id", async (c) => {
   const body = await c.req.json();
-  return c.json(updateSecret(c.req.param("id"), body));
+  return c.json(await updateSecret(c.req.param("id"), body));
 });
 
-app.delete("/:id", (c) => {
-  deleteSecret(c.req.param("id"));
+app.delete("/:id", async (c) => {
+  await deleteSecret(c.req.param("id"));
   return c.json({ ok: true });
 });
 

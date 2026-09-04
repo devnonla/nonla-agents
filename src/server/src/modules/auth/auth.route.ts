@@ -12,8 +12,8 @@ import { changePassword, checkSetupStatus, getCurrentUser, login, logout, refres
 const app = new Hono();
 
 // GET /api/auth/setup-status — PUBLIC, check if initial setup is needed
-app.get("/setup-status", (c) => {
-  return c.json(checkSetupStatus());
+app.get("/setup-status", async (c) => {
+  return c.json(await checkSetupStatus());
 });
 
 // POST /api/auth/setup — PUBLIC, create first admin + set timezone
@@ -45,7 +45,7 @@ app.post("/refresh", async (c) => {
 // POST /api/auth/logout — PUBLIC, revoke refresh token if provided
 app.post("/logout", async (c) => {
   const body = await c.req.json<{ refreshToken?: string }>().catch(() => ({}) as { refreshToken?: string });
-  logout(body.refreshToken);
+  await logout(body.refreshToken);
   return c.json(
     { ok: true },
     {
@@ -57,7 +57,7 @@ app.post("/logout", async (c) => {
 });
 
 // GET /api/auth/me — requires auth (applied globally, but this route needs it)
-app.get("/me", (c) => {
+app.get("/me", async (c) => {
   const user = (c as any).get("user") as User | undefined;
   if (!user) {
     throw new UnauthorizedException("Authentication required");

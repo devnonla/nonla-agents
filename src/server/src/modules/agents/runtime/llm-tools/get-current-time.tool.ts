@@ -10,7 +10,7 @@ import { getConfiguredTimezone } from "../../../../common/utils/cronHelper.js";
 
 export const getCurrentTimeTool = tool(
   async () => {
-    const tz = getConfiguredTimezone();
+    const tz = await getConfiguredTimezone();
     const now = new Date().toLocaleString("en-US", {
       timeZone: tz,
       dateStyle: "full",

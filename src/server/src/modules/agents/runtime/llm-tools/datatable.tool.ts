@@ -39,8 +39,8 @@ export type MakeDatatableToolOptions = {
   name?: string;
 };
 
-function availableProjectsPayload() {
-  return listProjects().map((p) => ({ id: p.id, name: p.name }));
+async function availableProjectsPayload() {
+  return (await listProjects()).map((p) => ({ id: p.id, name: p.name }));
 }
 
 function summarizeColumn(c: { id: string; name: string; type: string; options: string[] | null; required: boolean }) {
@@ -132,10 +132,10 @@ ${queryHints}`;
           return JSON.stringify({ ok: false, error: `Action "${action}" is not allowed. Use: ${allowed.join(", ")}.` });
         }
 
-        const resolveScopedProject = () => {
+        const resolveScopedProject = async () => {
           if (lockedProjectId) {
             if (project?.trim() && project.trim() !== lockedProjectId) {
-              const byName = resolveProject(project);
+              const byName = await resolveProject(project);
               if (!byName || byName.id !== lockedProjectId) {
                 return {
                   error: JSON.stringify({
@@ -145,7 +145,7 @@ ${queryHints}`;
                 };
               }
             }
-            const p = resolveProject(lockedProjectId);
+            const p = await resolveProject(lockedProjectId);
             if (!p) {
               return { error: JSON.stringify({ ok: false, error: `Locked project "${lockedProjectId}" not found.` }) };
             }
@@ -157,17 +157,17 @@ ${queryHints}`;
               error: JSON.stringify({
                 ok: false,
                 error: "'project' is required (id preferred, or name).",
-                available_projects: availableProjectsPayload(),
+                available_projects: await availableProjectsPayload(),
               }),
             };
           }
-          const p = resolveProject(project);
+          const p = await resolveProject(project);
           if (!p) {
             return {
               error: JSON.stringify({
                 ok: false,
                 error: `Project "${project.trim()}" not found. Use an id or name from available_projects.`,
-                available_projects: availableProjectsPayload(),
+                available_projects: await availableProjectsPayload(),
               }),
             };
           }
@@ -176,16 +176,16 @@ ${queryHints}`;
 
         if (action === "list_projects") {
           if (lockedProjectId) {
-            const p = resolveProject(lockedProjectId);
+            const p = await resolveProject(lockedProjectId);
             return JSON.stringify({ ok: true, projects: p ? [{ id: p.id, name: p.name }] : [] });
           }
-          return JSON.stringify({ ok: true, projects: availableProjectsPayload() });
+          return JSON.stringify({ ok: true, projects: await availableProjectsPayload() });
         }
 
         if (action === "get_schema") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
-          const schema = getProjectSchemaByRef(scoped.project.id);
+          const schema = await getProjectSchemaByRef(scoped.project.id);
           return JSON.stringify({
             ok: true,
             project: { id: schema.project.id, name: schema.project.name },
@@ -200,12 +200,12 @@ ${queryHints}`;
         if (action === "query") {
           if (!project?.trim() || !table?.trim()) {
             if (lockedProjectId && table?.trim()) {
-              const result = queryRowsByName(lockedProjectId, table.trim(), { where, order_by, limit, offset });
+              const result = await queryRowsByName(lockedProjectId, table.trim(), { where, order_by, limit, offset });
               return JSON.stringify({ ok: true, ...result });
             }
             return JSON.stringify({ ok: false, error: "'project' and 'table' are required (id or name)." });
           }
-          const result = queryRowsByName(project.trim(), table.trim(), { where, order_by, limit, offset });
+          const result = await queryRowsByName(project.trim(), table.trim(), { where, order_by, limit, offset });
           return JSON.stringify({ ok: true, ...result });
         }
 
@@ -217,7 +217,7 @@ ${queryHints}`;
           if (!Array.isArray(rows) || rows.length === 0) {
             return JSON.stringify({ ok: false, error: "'rows' must be a non-empty array." });
           }
-          const created = insertRowsByName(projectRef, table.trim(), rows);
+          const created = await insertRowsByName(projectRef, table.trim(), rows);
           return JSON.stringify({ ok: true, rows: created });
         }
 
@@ -229,7 +229,7 @@ ${queryHints}`;
           if (!data || typeof data !== "object") {
             return JSON.stringify({ ok: false, error: "'data' object is required." });
           }
-          const updated = updateRowByName(projectRef, table.trim(), row_id.trim(), data);
+          const updated = await updateRowByName(projectRef, table.trim(), row_id.trim(), data);
           return JSON.stringify({ ok: true, row: updated });
         }
 
@@ -241,50 +241,50 @@ ${queryHints}`;
           if (!Array.isArray(row_ids) || row_ids.length === 0) {
             return JSON.stringify({ ok: false, error: "'row_ids' must be a non-empty array." });
           }
-          const result = deleteRowsByName(projectRef, table.trim(), row_ids);
+          const result = await deleteRowsByName(projectRef, table.trim(), row_ids);
           return JSON.stringify({ ok: true, ...result });
         }
 
         if (action === "create_table") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
           if (!name?.trim()) {
             return JSON.stringify({ ok: false, error: "'name' is required for create_table." });
           }
-          const created = createTable(scoped.project.id, { name: name.trim() });
+          const created = await createTable(scoped.project.id, { name: name.trim() });
           return JSON.stringify({ ok: true, table: { id: created.id as string, name: created.name } });
         }
 
         if (action === "update_table") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
           if (!table?.trim() || !name?.trim()) {
             return JSON.stringify({ ok: false, error: "'table' and 'name' are required for update_table." });
           }
-          const found = resolveProjectAndTable(scoped.project.id, table.trim());
+          const found = await resolveProjectAndTable(scoped.project.id, table.trim());
           if (!found) {
             return JSON.stringify({ ok: false, error: `Table "${table.trim()}" not found in this project.` });
           }
-          const updated = updateTable(found.table.id, { name: name.trim() });
+          const updated = await updateTable(found.table.id, { name: name.trim() });
           return JSON.stringify({ ok: true, table: { id: updated.id, name: updated.name } });
         }
 
         if (action === "delete_table") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
           if (!table?.trim()) {
             return JSON.stringify({ ok: false, error: "'table' is required for delete_table." });
           }
-          const found = resolveProjectAndTable(scoped.project.id, table.trim());
+          const found = await resolveProjectAndTable(scoped.project.id, table.trim());
           if (!found) {
             return JSON.stringify({ ok: false, error: `Table "${table.trim()}" not found in this project.` });
           }
-          deleteTable(found.table.id);
+          await deleteTable(found.table.id);
           return JSON.stringify({ ok: true, deleted: { id: found.table.id, name: found.table.name } });
         }
 
         if (action === "create_column") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
           if (!table?.trim() || !name?.trim() || !type?.trim()) {
             return JSON.stringify({
@@ -292,11 +292,11 @@ ${queryHints}`;
               error: "'table', 'name', and 'type' are required for create_column.",
             });
           }
-          const found = resolveProjectAndTable(scoped.project.id, table.trim());
+          const found = await resolveProjectAndTable(scoped.project.id, table.trim());
           if (!found) {
             return JSON.stringify({ ok: false, error: `Table "${table.trim()}" not found in this project.` });
           }
-          const created = createColumn(found.table.id, {
+          const created = await createColumn(found.table.id, {
             name: name.trim(),
             type: type.trim(),
             options: columnOptions,
@@ -316,16 +316,16 @@ ${queryHints}`;
         }
 
         if (action === "update_column") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
           if (!table?.trim() || !column?.trim()) {
             return JSON.stringify({ ok: false, error: "'table' and 'column' are required for update_column." });
           }
-          const found = resolveProjectAndTable(scoped.project.id, table.trim());
+          const found = await resolveProjectAndTable(scoped.project.id, table.trim());
           if (!found) {
             return JSON.stringify({ ok: false, error: `Table "${table.trim()}" not found in this project.` });
           }
-          const col = resolveColumnInTable(found.table.id, column.trim());
+          const col = await resolveColumnInTable(found.table.id, column.trim());
           if (!col) {
             return JSON.stringify({ ok: false, error: `Column "${column.trim()}" not found on table "${found.table.name}".` });
           }
@@ -335,7 +335,7 @@ ${queryHints}`;
               error: "Provide at least one of: name, type, options, required.",
             });
           }
-          const updated = updateColumn(col.id, {
+          const updated = await updateColumn(col.id, {
             name,
             type,
             options: columnOptions,
@@ -345,20 +345,20 @@ ${queryHints}`;
         }
 
         if (action === "delete_column") {
-          const scoped = resolveScopedProject();
+          const scoped = await resolveScopedProject();
           if ("error" in scoped) return scoped.error;
           if (!table?.trim() || !column?.trim()) {
             return JSON.stringify({ ok: false, error: "'table' and 'column' are required for delete_column." });
           }
-          const found = resolveProjectAndTable(scoped.project.id, table.trim());
+          const found = await resolveProjectAndTable(scoped.project.id, table.trim());
           if (!found) {
             return JSON.stringify({ ok: false, error: `Table "${table.trim()}" not found in this project.` });
           }
-          const col = resolveColumnInTable(found.table.id, column.trim());
+          const col = await resolveColumnInTable(found.table.id, column.trim());
           if (!col) {
             return JSON.stringify({ ok: false, error: `Column "${column.trim()}" not found on table "${found.table.name}".` });
           }
-          deleteColumn(col.id);
+          await deleteColumn(col.id);
           return JSON.stringify({
             ok: true,
             deleted: { id: col.id, name: col.name },
@@ -369,11 +369,11 @@ ${queryHints}`;
         return JSON.stringify({ ok: false, error: `Unknown action: ${action}` });
       } catch (err) {
         const message = err instanceof HttpException ? err.message : err instanceof Error ? err.message : String(err);
-        if (project?.trim() && !resolveProject(project) && /project|table/i.test(message)) {
+        if (project?.trim() && !(await resolveProject(project)) && /project|table/i.test(message)) {
           return JSON.stringify({
             ok: false,
             error: message,
-            available_projects: availableProjectsPayload(),
+            available_projects: await availableProjectsPayload(),
           });
         }
         return JSON.stringify({ ok: false, error: message });

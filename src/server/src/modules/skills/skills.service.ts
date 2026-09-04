@@ -1,6 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { type NewSkill, type NewSkillReference, agentSkillAssignments, getDb, skillReferences, skills } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
+import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException, NotFoundException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { composeSkillMarkdown, ensureSkillMarkdown, parseSkillFrontmatter } from "./common/frontmatter.js";
@@ -28,18 +29,18 @@ function assertRefName(name: string) {
   }
 }
 
-function getSkillOrThrow(id: string) {
-  const row = getDb().select().from(skills).where(eq(skills.id, id)).get();
+async function getSkillOrThrow(id: string) {
+  const row = await qone(getDb().select().from(skills).where(eq(skills.id, id)));
   if (!row) throw new NotFoundException("Skill not found");
   return row;
 }
 
-export function listSkills(query: RawQuery = {}) {
-  return listQuery({ table: skills, searchColumns: ["name", "description"] }, query);
+export async function listSkills(query: RawQuery = {}) {
+  return await listQuery({ table: skills, searchColumns: ["name", "description"] }, query);
 }
 
-export function getSkill(id: string) {
-  const row = getDb().select().from(skills).where(eq(skills.id, id)).get();
+export async function getSkill(id: string) {
+  const row = await qone(getDb().select().from(skills).where(eq(skills.id, id)));
   if (!row) return null;
   return {
     ...row,
@@ -47,24 +48,25 @@ export function getSkill(id: string) {
   };
 }
 
-export function getSkillByName(name: string) {
-  return getDb().select().from(skills).where(eq(skills.name, name)).get() ?? null;
+export async function getSkillByName(name: string) {
+  return (await qone(getDb().select().from(skills).where(eq(skills.name, name)))) ?? null;
 }
 
-function assertNameAvailable(name: string, excludeId?: string) {
+async function assertNameAvailable(name: string, excludeId?: string) {
   assertSkillName(name);
   const db = getDb();
   const dup = excludeId
-    ? db
-        .select()
-        .from(skills)
-        .where(and(eq(skills.name, name), ne(skills.id, excludeId)))
-        .get()
-    : db.select().from(skills).where(eq(skills.name, name)).get();
+    ? await qone(
+        db
+          .select()
+          .from(skills)
+          .where(and(eq(skills.name, name), ne(skills.id, excludeId))),
+      )
+    : await qone(db.select().from(skills).where(eq(skills.name, name)));
   if (dup) throw new BadRequestException("Skill name already exists");
 }
 
-export function createSkill(body: {
+export async function createSkill(body: {
   name: string;
   description: string;
   content?: string;
@@ -72,7 +74,7 @@ export function createSkill(body: {
   const name = (body.name ?? "").trim();
   const description = (body.description ?? "").trim();
   if (!description) throw new BadRequestException("description is required");
-  assertNameAvailable(name);
+  await assertNameAvailable(name);
 
   const content = body.content?.trim() ? ensureSkillMarkdown(body.content, name, description) : composeSkillMarkdown(name, description, `# ${name}\n\n## Instructions\n\nDescribe how the agent should perform this skill.\n\n## Additional resources\n\n- Put detailed docs under \`references/\` and mention them here.\n`);
 
@@ -85,14 +87,14 @@ export function createSkill(body: {
     createdAt: now,
     updatedAt: now,
   };
-  getDb().insert(skills).values(skill).run();
+  await qrun(getDb().insert(skills).values(skill));
   wsHub.emit("skills:created", skill);
-  return getSkill(skill.id!)!;
+  return (await getSkill(skill.id!))!;
 }
 
 /** Update skill; when `content` is set, sync name/description from SKILL.md frontmatter. */
-export function updateSkill(id: string, body: Partial<{ name: string; description: string; content: string; draftContent: string | null }>) {
-  getSkillOrThrow(id);
+export async function updateSkill(id: string, body: Partial<{ name: string; description: string; content: string; draftContent: string | null }>) {
+  await getSkillOrThrow(id);
   const patch: Partial<NewSkill> = { updatedAt: new Date() };
 
   if (body.content !== undefined) {
@@ -101,7 +103,7 @@ export function updateSkill(id: string, body: Partial<{ name: string; descriptio
     const fmDesc = parsed.frontmatter.description?.trim();
     if (!fmName) throw new BadRequestException("SKILL.md frontmatter must include name");
     if (!fmDesc) throw new BadRequestException("SKILL.md frontmatter must include description");
-    assertNameAvailable(fmName, id);
+    await assertNameAvailable(fmName, id);
     patch.name = fmName;
     patch.description = fmDesc;
     patch.content = composeSkillMarkdown(fmName, fmDesc, parsed.body);
@@ -110,7 +112,7 @@ export function updateSkill(id: string, body: Partial<{ name: string; descriptio
   } else {
     if (body.name !== undefined) {
       const name = body.name.trim();
-      assertNameAvailable(name, id);
+      await assertNameAvailable(name, id);
       patch.name = name;
     }
     if (body.description !== undefined) {
@@ -125,67 +127,70 @@ export function updateSkill(id: string, body: Partial<{ name: string; descriptio
   }
 
   if (body.content === undefined && (patch.name !== undefined || patch.description !== undefined)) {
-    const current = getSkillOrThrow(id);
+    const current = await getSkillOrThrow(id);
     const nextName = patch.name ?? current.name;
     const nextDesc = patch.description ?? current.description;
     const parsed = parseSkillFrontmatter(current.content);
     patch.content = composeSkillMarkdown(nextName, nextDesc, parsed.body);
   }
 
-  getDb().update(skills).set(patch).where(eq(skills.id, id)).run();
-  const updated = getSkill(id)!;
+  await qrun(getDb().update(skills).set(patch).where(eq(skills.id, id)));
+  const updated = (await getSkill(id))!;
   wsHub.emit("skills:updated", updated);
   return updated;
 }
 
-export function deleteSkill(id: string) {
-  getSkillOrThrow(id);
+export async function deleteSkill(id: string) {
+  await getSkillOrThrow(id);
   const db = getDb();
-  const affected = db.select({ agentId: agentSkillAssignments.agentId }).from(agentSkillAssignments).where(eq(agentSkillAssignments.skillId, id)).all();
-  db.delete(skills).where(eq(skills.id, id)).run();
+  const affected = await qall(db.select({ agentId: agentSkillAssignments.agentId }).from(agentSkillAssignments).where(eq(agentSkillAssignments.skillId, id)));
+  await qrun(db.delete(skills).where(eq(skills.id, id)));
   wsHub.emit("skills:deleted", { id });
   for (const { agentId } of affected) {
     wsHub.emit("agents:skills-updated", { agentId, skillId: id });
   }
 }
 
-export function listReferences(skillId: string) {
-  getSkillOrThrow(skillId);
-  return getDb().select().from(skillReferences).where(eq(skillReferences.skillId, skillId)).all();
+export async function listReferences(skillId: string) {
+  await getSkillOrThrow(skillId);
+  return await qall(getDb().select().from(skillReferences).where(eq(skillReferences.skillId, skillId)));
 }
 
-export function getReference(skillId: string, refId: string) {
+export async function getReference(skillId: string, refId: string) {
   return (
-    getDb()
-      .select()
-      .from(skillReferences)
-      .where(and(eq(skillReferences.id, refId), eq(skillReferences.skillId, skillId)))
-      .get() ?? null
+    (await qone(
+      getDb()
+        .select()
+        .from(skillReferences)
+        .where(and(eq(skillReferences.id, refId), eq(skillReferences.skillId, skillId))),
+    )) ?? null
   );
 }
 
-export function getReferenceByName(skillId: string, name: string) {
+export async function getReferenceByName(skillId: string, name: string) {
   return (
-    getDb()
-      .select()
-      .from(skillReferences)
-      .where(and(eq(skillReferences.skillId, skillId), eq(skillReferences.name, name)))
-      .get() ?? null
+    (await qone(
+      getDb()
+        .select()
+        .from(skillReferences)
+        .where(and(eq(skillReferences.skillId, skillId), eq(skillReferences.name, name))),
+    )) ?? null
   );
 }
 
-export function createReference(skillId: string, body: { name: string; title: string; content?: string; draftContent?: string | null }) {
-  getSkillOrThrow(skillId);
+export async function createReference(skillId: string, body: { name: string; title: string; content?: string; draftContent?: string | null }) {
+  await getSkillOrThrow(skillId);
   const name = (body.name ?? "").trim();
   const title = (body.title ?? "").trim() || name;
   assertRefName(name);
 
   const db = getDb();
-  const dup = db
-    .select()
-    .from(skillReferences)
-    .where(and(eq(skillReferences.skillId, skillId), eq(skillReferences.name, name)))
-    .get();
+  const dup = await qone(
+    db
+      .select()
+      .from(skillReferences)
+      .where(and(eq(skillReferences.skillId, skillId), eq(skillReferences.name, name))),
+  );
   if (dup) throw new BadRequestException("Reference name already exists for this skill");
 
   const now = new Date();
@@ -199,13 +204,13 @@ export function createReference(skillId: string, body: { name: string; title: st
     createdAt: now,
     updatedAt: now,
   };
-  db.insert(skillReferences).values(row).run();
-  wsHub.emit("skills:updated", getSkill(skillId));
-  return getReference(skillId, row.id!)!;
+  await qrun(db.insert(skillReferences).values(row));
+  wsHub.emit("skills:updated", await getSkill(skillId));
+  return (await getReference(skillId, row.id!))!;
 }
 
-export function updateReference(skillId: string, refId: string, body: Partial<{ name: string; title: string; content: string; draftContent: string | null }>) {
-  const existing = getReference(skillId, refId);
+export async function updateReference(skillId: string, refId: string, body: Partial<{ name: string; title: string; content: string; draftContent: string | null }>) {
+  const existing = await getReference(skillId, refId);
   if (!existing) throw new NotFoundException("Reference not found");
 
   const patch: Partial<NewSkillReference> = { updatedAt: new Date() };
@@ -213,11 +218,12 @@ export function updateReference(skillId: string, refId: string, body: Partial<{ 
   if (body.name !== undefined) {
     const name = body.name.trim();
     assertRefName(name);
-    const dup = getDb()
-      .select()
-      .from(skillReferences)
-      .where(and(eq(skillReferences.skillId, skillId), eq(skillReferences.name, name), ne(skillReferences.id, refId)))
-      .get();
+    const dup = await qone(
+      getDb()
+        .select()
+        .from(skillReferences)
+        .where(and(eq(skillReferences.skillId, skillId), eq(skillReferences.name, name), ne(skillReferences.id, refId))),
+    );
     if (dup) throw new BadRequestException("Reference name already exists for this skill");
     patch.name = name;
   }
@@ -235,28 +241,28 @@ export function updateReference(skillId: string, refId: string, body: Partial<{ 
     patch.draftContent = body.draftContent;
   }
 
-  getDb().update(skillReferences).set(patch).where(eq(skillReferences.id, refId)).run();
-  const updated = getReference(skillId, refId)!;
-  wsHub.emit("skills:updated", getSkill(skillId));
+  await qrun(getDb().update(skillReferences).set(patch).where(eq(skillReferences.id, refId)));
+  const updated = (await getReference(skillId, refId))!;
+  wsHub.emit("skills:updated", await getSkill(skillId));
   return updated;
 }
 
-export function deleteReference(skillId: string, refId: string) {
-  const existing = getReference(skillId, refId);
+export async function deleteReference(skillId: string, refId: string) {
+  const existing = await getReference(skillId, refId);
   if (!existing) throw new NotFoundException("Reference not found");
-  getDb().delete(skillReferences).where(eq(skillReferences.id, refId)).run();
-  wsHub.emit("skills:updated", getSkill(skillId));
+  await qrun(getDb().delete(skillReferences).where(eq(skillReferences.id, refId)));
+  wsHub.emit("skills:updated", await getSkill(skillId));
 }
 
-export function writeSkillPath(skillId: string, path: string, content: string): { path: string; content: string } {
-  return writeSkillDraftPath(skillId, path, content);
+export async function writeSkillPath(skillId: string, path: string, content: string): Promise<{ path: string; content: string }> {
+  return await writeSkillDraftPath(skillId, path, content);
 }
 
 /** Working content for AI chain edits: pending draft, else published content. */
-export function getWorkingContent(skillId: string, path: string): string | null {
+export async function getWorkingContent(skillId: string, path: string): Promise<string | null> {
   const normalized = path.replace(/^\/+/, "").trim();
   if (normalized === "SKILL.md") {
-    const row = getDb().select().from(skills).where(eq(skills.id, skillId)).get();
+    const row = await qone(getDb().select().from(skills).where(eq(skills.id, skillId)));
     if (!row) return null;
     const published = ensureSkillMarkdown(row.content, row.name, row.description);
     if (row.draftContent != null && row.draftContent !== "") {
@@ -266,19 +272,19 @@ export function getWorkingContent(skillId: string, path: string): string | null 
   }
   const refMatch = normalized.match(/^references\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);
   if (!refMatch) return null;
-  const row = getReferenceByName(skillId, refMatch[1]);
+  const row = await getReferenceByName(skillId, refMatch[1]);
   if (!row) return null;
   return row.draftContent != null && row.draftContent !== "" ? row.draftContent : row.content;
 }
 
 /** Write AI draft only — does not publish to content. */
-export function writeSkillDraftPath(skillId: string, path: string, draft: string): { path: string; content: string } {
+export async function writeSkillDraftPath(skillId: string, path: string, draft: string): Promise<{ path: string; content: string }> {
   const normalized = path.replace(/^\/+/, "").trim();
   if (normalized === "SKILL.md") {
-    getSkillOrThrow(skillId);
+    await getSkillOrThrow(skillId);
     const next = normalizeToLf(draft);
-    getDb().update(skills).set({ draftContent: next, updatedAt: new Date() }).where(eq(skills.id, skillId)).run();
-    const updated = getSkill(skillId)!;
+    await qrun(getDb().update(skills).set({ draftContent: next, updatedAt: new Date() }).where(eq(skills.id, skillId)));
+    const updated = (await getSkill(skillId))!;
     wsHub.emit("skills:updated", updated);
     return { path: "SKILL.md", content: next };
   }
@@ -289,20 +295,20 @@ export function writeSkillDraftPath(skillId: string, path: string, draft: string
   }
   const refName: string = refMatch[1];
   const next = normalizeToLf(draft);
-  const existing = getReferenceByName(skillId, refName);
+  const existing = await getReferenceByName(skillId, refName);
   if (existing) {
-    getDb().update(skillReferences).set({ draftContent: next, updatedAt: new Date() }).where(eq(skillReferences.id, existing.id)).run();
-    wsHub.emit("skills:updated", getSkill(skillId));
+    await qrun(getDb().update(skillReferences).set({ draftContent: next, updatedAt: new Date() }).where(eq(skillReferences.id, existing.id)));
+    wsHub.emit("skills:updated", await getSkill(skillId));
     return { path: `references/${refName}.md`, content: next };
   }
-  createReference(skillId, { name: refName, title: refName, content: "", draftContent: next });
+  await createReference(skillId, { name: refName, title: refName, content: "", draftContent: next });
   return { path: `references/${refName}.md`, content: next };
 }
 
 /** Read working content (draft ?? published) for the skill assistant. */
-export function readSkillPath(skillId: string, path: string): { path: string; content: string } | null {
+export async function readSkillPath(skillId: string, path: string): Promise<{ path: string; content: string } | null> {
   const normalized = path.replace(/^\/+/, "").trim();
-  const content = getWorkingContent(skillId, normalized);
+  const content = await getWorkingContent(skillId, normalized);
   if (content == null) return null;
   if (normalized === "SKILL.md") return { path: "SKILL.md", content };
   const refMatch = normalized.match(/^references\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);
@@ -314,24 +320,25 @@ function normalizeToLf(text: string) {
   return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
-export function listAssignedSkillSummaries(agentId: string): { name: string; description: string }[] {
+export async function listAssignedSkillSummaries(agentId: string): Promise<{ name: string; description: string }[]> {
   const db = getDb();
-  return db.select({ name: skills.name, description: skills.description }).from(agentSkillAssignments).innerJoin(skills, eq(agentSkillAssignments.skillId, skills.id)).where(eq(agentSkillAssignments.agentId, agentId)).all();
+  return await qall(db.select({ name: skills.name, description: skills.description }).from(agentSkillAssignments).innerJoin(skills, eq(agentSkillAssignments.skillId, skills.id)).where(eq(agentSkillAssignments.agentId, agentId)));
 }
 
-export function getAssignedSkillByName(agentId: string, name: string) {
+export async function getAssignedSkillByName(agentId: string, name: string) {
   const db = getDb();
   return (
-    db
-      .select({
-        id: skills.id,
-        name: skills.name,
-        description: skills.description,
-        content: skills.content,
-      })
-      .from(agentSkillAssignments)
-      .innerJoin(skills, eq(agentSkillAssignments.skillId, skills.id))
-      .where(and(eq(agentSkillAssignments.agentId, agentId), eq(skills.name, name)))
-      .get() ?? null
+    (await qone(
+      db
+        .select({
+          id: skills.id,
+          name: skills.name,
+          description: skills.description,
+          content: skills.content,
+        })
+        .from(agentSkillAssignments)
+        .innerJoin(skills, eq(agentSkillAssignments.skillId, skills.id))
+        .where(and(eq(agentSkillAssignments.agentId, agentId), eq(skills.name, name))),
+    )) ?? null
   );
 }

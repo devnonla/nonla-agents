@@ -135,7 +135,7 @@ export function buildLangChainMessages(messages: SiteAgentStreamRequest["message
 
 export async function streamSiteAgent(siteId: string, body: SiteAgentStreamRequest, stream: SSEStreamingApi, abortSignal?: AbortSignal, request?: Request): Promise<void> {
   const { providerId, modelId, messages, publicOrigin } = body;
-  const site = getSite(siteId);
+  const site = await getSite(siteId);
   const model = await getChatModel(providerId, modelId);
   const publicBaseUrl = resolvePublicBaseUrl({ request, clientOrigin: publicOrigin });
 
