@@ -1,6 +1,6 @@
-import { type SQL, and, asc, between, count, desc, eq, gt, gte, inArray, like, lt, lte, ne, or } from "drizzle-orm";
-import type { SQLiteColumn, SQLiteTableWithColumns } from "drizzle-orm/sqlite-core";
+import { type Column, type SQL, and, asc, between, count, desc, eq, gt, gte, inArray, like, lt, lte, ne, or } from "drizzle-orm";
 import { getDb } from "./client.js";
+import { qall, qone } from "./query.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ export type RawQuery = Record<string, string | undefined>;
 /** Reserved query param keys that are NOT treated as filters. */
 const RESERVED_KEYS = new Set(["page", "limit", "sorts", "search"]);
 
-export interface ListQueryOptions<TTable extends SQLiteTableWithColumns<any>> {
+export interface ListQueryOptions<TTable extends { $inferSelect: any; _: { columns: Record<string, unknown> } }> {
   /**
    * The Drizzle table object to query.
    */
@@ -65,7 +65,7 @@ export interface ListQueryOptions<TTable extends SQLiteTableWithColumns<any>> {
 
 const FILTER_RE = /^(lt|lte|gt|gte|ne|eq|in|range):(.*)$/;
 
-function parseFilterValue(col: SQLiteColumn, raw: FilterValue): SQL | undefined {
+function parseFilterValue(col: Column, raw: FilterValue): SQL | undefined {
   const str = String(raw ?? "");
   const match = str.match(FILTER_RE);
 
@@ -106,7 +106,7 @@ function parseFilterValue(col: SQLiteColumn, raw: FilterValue): SQL | undefined 
   }
 }
 
-function buildSortSQL(cols: Record<string, SQLiteColumn>, sortsParam?: string, allowedSorts?: string[]): SQL[] {
+function buildSortSQL(cols: Record<string, Column>, sortsParam?: string, allowedSorts?: string[]): SQL[] {
   if (!sortsParam?.trim()) {
     // Default: newest first if createdAt exists
     const createdAt = cols.createdAt;
@@ -138,7 +138,7 @@ function buildSortSQL(cols: Record<string, SQLiteColumn>, sortsParam?: string, a
 // ─── Main function ────────────────────────────────────────────────────────────
 
 /**
- * Generic list query for **Drizzle + bun-sqlite**.
+ * Generic list query for Drizzle (SQLite or Postgres).
  *
  * Accepts a raw query object (e.g. `c.req.query()`) as the second parameter.
  * Reserved keys (`page`, `limit`, `sorts`, `search`) are auto-extracted;
@@ -150,7 +150,7 @@ function buildSortSQL(cols: Record<string, SQLiteColumn>, sortsParam?: string, a
  * @example
  * ```ts
  * // In route handler — just pass c.req.query() directly:
- * app.get("/", (c) => c.json(
+ * app.get("/", async (c) => c.json(
  *   listQuery({ table: agents, searchColumns: ["name"] }, c.req.query()),
  * ));
  *
@@ -158,7 +158,7 @@ function buildSortSQL(cols: Record<string, SQLiteColumn>, sortsParam?: string, a
  * // Omit limit to return all rows (page defaults to 1).
  * ```
  */
-export function listQuery<TTable extends SQLiteTableWithColumns<any>>(options: ListQueryOptions<TTable>, query: RawQuery = {}): PagingResult<TTable["$inferSelect"]> {
+export async function listQuery<TTable extends { $inferSelect: any; _: { columns: Record<string, unknown> } }>(options: ListQueryOptions<TTable>, query: RawQuery = {}): Promise<PagingResult<TTable["$inferSelect"]>> {
   const { table, allowedSorts, allowedFilters, searchColumns, where: staticWhere } = options;
 
   // ── Parse reserved params ─────────────────────────────────────────────────
@@ -178,8 +178,7 @@ export function listQuery<TTable extends SQLiteTableWithColumns<any>>(options: L
     filter[key] = value;
   }
 
-  // Column map: property name → SQLiteColumn
-  const cols = table as unknown as Record<string, SQLiteColumn>;
+  const cols = table as unknown as Record<string, Column>;
 
   // ── Build WHERE conditions ─────────────────────────────────────────────────
   const conditions: SQL[] = [];
@@ -235,14 +234,15 @@ export function listQuery<TTable extends SQLiteTableWithColumns<any>>(options: L
     .where(whereSQL)
     .orderBy(...orderSQL);
 
-  const items = (hasLimit ? baseQuery.limit(limit).offset(offset) : baseQuery).all() as TTable["$inferSelect"][];
+  const items = (await qall(hasLimit ? baseQuery.limit(limit).offset(offset) : baseQuery)) as TTable["$inferSelect"][];
 
   const countQuery = db
     .select({ value: count() })
     .from(table as any)
     .where(whereSQL);
 
-  const [{ value: total }] = countQuery.all();
+  const totalRow = await qone(countQuery);
+  const total = Number(totalRow?.value ?? 0);
 
   return {
     items,

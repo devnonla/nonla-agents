@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { boolCol, integer, jsonCol, primaryKey, sqlNow, sqliteTable, text, tsCol } from "./columns.js";
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
 
@@ -14,15 +14,15 @@ export const agents = sqliteTable("agents", {
   systemPrompt: text("system_prompt"),
   /** Pending AI / editor draft. Chat uses `systemPrompt` until the user approves. */
   systemPromptDraft: text("system_prompt_draft"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+  isActive: boolCol("is_active").notNull().default(true),
+  isPublic: boolCol("is_public").notNull().default(false),
   publicPassword: text("public_password"), // Mật khẩu cho link public (optional)
   // Per-agent AI config — aiProvider stores the UUID from llmProviders table
   aiProvider: text("ai_provider"),
   aiModel: text("ai_model"),
 
   /** JSON array of agent UUIDs this agent can delegate to (one call_agent__* tool each) */
-  callableAgentIds: text("callable_agent_ids", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+  callableAgentIds: jsonCol("callable_agent_ids").$type<string[]>().notNull().default(sql`'[]'`),
   /** Which team this agent belongs to (denormalized for simpler queries) */
   teamId: text("team_id").references(() => agentTeams.id, {
     onDelete: "set null",
@@ -31,8 +31,8 @@ export const agents = sqliteTable("agents", {
   sortOrder: integer("sort_order").notNull().default(0),
   /** Which user created this agent */
   createdBy: text("created_by"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type Agent = typeof agents.$inferSelect;
@@ -55,8 +55,8 @@ export const memoryNodes = sqliteTable("memory_nodes", {
   ownerId: text("owner_id").notNull().default("user"),
   content: text("content").notNull(),
   sourceConversationId: text("source_conversation_id"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type MemoryNode = typeof memoryNodes.$inferSelect;
@@ -77,7 +77,7 @@ export const memoryEdges = sqliteTable("memory_edges", {
     .notNull()
     .references(() => memoryNodes.id, { onDelete: "cascade" }),
   relation: text("relation").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type MemoryEdge = typeof memoryEdges.$inferSelect;
@@ -91,8 +91,8 @@ export const agentTeams = sqliteTable("agent_teams", {
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   description: text("description"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  isActive: boolCol("is_active").notNull().default(true),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type AgentTeam = typeof agentTeams.$inferSelect;
@@ -117,10 +117,10 @@ export const agentConversations = sqliteTable("agent_conversations", {
     .default("running"),
   errorMessage: text("error_message"),
   summary: text("summary"),
-  summaryUpdatedAt: integer("summary_updated_at", { mode: "timestamp" }),
-  startedAt: integer("started_at", { mode: "timestamp" }),
-  finishedAt: integer("finished_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  summaryUpdatedAt: tsCol("summary_updated_at"),
+  startedAt: tsCol("started_at"),
+  finishedAt: tsCol("finished_at"),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type AgentConversation = typeof agentConversations.$inferSelect;
@@ -154,8 +154,8 @@ export const agentMessages = sqliteTable("agent_messages", {
     .default("user"),
   content: text("content").notNull(),
   /** JSON metadata: { toolName, toolLabel, input, output, usage } */
-  metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  metadata: jsonCol("metadata").$type<Record<string, unknown>>(),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type AgentMessage = typeof agentMessages.$inferSelect;
@@ -177,16 +177,16 @@ export const mcpServers = sqliteTable("mcp_servers", {
   name: text("name").notNull(),
   url: text("url").notNull(),
   /** JSON object: custom headers for auth etc. */
-  headers: text("headers", { mode: "json" }).$type<Record<string, string>>().notNull().default(sql`'{}'`),
+  headers: jsonCol("headers").$type<Record<string, string>>().notNull().default(sql`'{}'`),
   /** Synced MCP tool catalog — enable/disable is per-agent via assignments. */
-  tools: text("tools", { mode: "json" }).$type<McpCatalogTool[]>().notNull().default(sql`'[]'`),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  tools: jsonCol("tools").$type<McpCatalogTool[]>().notNull().default(sql`'[]'`),
+  isActive: boolCol("is_active").notNull().default(true),
   /** Last sync failure message; null when the latest sync succeeded. */
   lastSyncError: text("last_sync_error"),
   /** Timestamp of the last sync attempt (success or failure). */
-  lastSyncedAt: integer("last_synced_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  lastSyncedAt: tsCol("last_synced_at"),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type McpServer = typeof mcpServers.$inferSelect;
@@ -201,8 +201,8 @@ export const toolFolders = sqliteTable("tool_folders", {
   name: text("name").notNull(),
   description: text("description"),
   sortOrder: integer("sort_order").notNull().default(0),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  isActive: boolCol("is_active").notNull().default(true),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type ToolFolder = typeof toolFolders.$inferSelect;
@@ -219,7 +219,7 @@ export const agentTools = sqliteTable("agent_tools", {
   description: text("description").notNull(),
   /** SVG markup (Iconify Lucide) shown next to the tool name in the UI */
   icon: text("icon"),
-  parameters: text("parameters", { mode: "json" }).$type<object>().notNull().default(sql`'{"type":"object","properties":{},"required":[]}'`),
+  parameters: jsonCol("parameters").$type<object>().notNull().default(sql`'{"type":"object","properties":{},"required":[]}'`),
   codeContent: text("code_content").notNull(),
   /** AI draft code — written by edit_code tool. null = no pending draft. */
   draftCode: text("draft_code"),
@@ -229,8 +229,8 @@ export const agentTools = sqliteTable("agent_tools", {
   }),
   /** Order within folder (or ungrouped when folderId is null) */
   sortOrder: integer("sort_order").notNull().default(0),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  isActive: boolCol("is_active").notNull().default(true),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type AgentTool = typeof agentTools.$inferSelect;
@@ -248,7 +248,7 @@ export const agentToolAssignments = sqliteTable("agent_tool_assignments", {
     .notNull()
     .references(() => agents.id, { onDelete: "cascade" }),
   toolId: text("tool_id").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type AgentToolAssignment = typeof agentToolAssignments.$inferSelect;
@@ -259,7 +259,7 @@ export type NewAgentToolAssignment = typeof agentToolAssignments.$inferInsert;
 export const appSettings = sqliteTable("configurations", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type AppSetting = typeof appSettings.$inferSelect;
@@ -275,9 +275,9 @@ export const llmProviders = sqliteTable("llm_providers", {
   apiKey: text("api_key").notNull().default(""),
   customBaseUrl: text("custom_base_url").notNull().default(""),
   /** Cached list of model IDs from the provider's /models endpoint */
-  models: text("models", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  models: jsonCol("models").$type<string[]>().notNull().default(sql`'[]'`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type LlmProvider = typeof llmProviders.$inferSelect;
@@ -297,9 +297,9 @@ export const users = sqliteTable("users", {
   role: text("role", { enum: ["admin", "member"] })
     .notNull()
     .default("member"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  isActive: boolCol("is_active").notNull().default(true),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type User = typeof users.$inferSelect;
@@ -313,9 +313,9 @@ export const refreshTokens = sqliteTable("refresh_tokens", {
     .$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull(),
   tokenHash: text("token_hash").notNull().unique(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  revokedAt: integer("revoked_at", { mode: "timestamp" }),
+  expiresAt: tsCol("expires_at").notNull(),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  revokedAt: tsCol("revoked_at"),
 });
 
 export type RefreshToken = typeof refreshTokens.$inferSelect;
@@ -330,8 +330,8 @@ export const kvStore = sqliteTable("kv_store", {
   key: text("key").notNull().unique(),
   value: text("value").notNull(),
   description: text("description"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type KvStoreEntry = typeof kvStore.$inferSelect;
@@ -346,8 +346,8 @@ export const secrets = sqliteTable("secrets", {
   key: text("key").notNull().unique(),
   value: text("value").notNull(),
   description: text("description"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type SecretEntry = typeof secrets.$inferSelect;
@@ -363,8 +363,8 @@ export const datatableProjects = sqliteTable("datatable_projects", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type DatatableProject = typeof datatableProjects.$inferSelect;
@@ -378,8 +378,8 @@ export const datatableTables = sqliteTable("datatable_tables", {
     .notNull()
     .references(() => datatableProjects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type DatatableTable = typeof datatableTables.$inferSelect;
@@ -394,10 +394,10 @@ export const datatableColumns = sqliteTable("datatable_columns", {
     .references(() => datatableTables.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   type: text("type").notNull().$type<ColumnType>(),
-  options: text("options", { mode: "json" }).$type<string[] | null>(),
-  required: integer("required", { mode: "boolean" }).notNull().default(false),
+  options: jsonCol("options").$type<string[] | null>(),
+  required: boolCol("required").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type DatatableColumn = typeof datatableColumns.$inferSelect;
@@ -410,9 +410,9 @@ export const datatableRows = sqliteTable("datatable_rows", {
   tableId: text("table_id")
     .notNull()
     .references(() => datatableTables.id, { onDelete: "cascade" }),
-  data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  data: jsonCol("data").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type DatatableRow = typeof datatableRows.$inferSelect;
@@ -426,16 +426,16 @@ export const sites = sqliteTable("sites", {
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-  isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+  isPublished: boolCol("is_published").notNull().default(false),
   publicPassword: text("public_password"),
   depsStatus: text("deps_status").notNull().default("ready"),
   depsError: text("deps_error"),
   draftDepsStatus: text("draft_deps_status").notNull().default("ready"),
   draftDepsError: text("draft_deps_error"),
-  draftUpdatedAt: integer("draft_updated_at", { mode: "timestamp" }),
+  draftUpdatedAt: tsCol("draft_updated_at"),
   createdBy: text("created_by"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type Site = typeof sites.$inferSelect;
@@ -458,14 +458,14 @@ export const jobs = sqliteTable("jobs", {
   code: text("code").notNull().default(""),
   draftCode: text("draft_code"),
   cron: text("cron").notNull(),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  enabled: boolCol("enabled").notNull().default(false),
   timeoutMs: integer("timeout_ms").notNull().default(300_000),
-  nextRunAt: integer("next_run_at", { mode: "timestamp" }),
-  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+  nextRunAt: tsCol("next_run_at"),
+  lastRunAt: tsCol("last_run_at"),
   leaseOwner: text("lease_owner"),
-  leaseUntil: integer("lease_until", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  leaseUntil: tsCol("lease_until"),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type Job = typeof jobs.$inferSelect;
@@ -483,8 +483,8 @@ export const jobRuns = sqliteTable("job_runs", {
   logs: text("logs").notNull().default(""),
   error: text("error"),
   instanceId: text("instance_id"),
-  startedAt: integer("started_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  finishedAt: integer("finished_at", { mode: "timestamp" }),
+  startedAt: tsCol("started_at").notNull().default(sqlNow),
+  finishedAt: tsCol("finished_at"),
 });
 
 export type JobRun = typeof jobRuns.$inferSelect;
@@ -502,8 +502,8 @@ export const skills = sqliteTable("skills", {
   content: text("content").notNull().default(""),
   /** AI draft — written by edit_skill_file. null = no pending draft. */
   draftContent: text("draft_content"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type Skill = typeof skills.$inferSelect;
@@ -521,8 +521,8 @@ export const skillReferences = sqliteTable("skill_references", {
   content: text("content").notNull().default(""),
   /** AI draft — written by edit_skill_file. null = no pending draft. */
   draftContent: text("draft_content"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type SkillReference = typeof skillReferences.$inferSelect;
@@ -538,7 +538,7 @@ export const agentSkillAssignments = sqliteTable("agent_skill_assignments", {
   skillId: text("skill_id")
     .notNull()
     .references(() => skills.id, { onDelete: "cascade" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
 });
 
 export type AgentSkillAssignment = typeof agentSkillAssignments.$inferSelect;
@@ -554,12 +554,12 @@ export const apiKeys = sqliteTable("api_keys", {
   keyPrefix: text("key_prefix").notNull(),
   keyHash: text("key_hash").notNull().unique(),
   createdBy: text("created_by").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
-  revokedAt: integer("revoked_at", { mode: "timestamp" }),
-  agentsUnrestricted: integer("agents_unrestricted", { mode: "boolean" }).notNull().default(false),
-  datatablesUnrestricted: integer("datatables_unrestricted", { mode: "boolean" }).notNull().default(false),
-  kvUnrestricted: integer("kv_unrestricted", { mode: "boolean" }).notNull().default(false),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  lastUsedAt: tsCol("last_used_at"),
+  revokedAt: tsCol("revoked_at"),
+  agentsUnrestricted: boolCol("agents_unrestricted").notNull().default(false),
+  datatablesUnrestricted: boolCol("datatables_unrestricted").notNull().default(false),
+  kvUnrestricted: boolCol("kv_unrestricted").notNull().default(false),
 });
 
 export type ApiKey = typeof apiKeys.$inferSelect;
@@ -618,12 +618,12 @@ export const myMcpServers = sqliteTable("my_mcp_servers", {
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   description: text("description"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  isActive: boolCol("is_active").notNull().default(true),
   keyPrefix: text("key_prefix").notNull(),
   keyHash: text("key_hash").notNull().unique(),
-  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  lastUsedAt: tsCol("last_used_at"),
+  createdAt: tsCol("created_at").notNull().default(sqlNow),
+  updatedAt: tsCol("updated_at").notNull().default(sqlNow),
 });
 
 export type MyMcpServer = typeof myMcpServers.$inferSelect;
