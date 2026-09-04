@@ -20,7 +20,7 @@
     "@pixi/react": "^8.0.5",
     "@reduxjs/toolkit": "^2.11.2",
     "@solar-icons/react": "2.1.0",
-    "@xyflow/react": "^12.11.1",
+    "@xyflow/react": "^12.11.5",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
