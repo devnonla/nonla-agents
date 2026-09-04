@@ -23,7 +23,7 @@ describe("V1 Datatables and KV API", () => {
   let noneKey = "";
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);

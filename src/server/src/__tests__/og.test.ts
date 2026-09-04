@@ -20,7 +20,7 @@ describe("OG image API", () => {
   let privateAgentId = "";
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -45,8 +45,8 @@ describe("OG image API", () => {
 
   afterAll(() => cleanup());
 
-  test("buildOgSvg includes name and description", () => {
-    const card = loadChatOgCard(publicAgentId);
+  test("buildOgSvg includes name and description", async () => {
+    const card = await loadChatOgCard(publicAgentId);
     expect(card).not.toBeNull();
     expect(card?.title).toBe("Public Helper");
     expect(card?.description).toContain("Helps with research");
@@ -84,7 +84,7 @@ describe("OG image API", () => {
   });
 
   test("GET /api/og/sites/:slug.png — published site PNG", async () => {
-    const card = loadSiteOgCard("public-catalog");
+    const card = await loadSiteOgCard("public-catalog");
     expect(card?.title).toBe("Public Catalog");
     expect(card?.kind).toBe("site");
     expect(buildOgSvg(card!)).toContain("Public Catalog");
@@ -97,8 +97,8 @@ describe("OG image API", () => {
   });
 
   test("private agent and unpublished site use generic card", async () => {
-    expect(loadChatOgCard(privateAgentId)).toBeNull();
-    expect(loadSiteOgCard("secret-site")).toBeNull();
+    expect(await loadChatOgCard(privateAgentId)).toBeNull();
+    expect(await loadSiteOgCard("secret-site")).toBeNull();
     expect(buildOgSvg(DEFAULT_OG_CARD)).not.toContain("Secret Agent");
     expect(buildOgSvg(DEFAULT_OG_CARD)).not.toContain("Secret Site");
     expect(buildOgSvg(DEFAULT_OG_CARD)).toContain("NONLA AGENTS");

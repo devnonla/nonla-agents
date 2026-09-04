@@ -16,7 +16,7 @@ describe("Sites API", () => {
     dataDir = `${tmpDir()}/nonla-agents-sites-${crypto.randomUUID()}`;
     process.env.DATA_DIR = dataDir;
 
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -50,7 +50,7 @@ describe("Sites API", () => {
     expect(filesRes.status).toBe(200);
     const files = (await filesRes.json()) as { files: Record<string, string>; draftDirty: boolean };
     expect(files.files["backend.ts"]).toContain("export async function handle");
-    expect(files.files["app.tsx"]).toContain("export default function App");
+    expect(files.files["app.tsx"]).toContain("export default async function App");
     expect(files.files["styles.css"]).toContain(".page");
     expect(files.files["app.tsx"]).toContain("loadSiteData");
     expect(files.files["data.ts"]).toBeUndefined();

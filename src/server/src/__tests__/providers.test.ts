@@ -8,7 +8,7 @@ describe("LLM Providers API", () => {
   let token: string;
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -30,7 +30,7 @@ describe("LLM Providers API", () => {
 
   test("Directly create a provider via service (bypass fetchModels)", async () => {
     const { createProvider, getProvider, decryptProviderApiKey } = await import("../modules/llm-providers/llm-providers.service.js");
-    const provider = createProvider({
+    const provider = await createProvider({
       provider: "openai",
       label: "My OpenAI",
       apiKey: "sk-test-key-12345",
@@ -45,7 +45,7 @@ describe("LLM Providers API", () => {
     expect(provider.apiKey.startsWith("v1:")).toBe(true);
     expect(decryptProviderApiKey(provider.apiKey)).toBe("sk-test-key-12345");
 
-    const row = getProvider(provider.id);
+    const row = await getProvider(provider.id);
     expect(row?.apiKey).not.toBe("sk-test-key-12345");
     providerId = provider.id;
   });
@@ -105,7 +105,7 @@ describe("LLM Providers API", () => {
     expect(data).not.toHaveProperty("apiKey");
     expect(data.hasApiKey).toBe(true);
 
-    const row = getProvider(providerId);
+    const row = await getProvider(providerId);
     expect(decryptProviderApiKey(row?.apiKey)).toBe("sk-test-key-12345");
   });
 
@@ -119,14 +119,14 @@ describe("LLM Providers API", () => {
     const data = (await res.json()) as Record<string, unknown>;
     expect(data).not.toHaveProperty("apiKey");
 
-    const row = getProvider(providerId);
+    const row = await getProvider(providerId);
     expect(row?.apiKey.startsWith("v1:")).toBe(true);
     expect(decryptProviderApiKey(row?.apiKey)).toBe("sk-rotated-key-99999");
   });
 
   test("getProviderForUse decrypts for backend use", async () => {
     const { getProviderForUse } = await import("../modules/llm-providers/llm-providers.service.js");
-    const forUse = getProviderForUse(providerId);
+    const forUse = await getProviderForUse(providerId);
     expect(forUse?.apiKey).toBe("sk-rotated-key-99999");
   });
 

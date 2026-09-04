@@ -7,13 +7,13 @@ describe("datatable schema tool", () => {
   let projectId = "";
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     cleanup = t.cleanup;
     const { app } = t;
     await setupAdmin(app);
 
     const { createProject } = await import("../modules/datatables/datatables.service.js");
-    projectId = createProject({ name: "SchemaToolProj" }).id as string;
+    projectId = (await createProject({ name: "SchemaToolProj" })).id as string;
   });
 
   afterAll(() => cleanup());
@@ -167,7 +167,7 @@ describe("datatable schema tool", () => {
     const { datatableProjectToolName } = await import("../modules/datatables/datatable-tool-id.js");
     const { makeDatatableProjectTool } = await import("../modules/agents/runtime/llm-tools/datatable.tool.js");
 
-    const other = createProject({ name: "OtherLockedProj" });
+    const other = await createProject({ name: "OtherLockedProj" });
     const tool = makeDatatableProjectTool({ id: projectId, name: "SchemaToolProj" });
     expect(tool.name).toBe(datatableProjectToolName(projectId));
 

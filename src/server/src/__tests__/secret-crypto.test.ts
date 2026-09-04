@@ -6,11 +6,10 @@ describe("secret-crypto", () => {
   let cleanup: () => void;
   const prevEnv = process.env.SECRET_ENCRYPTION_KEY;
 
-  beforeEach(() => {
-    const t = createTestApp();
+  beforeEach(async () => {
+    const t = await createTestApp();
     cleanup = t.cleanup;
     delete process.env.SECRET_ENCRYPTION_KEY;
-    _resetSecretEncryptionKeyCache();
   });
 
   afterEach(() => {
@@ -40,10 +39,12 @@ describe("secret-crypto", () => {
     expect(a.length).toBe(32);
   });
 
-  test("wrong key fails decrypt", () => {
+  test("wrong key fails decrypt", async () => {
     const cipher = encryptSecret("hello");
     _resetSecretEncryptionKeyCache();
     process.env.SECRET_ENCRYPTION_KEY = "totally-different-key";
+    const { loadSecretEncryptionKey } = await import("../common/crypto/secret-crypto.js");
+    await loadSecretEncryptionKey();
     expect(() => decryptSecret(cipher)).toThrow();
   });
 });

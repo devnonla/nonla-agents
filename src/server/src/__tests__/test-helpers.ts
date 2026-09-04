@@ -372,19 +372,24 @@ function createTestDb() {
 // ─── App + Auth Helpers ──────────────────────────────────────────────────────
 
 import { createApp } from "../app.js";
-import { _resetSecretEncryptionKeyCache } from "../common/crypto/secret-crypto.js";
+import { _resetSecretEncryptionKeyCache, loadSecretEncryptionKey } from "../common/crypto/secret-crypto.js";
 import { _resetDb, _setTestDb } from "../common/db/client.js";
+import { loadJwtSecret } from "../common/middleware/auth.middleware.js";
+import { getConfiguredTimezone } from "../common/utils/cronHelper.js";
 
 /**
  * Create a full Hono app backed by a fresh in-memory DB.
  * Returns the app, db, and a cleanup function.
  */
-export function createTestApp() {
+export async function createTestApp() {
   const { db, raw } = createTestDb();
 
   // Inject the test DB into the singleton so all services use it
   _setTestDb(db, raw);
   _resetSecretEncryptionKeyCache();
+  await loadSecretEncryptionKey();
+  await loadJwtSecret();
+  await getConfiguredTimezone();
 
   const app = createApp();
 

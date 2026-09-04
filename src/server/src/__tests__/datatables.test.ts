@@ -12,7 +12,7 @@ describe("Datatables API", () => {
   let rowId = "";
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -222,7 +222,7 @@ describe("Datatables API", () => {
     expect(legacyRes.status).toBe(201);
 
     const { resolveAgentTools } = await import("../modules/agents/runtime/utils/resolveTools.js");
-    const legacyNames = resolveAgentTools(agent.id, ["builtin:datatable"], "owner").map((t) => t.name);
+    const legacyNames = (await resolveAgentTools(agent.id, ["builtin:datatable"], "owner")).map((t) => t.name);
     expect(legacyNames).toContain("datatable");
 
     const projectToolId = `datatable:${projectId}`;
@@ -234,7 +234,7 @@ describe("Datatables API", () => {
     expect(ids).toContain(projectToolId);
     expect(ids).not.toContain("builtin:datatable");
 
-    const nextNames = resolveAgentTools(agent.id, ids, "owner").map((t) => t.name);
+    const nextNames = (await resolveAgentTools(agent.id, ids, "owner")).map((t) => t.name);
     expect(nextNames).not.toContain("datatable");
     expect(nextNames.some((n) => n.startsWith("datatable__"))).toBe(true);
   });

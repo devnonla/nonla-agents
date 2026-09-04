@@ -11,7 +11,7 @@ describe("Skills API", () => {
   let agentId: string;
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -197,16 +197,16 @@ Accepted draft body.
 
   test("writeSkillDraftPath — AI draft for new reference keeps content empty", async () => {
     const { writeSkillDraftPath, getReferenceByName, getSkill } = await import("../modules/skills/skills.service.js");
-    const written = writeSkillDraftPath(skillId, "references/ai-notes.md", "# AI notes\n\nDraft only.\n");
+    const written = await writeSkillDraftPath(skillId, "references/ai-notes.md", "# AI notes\n\nDraft only.\n");
     expect(written.path).toBe("references/ai-notes.md");
     expect(written.content).toContain("Draft only");
 
-    const row = getReferenceByName(skillId, "ai-notes");
+    const row = await getReferenceByName(skillId, "ai-notes");
     expect(row).not.toBeNull();
     expect(row!.content).toBe("");
     expect(row!.draftContent).toContain("Draft only");
 
-    const skill = getSkill(skillId)!;
+    const skill = (await getSkill(skillId))!;
     // published skill content unchanged by reference draft write
     expect(skill.content).toContain("Accepted draft body");
   });
@@ -257,7 +257,7 @@ Published instructions. See \`api-notes\`.
 `;
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -303,7 +303,7 @@ Published instructions. See \`api-notes\`.
 
   test("makeReadSkillTool — loads assigned skill body + references list", async () => {
     const { makeReadSkillTool } = await import("../modules/agents/runtime/llm-tools/read-skill.tool.js");
-    const tool = makeReadSkillTool(agentId);
+    const tool = await makeReadSkillTool(agentId);
     const raw = await tool.invoke({ name: "runtime-skill" });
     const data = JSON.parse(String(raw)) as {
       ok: boolean;
@@ -319,7 +319,7 @@ Published instructions. See \`api-notes\`.
 
   test("makeReadSkillTool — loads named reference", async () => {
     const { makeReadSkillTool } = await import("../modules/agents/runtime/llm-tools/read-skill.tool.js");
-    const tool = makeReadSkillTool(agentId);
+    const tool = await makeReadSkillTool(agentId);
     const raw = await tool.invoke({ name: "runtime-skill", reference: "api-notes" });
     const data = JSON.parse(String(raw)) as {
       ok: boolean;
@@ -335,7 +335,7 @@ Published instructions. See \`api-notes\`.
 
   test("makeReadSkillTool — rejects unassigned skill", async () => {
     const { makeReadSkillTool } = await import("../modules/agents/runtime/llm-tools/read-skill.tool.js");
-    const tool = makeReadSkillTool(otherAgentId);
+    const tool = await makeReadSkillTool(otherAgentId);
     const raw = await tool.invoke({ name: "runtime-skill" });
     const data = JSON.parse(String(raw)) as { ok: boolean; error: string };
     expect(data.ok).toBe(false);
@@ -344,7 +344,7 @@ Published instructions. See \`api-notes\`.
 
   test("makeReadSkillTool — missing reference lists available", async () => {
     const { makeReadSkillTool } = await import("../modules/agents/runtime/llm-tools/read-skill.tool.js");
-    const tool = makeReadSkillTool(agentId);
+    const tool = await makeReadSkillTool(agentId);
     const raw = await tool.invoke({ name: "runtime-skill", reference: "nope" });
     const data = JSON.parse(String(raw)) as {
       ok: boolean;
@@ -368,7 +368,7 @@ DRAFT ONLY — agents must not see this.
     expect(putRes.status).toBe(200);
 
     const { makeReadSkillTool } = await import("../modules/agents/runtime/llm-tools/read-skill.tool.js");
-    const tool = makeReadSkillTool(agentId);
+    const tool = await makeReadSkillTool(agentId);
     const raw = await tool.invoke({ name: "runtime-skill" });
     const data = JSON.parse(String(raw)) as { ok: boolean; content: string };
     expect(data.ok).toBe(true);
@@ -378,7 +378,7 @@ DRAFT ONLY — agents must not see this.
 
   test("resolveSystemPrompt — injects assigned skill name + description", async () => {
     const { resolveSystemPrompt } = await import("../modules/agents/runtime/utils/buildSystemPrompt.js");
-    const prompt = resolveSystemPrompt(agentId, undefined);
+    const prompt = await resolveSystemPrompt(agentId, undefined);
     expect(prompt).toContain("<skills>");
     expect(prompt).toContain("runtime-skill");
     expect(prompt).toContain("Runtime coverage skill");
@@ -388,7 +388,7 @@ DRAFT ONLY — agents must not see this.
 
   test("resolveAgentTools — always includes read_skill", async () => {
     const { resolveAgentTools } = await import("../modules/agents/runtime/utils/resolveTools.js");
-    const tools = resolveAgentTools(agentId, [], ownerId);
+    const tools = await resolveAgentTools(agentId, [], ownerId);
     expect(tools.some((t) => t.name === "read_skill")).toBe(true);
   });
 
@@ -441,7 +441,7 @@ Full rewrite via assistant draft.
     expect(data.path).toBe("references/edge-cases.md");
 
     const { getReferenceByName } = await import("../modules/skills/skills.service.js");
-    const row = getReferenceByName(skillId, "edge-cases");
+    const row = await getReferenceByName(skillId, "edge-cases");
     expect(row).not.toBeNull();
     expect(row!.content).toBe("");
     expect(row!.draftContent).toContain("Draft ref.");
@@ -534,7 +534,7 @@ Full rewrite via assistant draft.
 
   test("buildSkillAgentSystemPrompt — includes working SKILL.md and refs", async () => {
     const { buildSkillAgentSystemPrompt } = await import("../modules/skills/common/agent-tools/edit-skill-file.tool.js");
-    const prompt = buildSkillAgentSystemPrompt(skillId);
+    const prompt = await buildSkillAgentSystemPrompt(skillId);
     expect(prompt).toContain(skillId);
     expect(prompt).toContain("runtime-skill");
     expect(prompt).toContain("<current_skill_md>");

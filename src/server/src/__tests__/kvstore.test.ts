@@ -9,7 +9,7 @@ describe("KV Store API", () => {
   let entryId = "";
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);

@@ -9,11 +9,11 @@ describe("Secrets API", () => {
   let app: Hono;
   let cleanup: () => void;
   let token: string;
-  let db: ReturnType<typeof createTestApp>["db"];
+  let db: Awaited<ReturnType<typeof createTestApp>>["db"];
   let secretId = "";
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     db = t.db;
@@ -59,8 +59,8 @@ describe("Secrets API", () => {
     expect(row!.value).not.toContain("super-secret-value");
   });
 
-  test("loadSecretsMap decrypts for tool runtime", () => {
-    const map = loadSecretsMap();
+  test("loadSecretsMap decrypts for tool runtime", async () => {
+    const map = await loadSecretsMap();
     expect(map.API_TOKEN).toBe("super-secret-value");
   });
 
@@ -72,12 +72,12 @@ describe("Secrets API", () => {
     });
     expect(res.status).toBe(201);
     const created = (await res.json()) as { id: string };
-    expect(loadSecretsMap().VI_SECRET).toBe(original);
+    expect((await loadSecretsMap()).VI_SECRET).toBe(original);
 
     const updated = `${original} — ${"ảầẫấậ ".repeat(80)}`;
     const put = await authRequest(app, token, "PUT", `/api/secrets/${created.id}`, { value: updated });
     expect(put.status).toBe(200);
-    expect(loadSecretsMap().VI_SECRET).toBe(updated);
+    expect((await loadSecretsMap()).VI_SECRET).toBe(updated);
 
     await authRequest(app, token, "DELETE", `/api/secrets/${created.id}`);
   });
@@ -89,7 +89,7 @@ describe("Secrets API", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as Record<string, unknown>;
     expect(data).not.toHaveProperty("value");
-    expect(loadSecretsMap().API_TOKEN).toBe("rotated-secret");
+    expect((await loadSecretsMap()).API_TOKEN).toBe("rotated-secret");
   });
 
   test("GET /api/settings/values — secret_encryption_key never returned", async () => {
@@ -102,7 +102,7 @@ describe("Secrets API", () => {
   test("DELETE /api/secrets/:id", async () => {
     const res = await authRequest(app, token, "DELETE", `/api/secrets/${secretId}`);
     expect(res.status).toBe(200);
-    expect(loadSecretsMap().API_TOKEN).toBeUndefined();
+    expect((await loadSecretsMap()).API_TOKEN).toBeUndefined();
   });
 
   test("GET /api/secrets — member → 403", async () => {

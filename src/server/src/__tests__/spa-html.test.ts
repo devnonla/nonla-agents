@@ -19,9 +19,9 @@ describe("spa-html OG injection", () => {
   });
 
   test("requestOrigin prefers x-forwarded-* headers", () => {
-    const req = new Request("http://internal:15888/chat/abc", {
+    const req = new Request("http://internal:8429/chat/abc", {
       headers: {
-        host: "internal:15888",
+        host: "internal:8429",
         "x-forwarded-proto": "https",
         "x-forwarded-host": "agents.example.com",
       },
@@ -34,12 +34,12 @@ describe("spa-html OG injection", () => {
     const prev = process.env.PUBLIC_BASE_URL;
     try {
       process.env.PUBLIC_BASE_URL = "https://agents.example.com/";
-      expect(resolvePublicBaseUrl({ clientOrigin: "http://localhost:5888" })).toBe("https://agents.example.com");
+      expect(resolvePublicBaseUrl({ clientOrigin: "http://localhost:5173" })).toBe("https://agents.example.com");
 
       delete process.env.PUBLIC_BASE_URL;
-      expect(resolvePublicBaseUrl({ clientOrigin: "http://localhost:5888/" })).toBe("http://localhost:5888");
+      expect(resolvePublicBaseUrl({ clientOrigin: "http://localhost:5173/" })).toBe("http://localhost:5173");
 
-      const req = new Request("http://internal:15888/", {
+      const req = new Request("http://internal:8429/", {
         headers: { "x-forwarded-proto": "https", "x-forwarded-host": "proxy.example.com" },
       });
       expect(resolvePublicBaseUrl({ request: req })).toBe("https://proxy.example.com");
@@ -49,8 +49,8 @@ describe("spa-html OG injection", () => {
     }
   });
 
-  test("buildSpaHtml injects absolute og:image and page url", () => {
-    const html = buildSpaHtml(SHELL, {
+  test("buildSpaHtml injects absolute og:image and page url", async () => {
+    const html = await buildSpaHtml(SHELL, {
       origin: "https://agents.example.com",
       path: "/login",
     });
@@ -62,8 +62,8 @@ describe("spa-html OG injection", () => {
     expect(html.match(/<title>/g)?.length).toBe(1);
   });
 
-  test("buildSpaHtml keeps title for unknown /chat agent", () => {
-    const html = buildSpaHtml(SHELL, {
+  test("buildSpaHtml keeps title for unknown /chat agent", async () => {
+    const html = await buildSpaHtml(SHELL, {
       origin: "https://agents.example.com",
       path: "/chat/does-not-exist",
     });
@@ -75,10 +75,10 @@ describe("spa-html OG injection", () => {
 describe("spa-html OG injection — public entities", () => {
   let cleanup: () => void;
   let token: string;
-  let app: ReturnType<typeof createTestApp>["app"];
+  let app: Awaited<ReturnType<typeof createTestApp>>["app"];
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -95,7 +95,7 @@ describe("spa-html OG injection — public entities", () => {
     const agent = (await created.json()) as { id: string };
     await authRequest(app, token, "PUT", `/api/agents/${agent.id}`, { isPublic: true });
 
-    const html = buildSpaHtml(SHELL, {
+    const html = await buildSpaHtml(SHELL, {
       origin: "https://agents.example.com",
       path: `/chat/${agent.id}`,
     });

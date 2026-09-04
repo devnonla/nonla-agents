@@ -12,7 +12,7 @@ describe("MCP Servers API", () => {
   let agentId: string;
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     raw = t.raw;
     cleanup = t.cleanup;

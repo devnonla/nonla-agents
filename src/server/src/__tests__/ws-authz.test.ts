@@ -123,7 +123,7 @@ describe("WS upgrade integration", () => {
   let wsUrl: string;
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
 

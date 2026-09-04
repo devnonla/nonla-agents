@@ -6,7 +6,7 @@ import { authRequest, createTestApp, setupAdmin } from "./test-helpers.js";
 async function waitForRun(runId: string, timeoutMs = 15_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const run = getJobRun(runId);
+    const run = await getJobRun(runId);
     if (run && run.status !== "running") return run;
     await Bun.sleep(50);
   }
@@ -21,7 +21,7 @@ describe("Jobs API", () => {
 
   beforeAll(async () => {
     process.env.ENABLE_SCHEDULER = "false";
-    const t = createTestApp();
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
     const admin = await setupAdmin(app);
@@ -133,7 +133,7 @@ await nonlaagents.step("hello", async () => {
     const { updateDraftCode } = await import("../modules/jobs/jobs.service.js");
     const { runDraftJobCode } = await import("../modules/jobs/jobs-runner.js");
 
-    updateDraftCode(
+    await updateDraftCode(
       jobId,
       `import nonlaagents from "nonlaagents";
 await nonlaagents.step("draft", async () => {
@@ -142,7 +142,7 @@ await nonlaagents.step("draft", async () => {
 `,
     );
 
-    const result = runDraftJobCode(jobId);
+    const result = await runDraftJobCode(jobId);
     expect(result.started).toBe(true);
     expect(result.runId).toBeTruthy();
 
@@ -153,13 +153,13 @@ await nonlaagents.step("draft", async () => {
   });
 
   test("POST /api/jobs/:id/run — overlap blocked while lease held", async () => {
-    const claimed = tryClaimJob(jobId, "manual");
+    const claimed = await tryClaimJob(jobId, "manual");
     expect(claimed).not.toBeNull();
 
     const res = await authRequest(app, token, "POST", `/api/jobs/${jobId}/run`, {});
     expect(res.status).toBe(400);
 
-    finishJobRun({
+    await finishJobRun({
       jobId,
       runId: claimed!.run.id,
       status: "success",
@@ -168,12 +168,12 @@ await nonlaagents.step("draft", async () => {
     });
   });
 
-  test("tryClaimJob — only one winner", () => {
-    const a = tryClaimJob(jobId, "manual");
+  test("tryClaimJob — only one winner", async () => {
+    const a = await tryClaimJob(jobId, "manual");
     expect(a).not.toBeNull();
-    const b = tryClaimJob(jobId, "manual");
+    const b = await tryClaimJob(jobId, "manual");
     expect(b).toBeNull();
-    finishJobRun({
+    await finishJobRun({
       jobId,
       runId: a!.run.id,
       status: "success",
@@ -238,6 +238,6 @@ await nonlaagents.step("kv check", async () => {
   test("DELETE /api/jobs/:id", async () => {
     const res = await authRequest(app, token, "DELETE", `/api/jobs/${jobId}`);
     expect(res.status).toBe(200);
-    expect(getJob(jobId)).toBeUndefined();
+    expect(await getJob(jobId)).toBeUndefined();
   });
 });

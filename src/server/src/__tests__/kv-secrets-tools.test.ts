@@ -7,7 +7,7 @@ describe("KV Store + Secrets builtin tools", () => {
   let cleanup: () => void;
 
   beforeAll(async () => {
-    const t = createTestApp();
+    const t = await createTestApp();
     cleanup = t.cleanup;
     await setupAdmin(t.app);
   });

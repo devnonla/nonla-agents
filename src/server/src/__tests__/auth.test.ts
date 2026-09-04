@@ -6,8 +6,8 @@ describe("Auth API", () => {
   let app: Hono;
   let cleanup: () => void;
 
-  beforeAll(() => {
-    const t = createTestApp();
+  beforeAll(async () => {
+    const t = await createTestApp();
     app = t.app;
     cleanup = t.cleanup;
   });
