@@ -1,8 +1,8 @@
+import { Modal, Popover } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { GraphIcon } from "@solar-icons/react/dynamic/graph";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
-import { Modal, Popover } from "antd";
 import { useCallback, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import type { Agent } from "src/common/types";

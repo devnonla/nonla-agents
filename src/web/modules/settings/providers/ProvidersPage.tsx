@@ -1,15 +1,16 @@
+import { Button, EFormItemType, Input, Modal, SchemaForm, Skeleton, type TFormItemProps, Tag, message } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { KeyIcon } from "@solar-icons/react/dynamic/key";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
+import { SuitcaseIcon } from "@solar-icons/react/dynamic/suitcase";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Form, Input, Modal, Select, Skeleton, Tag, message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";
 import type { LlmProvider } from "src/common/types";
 import { ProviderIcon } from "src/components/ProviderIcon";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import { PROVIDER_OPTIONS, createLlmProvider, deleteLlmProvider, generateLabel, getProviderMeta, refreshModels, updateLlmProvider } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { ProviderEmptyState } from "src/modules/llm-providers/components/ProviderEmptyState";
@@ -22,20 +23,35 @@ interface ProviderFormDialogProps {
   onClose: () => void;
 }
 
+type ProviderFormValues = {
+  provider: string;
+  label: string;
+  apiKey: string;
+  customBaseUrl: string;
+};
+
 function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
   const dispatch = useAppDispatch();
   const providers = useAppSelector((s) => s.llmProviders.items) as LlmProvider[];
   const isEdit = !!editId;
-
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    provider: "openai",
-    label: generateLabel("openai", providers),
-    apiKey: "",
-    customBaseUrl: "",
-  });
+  const [loading, setLoading] = useState(!!editId);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const form = useForm<ProviderFormValues>({
+    defaultValues: { provider: "openai", label: generateLabel("openai", providers), apiKey: "", customBaseUrl: "" },
+    mode: "onSubmit",
+  });
+  const rootError = form.formState.errors.root?.message;
+  const provider = form.watch("provider");
+  const meta = getProviderMeta(provider);
+  const prevProvider = useRef(provider);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (prevProvider.current === provider) return;
+    prevProvider.current = provider;
+    form.setValue("label", generateLabel(provider, providers));
+    if (!getProviderMeta(provider).supportsCustomBaseUrl) form.setValue("customBaseUrl", "");
+  }, [provider, isEdit, form, providers]);
 
   useEffect(() => {
     if (!editId) return;
@@ -43,7 +59,7 @@ function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
     apiClient
       .get<LlmProvider>(`/api/providers/${editId}`)
       .then((detail) => {
-        setForm({
+        form.reset({
           provider: detail.provider,
           label: detail.label,
           apiKey: "",
@@ -55,57 +71,89 @@ function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
         onClose();
       })
       .finally(() => setLoading(false));
-  }, [editId, onClose]);
+  }, [editId, onClose, form]);
 
-  const providerOptions = PROVIDER_OPTIONS.map((o) => ({
-    value: o.value,
-    label: o.label,
-  }));
-
-  const meta = getProviderMeta(form.provider);
-  const showCustomBaseUrl = meta.supportsCustomBaseUrl;
-
-  const handleSubmit = async () => {
-    if (!form.label.trim()) {
-      setError("Please fill in all required fields");
-      return;
+  const items: TFormItemProps[] = useMemo(() => {
+    const list: TFormItemProps[] = [];
+    if (!isEdit) {
+      list.push({
+        type: EFormItemType.Select,
+        name: "provider",
+        label: "Provider",
+        colSpan: 12,
+        choices: PROVIDER_OPTIONS,
+        options: { placeholder: "Provider" },
+      });
     }
-    if (!isEdit && !form.apiKey.trim()) {
-      setError("Please fill in all required fields");
-      return;
+    list.push(
+      {
+        type: EFormItemType.Input,
+        name: "label",
+        label: "Label",
+        colSpan: 12,
+        rules: {
+          required: "Please fill in all required fields",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Please fill in all required fields"),
+        },
+        options: { placeholder: "e.g. My OpenAI Key" },
+      },
+      {
+        type: EFormItemType.Input,
+        name: "apiKey",
+        label: isEdit ? "New API Key" : "API Key",
+        colSpan: 12,
+        rules: isEdit ? undefined : { required: "Please fill in all required fields" },
+        options: {
+          type: "password",
+          placeholder: isEdit ? "••••••••" : meta.keyPlaceholder,
+          autoComplete: "new-password",
+        },
+      },
+    );
+    if (meta.supportsCustomBaseUrl) {
+      list.push({
+        type: EFormItemType.Input,
+        name: "customBaseUrl",
+        label: "Base URL",
+        colSpan: 12,
+        options: { placeholder: meta.defaultBase || "https://…" },
+      });
     }
+    return list;
+  }, [isEdit, meta]);
+
+  const onSubmit = form.handleSubmit(async (values) => {
     setSaving(true);
-    setError("");
-    const customBaseUrl = showCustomBaseUrl ? form.customBaseUrl.trim() : "";
+    const customBaseUrl = meta.supportsCustomBaseUrl ? values.customBaseUrl.trim() : "";
     try {
-      if (isEdit) {
+      if (isEdit && editId) {
         const payload: { id: string; label: string; customBaseUrl: string; apiKey?: string } = {
           id: editId,
-          label: form.label.trim(),
+          label: values.label.trim(),
           customBaseUrl,
         };
-        if (form.apiKey.trim()) payload.apiKey = form.apiKey.trim();
+        if (values.apiKey.trim()) payload.apiKey = values.apiKey.trim();
         await dispatch(updateLlmProvider(payload)).unwrap();
-        message.success(`Provider "${form.label}" updated`);
+        message.success(`Provider "${values.label}" updated`);
       } else {
         await dispatch(
           createLlmProvider({
-            provider: form.provider,
-            label: form.label.trim(),
-            apiKey: form.apiKey.trim(),
+            provider: values.provider,
+            label: values.label.trim(),
+            apiKey: values.apiKey.trim(),
             customBaseUrl,
             models: [],
           }),
         ).unwrap();
-        message.success(`Provider "${form.label}" added`);
+        message.success(`Provider "${values.label}" added`);
       }
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
     <Modal
@@ -114,7 +162,7 @@ function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
       title={
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
-            <div className="text-[14px] leading-none text-muted-foreground">{isEdit ? <PenNewSquareIcon size={16} /> : <KeyIcon size={16} />}</div>
+            <div className="text-[14px] leading-none text-muted-foreground">{isEdit ? <PenNewSquareIcon size={16} /> : <SuitcaseIcon size={16} />}</div>
           </div>
           <span className="truncate font-semibold text-foreground">{isEdit ? "Edit Provider" : "Add Provider"}</span>
         </div>
@@ -124,10 +172,10 @@ function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
       destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
-          <Button type="text" size="small" onClick={onClose}>
+          <Button type="text" size="medium" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="primary" size="small" loading={saving} disabled={loading} onClick={handleSubmit}>
+          <Button type="primary" size="medium" htmlType="submit" form="provider-form" loading={saving} disabled={loading}>
             {isEdit ? "Save" : "Add Provider"}
           </Button>
         </div>
@@ -140,89 +188,14 @@ function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-3.5">
-          {!isEdit && (
-            <Form.Item label={<span className="text-muted-foreground">Provider</span>} className="mb-0!" layout="vertical">
-              <Select
-                value={form.provider}
-                onChange={(v) => {
-                  const next = getProviderMeta(v);
-                  setForm((f) => ({
-                    ...f,
-                    provider: v,
-                    label: generateLabel(v, providers),
-                    customBaseUrl: next.supportsCustomBaseUrl ? f.customBaseUrl : "",
-                  }));
-                  setError("");
-                }}
-                options={providerOptions}
-                className="w-full"
-              />
-            </Form.Item>
-          )}
-
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Label<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input
-              value={form.label}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, label: e.target.value }));
-                setError("");
-              }}
-              placeholder="e.g. My OpenAI Key"
-            />
-          </Form.Item>
-
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                {isEdit ? "New API Key" : "API Key"}
-                {!isEdit && <span className="text-destructive"> *</span>}
-                {isEdit && <span className="font-normal text-muted-foreground"> (leave blank to keep)</span>}
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input.Password
-              value={form.apiKey}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, apiKey: e.target.value }));
-                setError("");
-              }}
-              placeholder={isEdit ? "••••••••" : meta.keyPlaceholder}
-              visibilityToggle={false}
-              autoComplete="new-password"
-            />
-          </Form.Item>
-
-          <RenderIf condition={showCustomBaseUrl}>
-            <Form.Item
-              label={
-                <span className="text-muted-foreground">
-                  Base URL <span className="font-normal text-muted-foreground">(optional)</span>
-                </span>
-              }
-              className="mb-0!"
-              layout="vertical"
-            >
-              <Input value={form.customBaseUrl} onChange={(e) => setForm((f) => ({ ...f, customBaseUrl: e.target.value }))} placeholder={meta.defaultBase || "https://…"} />
-            </Form.Item>
-          </RenderIf>
-
-          <RenderIf condition={!!error}>
+        <form id="provider-form" onSubmit={onSubmit}>
+          <SchemaForm form={form} items={items} />
+          {rootError ? (
             <div className="px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20">
-              <p className="text-xs text-destructive font-medium">{error}</p>
+              <p className="text-xs text-destructive font-medium">{rootError}</p>
             </div>
-          </RenderIf>
-        </div>
+          ) : null}
+        </form>
       )}
     </Modal>
   );
@@ -271,10 +244,10 @@ function DeleteProviderDialog({ provider, onClose }: DeleteProviderDialogProps) 
       destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
-          <Button type="text" size="small" onClick={onClose}>
+          <Button type="text" size="medium" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="primary" danger size="small" onClick={handleDelete} loading={deleting}>
+          <Button type="primary" danger size="medium" onClick={handleDelete} loading={deleting}>
             Delete
           </Button>
         </div>
@@ -364,10 +337,10 @@ function ModelsDialog({ provider, onClose }: ModelsDialogProps) {
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground tabular-nums">{loading ? "…" : `${filtered.length}${search.trim() ? ` / ${models.length}` : ""} model${filtered.length !== 1 ? "s" : ""}`}</span>
           <div className="flex items-center gap-2">
-            <Button type="text" size="small" onClick={onClose}>
+            <Button type="text" size="medium" onClick={onClose}>
               Close
             </Button>
-            <Button type="default" size="small" loading={refreshing} icon={<RefreshIcon />} onClick={handleRefresh}>
+            <Button type="default" size="medium" loading={refreshing} icon={<RefreshIcon />} onClick={handleRefresh}>
               Sync
             </Button>
           </div>
@@ -492,9 +465,9 @@ export function ProvidersPage() {
     <div>
       <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">LLM Providers</h1>
-        <RawButton id="settings-add-provider" type="primary" icon={<AddIcon size={16} />} onClick={() => setShowAddDialog(true)}>
+        <Button id="settings-add-provider" type="primary" icon={<AddIcon size={16} />} onClick={() => setShowAddDialog(true)}>
           Add Provider
-        </RawButton>
+        </Button>
       </div>
 
       <RenderIf condition={providers.length === 0}>

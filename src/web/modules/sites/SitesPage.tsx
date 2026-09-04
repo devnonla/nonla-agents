@@ -1,8 +1,8 @@
+import { Button, EFormItemType, Empty, Modal, SchemaForm, Segmented, type TFormItemProps, Table, message } from "@nonla-agents/ui";
+import type { ColumnsType } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { GlobalIcon } from "@solar-icons/react/dynamic/global";
-import { Alert, Button, Form, Input, Modal, Segmented, Table, message } from "antd";
-import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import type { Site } from "src/common/types";
 import { normalizeSlugInput, slugify } from "src/common/utils/slug";
@@ -13,66 +13,82 @@ import { useAppDispatch, useAppSelector } from "src/store/store";
 import { createSite, fetchSites } from "./common/sitesSlice";
 import { SITE_VISIBILITY_META, SiteNameCell, SiteOpenPublicButton, type SiteVisibility, SiteVisibilityIcon, siteVisibility } from "./components/SiteCard";
 
-const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
 type VisibilityFilter = "all" | SiteVisibility;
+
+type CreateSiteValues = { name: string; slug: string };
+
+const SITE_ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Name",
+    colSpan: 12,
+    rules: {
+      required: "Name is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+    },
+    options: { placeholder: "News page", autoFocus: true },
+  },
+  {
+    type: EFormItemType.Input,
+    name: "slug",
+    label: "Slug",
+    colSpan: 12,
+    rules: {
+      required: "Slug is required",
+      pattern: { value: "^[a-z0-9]+(?:-[a-z0-9]+)*$", message: "Slug must be lowercase alphanumeric with hyphens" },
+    },
+    options: { placeholder: "news" },
+  },
+];
 
 function CreateSiteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (site: Site) => void }) {
   const dispatch = useAppDispatch();
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
+  const prevName = useRef("");
+  const form = useForm<CreateSiteValues>({ defaultValues: { name: "", slug: "" }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
-  const handleSubmit = async () => {
+  const onSubmit = form.handleSubmit(async ({ name, slug }) => {
     const n = name.trim();
     const s = slugify(slug);
-    if (!n) {
-      setError("Name is required");
-      return;
-    }
-    if (!SLUG_RE.test(s)) {
-      setError("Slug must be lowercase alphanumeric with hyphens");
-      return;
-    }
     setSaving(true);
-    setError("");
     try {
       const site = (await dispatch(createSite({ name: n, slug: s })).unwrap()) as Site;
       message.success("Site created");
       onCreated(site);
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
-    <Modal open title="New site" onCancel={onClose} onOk={handleSubmit} okText="Create" confirmLoading={saving} destroyOnHidden>
-      <RenderIf condition={!!error}>
-        <Alert type="error" description={error} showIcon className="mb-3" />
-      </RenderIf>
-      <Form layout="vertical">
-        <Form.Item label="Name" required>
-          <Input
-            autoFocus
-            value={name}
-            placeholder="News page"
-            onChange={(e) => {
-              const v = e.target.value;
-              setName(v);
-              if (!slug || slug === slugify(name)) {
-                setSlug(slugify(v));
-              }
-            }}
-          />
-        </Form.Item>
-        <Form.Item label="Slug" required extra="Public URL: /public/sites/{slug}">
-          <Input value={slug} placeholder="news" onChange={(e) => setSlug(normalizeSlugInput(e.target.value))} />
-        </Form.Item>
-      </Form>
+    <Modal open title="New site" onCancel={onClose} onOk={() => void onSubmit()} okText="Create" confirmLoading={saving} destroyOnHidden>
+      <form onSubmit={onSubmit}>
+        <SchemaForm
+          form={form}
+          items={SITE_ITEMS}
+          valuesChangeDebounce={0}
+          onValuesChange={(all) => {
+            const normalized = normalizeSlugInput(all.slug);
+            if (normalized !== all.slug) {
+              form.setValue("slug", normalized);
+              prevName.current = all.name;
+              return;
+            }
+            if (!all.slug || all.slug === slugify(prevName.current)) {
+              const next = slugify(all.name);
+              if (next !== all.slug) form.setValue("slug", next);
+            }
+            prevName.current = all.name;
+          }}
+        />
+        <p className="-mt-2 mb-3 text-xs text-muted-foreground">Public URL: /public/sites/{"{slug}"}</p>
+        {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
+      </form>
     </Modal>
   );
 }
@@ -145,20 +161,15 @@ export default function SitesPage() {
       <RenderIf
         condition={items.length > 0 || loading}
         fallback={
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-5 py-16">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand/12 text-brand-soft">
-              <GlobalIcon size={28} weight="BoldDuotone" />
-            </div>
-            <p className="mb-1 text-base font-semibold text-foreground">No sites yet</p>
-            <p className="m-0 mb-5 max-w-sm text-center text-sm text-muted-foreground">Create a page, refine the draft, then publish when it looks right.</p>
+          <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No sites yet">
             <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialogOpen(true)}>
               New site
             </Button>
-          </div>
+          </Empty>
         }
       >
         <div className="mb-3">
-          <Segmented<VisibilityFilter>
+          <Segmented
             value={visibilityFilter}
             onChange={setVisibilityFilter}
             options={[
@@ -169,7 +180,7 @@ export default function SitesPage() {
             ]}
           />
         </div>
-        <Table<Site>
+        <Table
           rowKey="id"
           size="middle"
           columns={columns}

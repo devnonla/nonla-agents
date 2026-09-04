@@ -1,5 +1,5 @@
+import { message } from "@nonla-agents/ui";
 import { LockIcon } from "@solar-icons/react/dynamic/lock";
-import { message } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PublicUnlockScreen } from "src/components/PublicUnlockScreen";
@@ -31,7 +31,6 @@ export default function PublicSitePage() {
   const [error, setError] = useState<string | null>(null);
   const [requiresPassword, setRequiresPassword] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [enteredPassword, setEnteredPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -166,16 +165,15 @@ export default function PublicSitePage() {
     onSoftNavigate,
   });
 
-  const verifyPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!slug || !enteredPassword) return;
+  const verifyPassword = async (password: string) => {
+    if (!slug || !password) return;
     setVerifying(true);
     setAuthError("");
     try {
       const res = await fetch(`/api/public/sites/${encodeURIComponent(slug)}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: enteredPassword }),
+        body: JSON.stringify({ password }),
       });
       const data = (await res.json()) as { valid?: boolean; token?: string; message?: string };
       if (!res.ok || !data.valid) {
@@ -206,7 +204,7 @@ export default function PublicSitePage() {
   }
 
   if (requiresPassword && !isAuthenticated) {
-    return <PublicUnlockScreen icon={<LockIcon size={32} className="text-brand-soft" />} title={siteName || "Protected site"} description="Enter password to continue" password={enteredPassword} onPasswordChange={setEnteredPassword} onSubmit={(e) => void verifyPassword(e)} error={authError} verifying={verifying} />;
+    return <PublicUnlockScreen icon={<LockIcon size={32} className="text-brand-soft" />} title={siteName || "Protected site"} description="Enter password to continue" error={authError} verifying={verifying} onSubmit={(password) => void verifyPassword(password)} />;
   }
 
   if (html == null) {

@@ -1,6 +1,6 @@
+import { Button, Input, Popover, message } from "@nonla-agents/ui";
 import { LinkIcon } from "@solar-icons/react/dynamic/link";
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { Button, Input, Popover, message } from "antd";
 import { useEffect, useState } from "react";
 
 export type PublishNodeData = {

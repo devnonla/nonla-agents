@@ -1,6 +1,6 @@
+import { Popover } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
-import { Popover } from "antd";
 import { useState } from "react";
 import { cn } from "src/common/lib/cn";
 import RenderIf from "src/components/RenderIf";

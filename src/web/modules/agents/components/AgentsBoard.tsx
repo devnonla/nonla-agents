@@ -1,6 +1,6 @@
 import { type CollisionDetection, DndContext, type DragEndEvent, type DragOverEvent, DragOverlay, type DragStartEvent, PointerSensor, type UniqueIdentifier, closestCorners, getFirstCollision, pointerWithin, rectIntersection, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { message } from "antd";
+import { message } from "@nonla-agents/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentListItem } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

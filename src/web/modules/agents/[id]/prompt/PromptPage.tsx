@@ -1,9 +1,9 @@
+import { Button, Popover, message } from "@nonla-agents/ui";
 import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
 import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
 import { EyeIcon } from "@solar-icons/react/dynamic/eye";
 import { NotesIcon } from "@solar-icons/react/dynamic/notes";
-import { Popover, message } from "antd";
 import { AnimatePresence, motion } from "framer-motion";
 import type * as MonacoNS from "monaco-editor";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,7 +14,6 @@ import { cn } from "src/common/lib/cn";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
 import { MarkdownPreview } from "src/components/MarkdownPreview";
 import { type EditorInstance, MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
-import { RawButton } from "src/components/RawButton";
 import { updateAgent } from "src/modules/agents/common/agentsSlice";
 import { ensureLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { getSettingValues } from "src/modules/settings/common/settingsApi";
@@ -151,9 +150,9 @@ function ViewModeMenu({ value, onChange }: { value: InstructViewMode; onChange: 
         </div>
       }
     >
-      <RawButton type="text" size="small" icon={<CurrentIcon size={14} />} aria-label="View mode">
+      <Button type="text" size="small" icon={<CurrentIcon size={14} />} aria-label="View mode">
         {current.label}
-      </RawButton>
+      </Button>
     </Popover>
   );
 }
@@ -345,9 +344,9 @@ export function PromptPage() {
                       empty={
                         <div className="flex flex-col items-start gap-3">
                           <p className="m-0 text-sm text-muted-foreground">No instructions yet.</p>
-                          <RawButton size="small" onClick={() => setViewMode("editor")}>
+                          <Button size="small" onClick={() => setViewMode("editor")}>
                             Open editor
-                          </RawButton>
+                          </Button>
                         </div>
                       }
                     />
@@ -412,9 +411,9 @@ export function PromptPage() {
                         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
                           <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand-soft" />
                           <span className="mr-1 text-xs font-medium tracking-wide text-brand-soft">Unsaved</span>
-                          <RawButton size="small" type="primary" icon={!saving ? <DisketteIcon size={14} /> : undefined} loading={saving} onClick={() => void savePrompt()}>
+                          <Button size="small" type="primary" icon={!saving ? <DisketteIcon size={14} /> : undefined} loading={saving} onClick={() => void savePrompt()}>
                             {saving ? "Saving…" : "Save"}
-                          </RawButton>
+                          </Button>
                         </div>
                       ) : null}
                       {reviewBar}

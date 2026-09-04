@@ -1,4 +1,4 @@
-import { message } from "antd";
+import { message } from "@nonla-agents/ui";
 import { useCallback, useEffect, useState } from "react";
 import { authorizedFetch } from "src/common/api";
 import type { AgentMemoryResponse } from "src/common/types";

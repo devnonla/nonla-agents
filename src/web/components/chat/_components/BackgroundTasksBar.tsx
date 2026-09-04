@@ -1,7 +1,7 @@
+import { Modal, Popconfirm } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { AltArrowRightIcon } from "@solar-icons/react/dynamic/alt-arrow-right";
 import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
-import { Modal, Popconfirm } from "antd";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import RenderIf from "src/components/RenderIf";

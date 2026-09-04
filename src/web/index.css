@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@import "./antd/overrides.css";
+@import "@nonla-agents/ui/styles.css";
+@source "../nonla-ui/src";
 
 @font-face {
   font-family: "Inter var";
@@ -55,43 +56,18 @@
 
 :root,
 .dark {
-  --radius: 6px;
-  --background: #121212;
-  --foreground: #d4d4d4;
-  --card: #191919;
-  --card-foreground: #dcdcdc;
-  --popover: #1e1e1e;
-  --popover-foreground: #d4d4d4;
-  --primary: #e8e8e8;
-  --primary-foreground: #171717;
-  --secondary: #212121;
-  --secondary-foreground: #d4d4d4;
-  --muted: #212121;
-  --muted-foreground: #8a8a8a;
-  --accent: color-mix(in oklab, #dd7627 14%, transparent);
-  --accent-foreground: #ffa333;
-  --tertiary-foreground: #9a9a9a;
-  --quaternary-foreground: #6e6e6e;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: color-mix(in oklab, #d4d4d4 12%, transparent);
-  --border-subtle: color-mix(in oklab, #d4d4d4 6%, transparent);
-  --input: color-mix(in oklab, #666666 20%, transparent);
-  --ring: #8c8c8c;
-  --brand: #dd7627;
-  --brand-soft: #ffa333;
-  --brand-text: #dd7627;
-  --link: #599ce7;
-  --success: #0ac864;
-  --warn: #f1b467;
-  --sidebar: #181818;
-  --sidebar-foreground: #d4d4d4;
-  --sidebar-primary: #e8e8e8;
-  --sidebar-primary-foreground: #171717;
-  --sidebar-accent: color-mix(in oklab, #dd7627 14%, transparent);
-  --sidebar-accent-foreground: #ffa333;
-  --sidebar-border: color-mix(in oklab, #666666 16%, transparent);
-  --sidebar-ring: #8c8c8c;
+  /* Palette + shadcn tokens come from @nonla-agents/ui/styles.css.
+     Override --nonla-* here if needed. */
+
+  /* App-only tokens */
+  --sidebar: color-mix(in oklab, var(--nonla-bg, #121212) 92%, white);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --sidebar-ring: var(--ring);
   --edge-call-agent: var(--success);
   --edge-mcp: var(--link);
   --edge-tool: var(--brand);
@@ -119,7 +95,7 @@
 }
 
 @theme inline {
-  --radius: 6px;
+  --radius: var(--nonla-radius, 8px);
   --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 6px;

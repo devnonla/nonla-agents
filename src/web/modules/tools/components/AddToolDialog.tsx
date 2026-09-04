@@ -1,8 +1,7 @@
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { Button, Form, Input, Modal, Select } from "antd";
-import type { InputRef } from "antd";
-import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { fetchToolFolders } from "src/modules/tools/common/toolFoldersSlice";
 import type { ToolFolderWithTools } from "src/modules/tools/common/toolFoldersSlice";
 import { createTool, fetchTools } from "src/modules/tools/common/toolsSlice";
@@ -16,46 +15,69 @@ interface AddToolDialogProps {
   triggerClassName?: string;
 }
 
+type AddToolValues = {
+  label: string;
+  description: string;
+  folderId: string;
+};
+
 export function AddToolDialog({ onCreated, children, defaultFolderId = null, triggerClassName = "inline-flex w-full" }: AddToolDialogProps) {
   const dispatch = useAppDispatch();
-  const inputRef = useRef<InputRef>(null);
   const folders = useAppSelector((s) => s.toolFolders.folders) as ToolFolderWithTools[];
-
   const [open, setOpen] = useState(false);
-  const [label, setLabel] = useState("");
-  const [description, setDescription] = useState("");
-  const [folderId, setFolderId] = useState<string>(defaultFolderId ?? "");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const form = useForm<AddToolValues>({ defaultValues: { label: "", description: "", folderId: defaultFolderId ?? "" }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
   useEffect(() => {
-    if (open) {
-      setLabel("");
-      setDescription("");
-      setFolderId(defaultFolderId ?? "");
-      setError("");
-      setLoading(false);
-      const t = setTimeout(() => inputRef.current?.focus(), 150);
-      return () => clearTimeout(t);
-    }
-  }, [open, defaultFolderId]);
+    if (!open) return;
+    form.reset({ label: "", description: "", folderId: defaultFolderId ?? "" });
+    setLoading(false);
+    const t = window.setTimeout(() => form.setFocus("label"), 150);
+    return () => window.clearTimeout(t);
+  }, [open, defaultFolderId, form]);
+
+  const items: TFormItemProps[] = useMemo(
+    () => [
+      {
+        type: EFormItemType.Input,
+        name: "label",
+        label: "Tool Name",
+        colSpan: 12,
+        rules: {
+          required: "Please enter a tool name.",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Please enter a tool name."),
+        },
+        options: { placeholder: "e.g. Get Current Time", autoComplete: "off" },
+      },
+      {
+        type: EFormItemType.Textarea,
+        name: "description",
+        label: "Description",
+        colSpan: 12,
+        options: { placeholder: "What does this tool do?", rows: 2 },
+      },
+      {
+        type: EFormItemType.Select,
+        name: "folderId",
+        label: "Folder",
+        colSpan: 12,
+        choices: [{ value: "", label: "No folder" }, ...folders.map((f) => ({ value: f.id, label: f.name }))],
+        options: { placeholder: "Select folder…" },
+      },
+    ],
+    [folders],
+  );
 
   const handleClose = () => setOpen(false);
 
-  const handleSubmit = async () => {
+  const onSubmit = form.handleSubmit(async ({ label, description, folderId }) => {
     const trimmed = label.trim();
-    if (!trimmed) {
-      setError("Please enter a tool name.");
-      inputRef.current?.focus();
-      return;
-    }
     setLoading(true);
-    setError("");
     try {
-      const name = toSnakeCase(trimmed);
       const tool = await dispatch(
         createTool({
-          name,
+          name: toSnakeCase(trimmed),
           label: trimmed,
           description: description.trim(),
           parameters: { type: "object", properties: {}, required: [] },
@@ -69,20 +91,11 @@ export function AddToolDialog({ onCreated, children, defaultFolderId = null, tri
       handleClose();
       onCreated(tool.id);
     } catch (err) {
-      setError(String(err));
+      form.setError("root", { message: String(err) });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const folderOptions = [{ value: "", label: "No folder" }, ...folders.map((f) => ({ value: f.id, label: f.name }))];
+  });
 
   return (
     <>
@@ -108,46 +121,19 @@ export function AddToolDialog({ onCreated, children, defaultFolderId = null, tri
         destroyOnHidden
         footer={
           <div className="flex justify-end gap-2.5">
-            <Button type="text" size="small" onClick={handleClose}>
+            <Button type="text" size="medium" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="primary" size="small" loading={loading} onClick={handleSubmit} disabled={!label.trim()}>
+            <Button type="primary" size="medium" htmlType="submit" form="add-tool-form" loading={loading}>
               {loading ? "Creating…" : "Create & Edit"}
             </Button>
           </div>
         }
       >
-        <div className="flex flex-col gap-4 pt-4">
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Tool Name<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input
-              ref={inputRef}
-              id="new-tool-label"
-              placeholder="e.g. Get Current Time"
-              value={label}
-              onChange={(e) => {
-                setLabel(e.target.value);
-                setError("");
-              }}
-              onKeyDown={handleKeyDown}
-              autoComplete="off"
-            />
-          </Form.Item>
-          <Form.Item label={<span className="text-muted-foreground">Description</span>} className="mb-0!" layout="vertical">
-            <Input.TextArea id="new-tool-description" placeholder="What does this tool do?" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="min-h-0!" />
-          </Form.Item>
-          <Form.Item label={<span className="text-muted-foreground">Folder</span>} className="mb-0!" layout="vertical">
-            <Select value={folderId} onChange={setFolderId} options={folderOptions} placeholder="Select folder…" className="w-full" />
-          </Form.Item>
-          {error && <div className="text-[12px] text-destructive font-medium">{error}</div>}
-        </div>
+        <form id="add-tool-form" className="pt-4" onSubmit={onSubmit}>
+          <SchemaForm form={form} items={items} />
+          {rootError ? <div className="mt-4 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
+        </form>
       </Modal>
     </>
   );

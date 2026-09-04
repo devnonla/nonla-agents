@@ -1,7 +1,7 @@
+import { Switch, Tooltip } from "@nonla-agents/ui";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import { PlugCircleIcon } from "@solar-icons/react/dynamic/plug-circle";
 import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
-import { Switch, Tooltip } from "antd";
 import { cn } from "src/common/lib/cn";
 import type { McpServer } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

@@ -1,3 +1,5 @@
+import { Button, Dropdown, EFormItemType, Input, Modal, Popover, SchemaForm, Segmented, Switch, type TFormItemProps, message } from "@nonla-agents/ui";
+import type { MenuProps } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
 import { EyeIcon } from "@solar-icons/react/dynamic/eye";
@@ -8,9 +10,8 @@ import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Alert, Button, Dropdown, Form, Input, Modal, Popover, Segmented, Switch, message } from "antd";
-import type { MenuProps } from "antd";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "src/common/api";
 import { SettingKey } from "src/common/enum";
@@ -27,7 +28,30 @@ import { SiteCodeEditor, type SiteCodeEditorHandle } from "./components/SiteCode
 
 type SiteViewMode = "preview" | "editor";
 
-const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+type SiteSettingsValues = { name: string; slug: string };
+
+const SITE_SETTINGS_ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Name",
+    colSpan: 12,
+    rules: {
+      required: "Name is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+    },
+  },
+  {
+    type: EFormItemType.Input,
+    name: "slug",
+    label: "Slug",
+    colSpan: 12,
+    rules: {
+      required: "Slug is required",
+      pattern: { value: "^[a-z0-9]+(?:-[a-z0-9]+)*$", message: "Slug must be lowercase alphanumeric with hyphens" },
+    },
+  },
+];
 
 function SiteSettingsModal({
   site,
@@ -39,55 +63,47 @@ function SiteSettingsModal({
   onSaved: (site: Site) => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [name, setName] = useState(site.name);
-  const [slug, setSlug] = useState(site.slug);
+  const form = useForm<SiteSettingsValues>({ defaultValues: { name: site.name, slug: site.slug }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
-  const handleSubmit = async () => {
+  const onSubmit = form.handleSubmit(async ({ name, slug }) => {
     const n = name.trim();
     const s = slugify(slug);
-    if (!n) {
-      setError("Name is required");
-      return;
-    }
-    if (!SLUG_RE.test(s)) {
-      setError("Slug must be lowercase alphanumeric with hyphens");
-      return;
-    }
     setSaving(true);
-    setError("");
     try {
       const updated = await sitesApi.update(site.id, { name: n, slug: s });
       message.success("Site updated");
       onSaved(updated);
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
-    <Modal open title="Site settings" onCancel={onClose} onOk={() => void handleSubmit()} okText="Save" confirmLoading={saving} destroyOnHidden>
-      <RenderIf condition={!!error}>
-        <Alert type="error" description={error} showIcon className="mb-3" />
-      </RenderIf>
-      <Form layout="vertical">
-        <Form.Item label="Name" required>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </Form.Item>
-        <Form.Item label="Slug" required extra="Public URL: /public/sites/{slug}">
-          <Input value={slug} onChange={(e) => setSlug(normalizeSlugInput(e.target.value))} />
-        </Form.Item>
-      </Form>
+    <Modal open title="Site settings" onCancel={onClose} onOk={() => void onSubmit()} okText="Save" confirmLoading={saving} destroyOnHidden>
+      <form onSubmit={onSubmit}>
+        <SchemaForm
+          form={form}
+          items={SITE_SETTINGS_ITEMS}
+          valuesChangeDebounce={0}
+          onValuesChange={(all) => {
+            const normalized = normalizeSlugInput(all.slug);
+            if (normalized !== all.slug) form.setValue("slug", normalized);
+          }}
+        />
+        <p className="-mt-2 mb-3 text-xs text-muted-foreground">Public URL: /public/sites/{"{slug}"}</p>
+        {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
+      </form>
     </Modal>
   );
 }
 
 function SiteViewToggle({ value, onChange }: { value: SiteViewMode; onChange: (v: SiteViewMode) => void }) {
   return (
-    <Segmented<SiteViewMode>
+    <Segmented
       size="small"
       value={value}
       onChange={onChange}

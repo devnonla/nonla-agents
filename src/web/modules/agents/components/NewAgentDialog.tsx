@@ -1,12 +1,11 @@
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { Button, Form, Input, Modal, Select } from "antd";
-import type { InputRef } from "antd";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import type { AgentListItem, AgentTeam } from "src/common/types";
 import { ModelPicker } from "src/components/ModelPicker";
 import { genConfig } from "src/components/UserAvatar";
 import { createAgent } from "src/modules/agents/common/agentsSlice";
-
 import type { TeamWithMembers } from "src/modules/agents/common/teamsSlice";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 
@@ -15,7 +14,18 @@ interface NewAgentDialogProps {
   children: ReactNode;
 }
 
-function getLatestAgentModel(agents: AgentListItem[]): { providerId: string | null; model: string } {
+type AgentModelValue = {
+  providerId: string | null;
+  model: string;
+};
+
+type NewAgentValues = {
+  name: string;
+  teamId: string;
+  model: AgentModelValue;
+};
+
+function getLatestAgentModel(agents: AgentListItem[]): AgentModelValue {
   let latest: AgentListItem | null = null;
   let latestTs = -1;
   for (const agent of agents) {
@@ -32,17 +42,16 @@ function getLatestAgentModel(agents: AgentListItem[]): { providerId: string | nu
   };
 }
 
-export function NewAgentDialog({ defaultTeamId, children }: NewAgentDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [aiModel, setAiModel] = useState("");
-  const [teamId, setTeamId] = useState<string>(defaultTeamId ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+function emptyValues(teamId = "", model: AgentModelValue = { providerId: null, model: "" }): NewAgentValues {
+  return { name: "", teamId, model };
+}
 
+export function NewAgentDialog({ defaultTeamId, children }: NewAgentDialogProps) {
   const dispatch = useAppDispatch();
-  const nameRef = useRef<InputRef>(null);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const form = useForm<NewAgentValues>({ defaultValues: emptyValues(defaultTeamId ?? ""), mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
   const teams = useAppSelector((s) => s.teams.teams) as TeamWithMembers[];
   const agents = useAppSelector((s) => s.agents.items) as AgentListItem[];
@@ -50,69 +59,77 @@ export function NewAgentDialog({ defaultTeamId, children }: NewAgentDialogProps)
   agentsRef.current = agents;
 
   useEffect(() => {
-    if (open) {
-      const lastModel = getLatestAgentModel(agentsRef.current);
-      setName("");
-      setSelectedProviderId(lastModel.providerId);
-      setAiModel(lastModel.model);
-      setTeamId(defaultTeamId ?? "");
-      setError("");
-      setSaving(false);
-      setTimeout(() => nameRef.current?.focus(), 150);
-    }
-  }, [open, defaultTeamId]);
+    if (!open) return;
+    form.reset(emptyValues(defaultTeamId ?? "", getLatestAgentModel(agentsRef.current)));
+    setSaving(false);
+    const t = window.setTimeout(() => form.setFocus("name"), 150);
+    return () => window.clearTimeout(t);
+  }, [open, defaultTeamId, form]);
 
   const handleClose = () => setOpen(false);
 
-  const handleModelChange = (providerId: string, model: string) => {
-    setSelectedProviderId(providerId);
-    setAiModel(model);
-    if (error) setError("");
-  };
+  const items = useMemo<TFormItemProps[]>(
+    () => [
+      {
+        type: EFormItemType.Input,
+        name: "name",
+        label: "Agent Name",
+        colSpan: 12,
+        rules: {
+          required: "Please enter an agent name",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Please enter an agent name"),
+        },
+        options: { placeholder: "e.g. Research Bot, Support Agent…", autoComplete: "off" },
+      },
+      {
+        type: EFormItemType.Select,
+        name: "teamId",
+        label: "Team",
+        colSpan: 12,
+        choices: teams.map((t: AgentTeam) => ({ value: t.id, label: t.name })),
+        options: { placeholder: "No team", allowClear: true },
+      },
+      {
+        type: EFormItemType.Custom,
+        name: "model",
+        label: "Model",
+        colSpan: 12,
+        rules: {
+          required: "Please select a model",
+          validate: (value) => {
+            const model = value && typeof value === "object" ? (value as AgentModelValue).model : "";
+            return model ? true : "Please select a model";
+          },
+        },
+        render: ({ field }) => {
+          const value = (field.value as AgentModelValue | undefined) ?? { providerId: null, model: "" };
+          return <ModelPicker selectedProviderId={value.providerId} selectedModel={value.model} onChange={(providerId, model) => field.onChange({ providerId, model })} />;
+        },
+      },
+    ],
+    [teams],
+  );
 
-  const handleTeamChange = (value: string) => {
-    setTeamId(value);
-    if (error) setError("");
-  };
-
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      setError("Please enter an agent name");
-      nameRef.current?.focus();
-      return;
-    }
-    if (!aiModel) {
-      setError("Please select a model");
-      return;
-    }
+  const onSubmit = form.handleSubmit(async ({ name, teamId, model }) => {
     setSaving(true);
-    setError("");
     try {
       await dispatch(
         createAgent({
           name: name.trim(),
           avatar: JSON.stringify(genConfig()),
-          aiProvider: selectedProviderId,
-          aiModel,
+          aiProvider: model.providerId,
+          aiModel: model.model,
           ...(teamId ? { teamId } : {}),
         }),
       ).unwrap();
+      message.success("Agent created");
       handleClose();
-    } catch {
-      setError("Failed to create agent");
+    } catch (err: unknown) {
+      form.setError("root", { message: err instanceof Error ? err.message : "Failed to create agent" });
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleCreate();
-    }
-  };
-
-  const teamOptions = [{ value: "", label: "No team" }, ...teams.map((t: AgentTeam) => ({ value: t.id, label: t.name }))];
+  });
 
   return (
     <>
@@ -137,57 +154,19 @@ export function NewAgentDialog({ defaultTeamId, children }: NewAgentDialogProps)
         destroyOnHidden
         footer={
           <div className="flex justify-end gap-2.5">
-            <Button type="text" size="small" onClick={handleClose}>
+            <Button type="text" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="primary" size="small" loading={saving} onClick={handleCreate}>
+            <Button type="primary" htmlType="submit" form="new-agent-form" loading={saving}>
               {saving ? "Creating…" : "Create Agent"}
             </Button>
           </div>
         }
       >
-        <div className="flex flex-col gap-4 pt-4">
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Agent Name<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input
-              ref={nameRef}
-              id="new-agent-name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError("");
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="e.g. Research Bot, Support Agent…"
-              autoComplete="off"
-            />
-          </Form.Item>
-
-          <Form.Item label={<span className="text-muted-foreground">Team</span>} className="mb-0!" layout="vertical">
-            <Select value={teamId} onChange={handleTeamChange} options={teamOptions} placeholder="Select team…" className="w-full" />
-          </Form.Item>
-
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Model<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <ModelPicker selectedProviderId={selectedProviderId} selectedModel={aiModel} onChange={handleModelChange} />
-          </Form.Item>
-
-          {error && <div className="text-[12px] text-destructive font-medium">{error}</div>}
-        </div>
+        <form id="new-agent-form" className="pt-4" onSubmit={onSubmit}>
+          <SchemaForm form={form} items={items} />
+          {rootError ? <div className="mt-4 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
+        </form>
       </Modal>
     </>
   );

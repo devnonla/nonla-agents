@@ -64,7 +64,7 @@ export function formatDateTimeInTz(d: DateInput, timeZone = "UTC"): string {
 
 /**
  * Build a Date whose *local* Y/M/D/H/M match the instant in `timeZone`.
- * Feed this to timezone-naive pickers (antd/date-fns) so the wall-clock
+ * Feed this to timezone-naive pickers (date-fns / NonlaUI DatePicker) so the wall-clock
  * matches the app timezone rather than the browser's.
  */
 export function toPickerDate(d: DateInput, timeZone = "UTC"): Date | null {

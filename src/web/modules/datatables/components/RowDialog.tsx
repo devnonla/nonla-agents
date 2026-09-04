@@ -1,4 +1,4 @@
-import { Empty, Modal, message } from "antd";
+import { Empty, Modal, message } from "@nonla-agents/ui";
 import { useState } from "react";
 import type { DatatableColumn, DatatableRow } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

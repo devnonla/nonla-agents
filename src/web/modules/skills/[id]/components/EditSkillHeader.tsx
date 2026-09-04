@@ -1,14 +1,13 @@
+import { Button, Popover } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
 import { EyeIcon } from "@solar-icons/react/dynamic/eye";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
-import { Popover } from "antd";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "src/common/lib/cn";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 
 export type SkillViewMode = "preview" | "editor";
@@ -88,7 +87,7 @@ export function EditSkillHeader({ title, hasDraft, viewMode, onViewModeChange, o
           </div>
         }
       >
-        <RawButton type="text" size="small" icon={<MenuDotsIcon size={16} weight="Bold" />} aria-label="Skill menu" />
+        <Button type="text" size="small" icon={<MenuDotsIcon size={16} weight="Bold" />} aria-label="Skill menu" />
       </Popover>
     </header>
   );

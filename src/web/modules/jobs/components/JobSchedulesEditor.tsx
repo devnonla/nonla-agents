@@ -1,6 +1,6 @@
+import { Button } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button } from "antd";
 import { useRef } from "react";
 import { DEFAULT_JOB_SCHEDULE, type JobSchedule } from "../common/schedule";
 import { JobSchedulePicker } from "./JobSchedulePicker";

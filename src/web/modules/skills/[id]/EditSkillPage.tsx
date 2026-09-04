@@ -1,5 +1,5 @@
+import { Alert, Button, Modal, message } from "@nonla-agents/ui";
 import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
-import { Alert, Modal, message } from "antd";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -8,7 +8,6 @@ import { SettingKey } from "src/common/enum";
 import type { Skill, SkillReference } from "src/common/types";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
 import { MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import { fetchLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { getSettingValues, saveSettingValues } from "src/modules/settings/common/settingsApi";
@@ -601,9 +600,9 @@ export default function EditSkillPage() {
                       <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
                         <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand-soft" />
                         <span className="mr-1 text-xs font-medium tracking-wide text-brand-soft">Unsaved</span>
-                        <RawButton size="small" type="primary" icon={!saving ? <DisketteIcon size={14} /> : undefined} loading={saving} onClick={() => void handleSave()}>
+                        <Button size="small" type="primary" icon={!saving ? <DisketteIcon size={14} /> : undefined} loading={saving} onClick={() => void handleSave()}>
                           {saving ? "Saving…" : "Save"}
-                        </RawButton>
+                        </Button>
                       </div>
                     ) : null}
                     {reviewBar}

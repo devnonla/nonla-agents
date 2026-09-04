@@ -1,3 +1,4 @@
+import { Button, Drawer, EFormItemType, Popconfirm, SchemaForm, type TFormItemProps, Tag, message } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
 import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
@@ -6,8 +7,8 @@ import { PlayIcon } from "@solar-icons/react/dynamic/play";
 import { SettingsIcon } from "@solar-icons/react/dynamic/settings";
 import { StopCircleIcon } from "@solar-icons/react/dynamic/stop-circle";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Drawer, Form, Input, InputNumber, Popconfirm, Tag, message } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "src/common/api";
 import { wsClient } from "src/common/api/wsClient";
@@ -40,6 +41,10 @@ export default function JobEditPage() {
   const [description, setDescription] = useState("");
   const [schedules, setSchedules] = useState<JobSchedule[]>([]);
   const [timeoutMs, setTimeoutMs] = useState(300_000);
+  const settingsForm = useForm<{ name: string; description: string; timeoutMs: number }>({
+    defaultValues: { name: "", description: "", timeoutMs: 300_000 },
+    mode: "onSubmit",
+  });
 
   const [localCode, setLocalCode] = useState("");
   const [savedCode, setSavedCode] = useState("");
@@ -174,14 +179,46 @@ export default function JobEditPage() {
     }
   };
 
-  const handleSaveSettings = async () => {
+  useEffect(() => {
+    if (!settingsOpen) return;
+    settingsForm.reset({ name, description, timeoutMs });
+  }, [settingsOpen, name, description, timeoutMs, settingsForm]);
+
+  const SETTINGS_ITEMS: TFormItemProps[] = [
+    {
+      type: EFormItemType.Input,
+      name: "name",
+      label: "Name",
+      colSpan: 12,
+      rules: {
+        required: "Name is required",
+        validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+      },
+    },
+    {
+      type: EFormItemType.Textarea,
+      name: "description",
+      label: "Description",
+      colSpan: 12,
+      options: { rows: 3 },
+    },
+    {
+      type: EFormItemType.Number,
+      name: "timeoutMs",
+      label: "Timeout (ms)",
+      colSpan: 12,
+      options: { min: 1000, step: 1000 },
+    },
+  ];
+
+  const handleSaveSettings = settingsForm.handleSubmit(async (values) => {
     if (!id) return;
     setSaving(true);
     try {
       const updated = await jobsApi.update(id, {
-        name: name.trim(),
-        description: description.trim() || null,
-        timeoutMs,
+        name: values.name.trim(),
+        description: values.description.trim() || null,
+        timeoutMs: Number(values.timeoutMs) || 300_000,
       });
       setJob(updated);
       setName(updated.name);
@@ -194,7 +231,7 @@ export default function JobEditPage() {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const handleSaveSchedules = async () => {
     if (!id) return;
@@ -449,21 +486,12 @@ export default function JobEditPage() {
       </Drawer>
 
       <Drawer title="Job settings" open={settingsOpen} onClose={() => setSettingsOpen(false)} size={480}>
-        <Form layout="vertical">
-          <Form.Item label="Name" required>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </Form.Item>
-          <Form.Item label="Description">
-            <Input.TextArea value={description} rows={3} onChange={(e) => setDescription(e.target.value)} />
-          </Form.Item>
-          <Form.Item label="Timeout (ms)">
-            <InputNumber min={1000} step={1000} value={timeoutMs} onChange={(v) => setTimeoutMs(Number(v) || 300_000)} className="w-full" />
-          </Form.Item>
-        </Form>
-
-        <Button type="primary" block className="mt-2" loading={saving} onClick={() => void handleSaveSettings()}>
-          Save settings
-        </Button>
+        <form onSubmit={handleSaveSettings}>
+          <SchemaForm form={settingsForm} items={SETTINGS_ITEMS} />
+          <Button htmlType="submit" type="primary" block className="mt-2" loading={saving}>
+            Save settings
+          </Button>
+        </form>
 
         <div className="mt-8 border-t border-border-subtle pt-4">
           <p className="m-0 text-[11px] font-medium text-muted-foreground">Danger zone</p>

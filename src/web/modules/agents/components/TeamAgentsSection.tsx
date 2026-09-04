@@ -1,10 +1,10 @@
 import { useDroppable } from "@dnd-kit/core";
+import { Button } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
 import { cn } from "src/common/lib/cn";
 import type { AgentListItem } from "src/common/types";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import type { TeamWithMembers } from "src/modules/agents/common/teamsSlice";
 import { AgentCardGrid } from "./AgentCardGrid";
@@ -36,9 +36,9 @@ export function TeamAgentsSection({ team, agents, onNavigate, onEditTeam }: Team
         actions={
           <div className="flex items-center gap-0.5">
             <NewAgentDialog defaultTeamId={team.id}>
-              <RawButton type="text" size="small" className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Add agent to team" icon={<AddIcon size={15} />} />
+              <Button type="text" size="small" className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Add agent to team" icon={<AddIcon size={15} />} />
             </NewAgentDialog>
-            <RawButton type="text" size="small" onClick={() => onEditTeam(team)} className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Edit team" icon={<PenNewSquareIcon size={15} />} />
+            <Button type="text" size="small" onClick={() => onEditTeam(team)} className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Edit team" icon={<PenNewSquareIcon size={15} />} />
           </div>
         }
       />

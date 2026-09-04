@@ -1,3 +1,4 @@
+import { Button, Input, Switch } from "@nonla-agents/ui";
 import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
 import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
@@ -7,7 +8,6 @@ import { InfoCircleIcon } from "@solar-icons/react/dynamic/info-circle";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
 import { PlayCircleIcon } from "@solar-icons/react/dynamic/play-circle";
 import { StopCircleIcon } from "@solar-icons/react/dynamic/stop-circle";
-import { Button, Input, Switch } from "antd";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { JobLogEntry, JobLogLevel, JobRun } from "src/common/types";
 import { formatDayHeader, formatTimeOnly, getDayKey } from "src/common/utils/date";

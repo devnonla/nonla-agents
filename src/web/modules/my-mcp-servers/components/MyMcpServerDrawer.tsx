@@ -1,3 +1,4 @@
+import { Button, Drawer, Empty, Input, Popconfirm, Switch, message } from "@nonla-agents/ui";
 import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
 import { ClipboardCheckIcon } from "@solar-icons/react/dynamic/clipboard-check";
 import { CpuIcon } from "@solar-icons/react/dynamic/cpu";
@@ -6,12 +7,10 @@ import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { RefreshCircleIcon } from "@solar-icons/react/dynamic/refresh-circle";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
 import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
-import { Drawer, Empty, Input, Popconfirm, Switch, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "src/common/api";
 import { cn } from "src/common/lib/cn";
 import type { MyMcpServer } from "src/common/types";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import { useAppDispatch } from "src/store/store";
 import { deleteMyMcpServer, toMyMcpServerListItem, updateMyMcpServer, upsertMyMcpServerLocal } from "../common/myMcpServersSlice";
@@ -154,9 +153,9 @@ export function MyMcpServerDrawer({
                 </span>
                 <div className="ml-auto flex items-center gap-1">
                   <Switch size="small" checked={s.isActive} disabled={toggling} onChange={(checked) => void handleToggle(checked)} />
-                  <RawButton type="text" size="small" icon={<PenNewSquareIcon size={14} />} onClick={() => onEdit(detail ?? s)} />
+                  <Button type="text" size="small" icon={<PenNewSquareIcon size={14} />} onClick={() => onEdit(detail ?? s)} />
                   <Popconfirm title={`Delete ${s.name}?`} description="Clients using this URL and token will stop working." okText="Delete" okType="danger" onConfirm={() => void handleDelete()} styles={{ root: { width: 280 } }}>
-                    <RawButton type="text" size="small" danger icon={<TrashBinMinimalisticIcon size={14} />} />
+                    <Button type="text" size="small" danger icon={<TrashBinMinimalisticIcon size={14} />} />
                   </Popconfirm>
                 </div>
               </div>
@@ -172,9 +171,9 @@ export function MyMcpServerDrawer({
                 <SnippetMini value={claude} copied={copied === "claude"} onCopy={() => void copy(claude, "claude")} />
               </div>
               <p className="m-0 text-[11px] leading-relaxed text-tertiary-foreground">Token is shown only once at create/rotate. Paste it into the Bearer header, then keep this file private.</p>
-              <RawButton icon={<RefreshCircleIcon size={14} />} loading={rotating} onClick={() => void handleRotate()}>
+              <Button icon={<RefreshCircleIcon size={14} />} loading={rotating} onClick={() => void handleRotate()}>
                 Rotate token
-              </RawButton>
+              </Button>
 
               <RenderIf condition={tools.length > 0}>
                 <Input prefix={<MagnifierIcon size={13} className="text-muted-foreground" />} value={toolQuery} onChange={(e) => setToolQuery(e.target.value)} placeholder="Find tools…" className="h-8! text-sm" allowClear />
@@ -198,7 +197,7 @@ export function MyMcpServerDrawer({
                       </ul>
                     }
                   >
-                    <Empty className="py-8" image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-sm text-muted-foreground">No matching tools</span>} />
+                    <Empty className="py-8" description={<span className="text-sm text-muted-foreground">No matching tools</span>} />
                   </RenderIf>
                 }
               >
@@ -223,7 +222,7 @@ function SnippetMini({ value, copied, onCopy }: { value: string; copied: boolean
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-start justify-between gap-1">
         <pre className="m-0 min-w-0 flex-1 overflow-auto px-3 py-2 font-mono text-[10px] leading-relaxed text-foreground">{value}</pre>
-        <RawButton type="text" size="small" className="mt-1 mr-1" icon={copied ? <ClipboardCheckIcon size={13} /> : <ClipboardIcon size={13} />} onClick={onCopy} />
+        <Button type="text" size="small" className="mt-1 mr-1" icon={copied ? <ClipboardCheckIcon size={13} /> : <ClipboardIcon size={13} />} onClick={onCopy} />
       </div>
     </div>
   );

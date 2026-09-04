@@ -1,10 +1,10 @@
+import { Button, EFormItemType, Input, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { RestartIcon } from "@solar-icons/react/dynamic/restart";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
 import { UserPlusIcon } from "@solar-icons/react/dynamic/user-plus";
-import { useForm } from "@tanstack/react-form";
-import { Button, Form, Input, Modal, Select, message } from "antd";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";
 import type { User } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
@@ -15,49 +15,102 @@ interface UserFormProps {
   onSaved: () => void;
 }
 
-const ROLE_OPTIONS = [
-  { value: "member", label: "Member" },
-  { value: "admin", label: "Admin" },
-] as const;
+type UserValues = {
+  username: string;
+  name: string;
+  password: string;
+  role: string;
+};
 
 export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
   const isEdit = !!user;
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [generatedPassword, setGeneratedPassword] = useState("");
   const [resetting, setResetting] = useState(false);
-
-  const form = useForm({
+  const form = useForm<UserValues>({
     defaultValues: {
       username: user?.username ?? "",
       name: user?.name ?? "",
       password: "",
       role: user?.role ?? "member",
     },
-    onSubmit: async ({ value }) => {
-      try {
-        if (isEdit) {
-          await apiClient.put(`/api/users/${user.id}`, {
-            username: value.username,
-            name: value.name,
-            role: value.role,
-          });
-          message.success(`User ${value.username} updated`);
-        } else {
-          await apiClient.post("/api/users", {
-            username: value.username,
-            name: value.name,
-            password: value.password,
-            role: value.role,
-          });
-          message.success(`User ${value.username} created`);
-        }
-        onSaved();
-        onClose();
-      } catch (err: any) {
-        message.error(err.message || "Failed to save user");
+    mode: "onSubmit",
+  });
+  const rootError = form.formState.errors.root?.message;
+
+  const items: TFormItemProps[] = useMemo(
+    () => [
+      {
+        type: EFormItemType.Input,
+        name: "username",
+        label: "Username",
+        colSpan: 12,
+        rules: {
+          required: "Username is required",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Username is required"),
+        },
+        options: { placeholder: "john_doe" },
+      },
+      {
+        type: EFormItemType.Input,
+        name: "name",
+        label: "Name",
+        colSpan: 12,
+        rules: {
+          required: "Name is required",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+        },
+        options: { placeholder: "John Doe" },
+      },
+      ...(isEdit
+        ? []
+        : [
+            {
+              type: EFormItemType.Input,
+              name: "password",
+              label: "Password",
+              colSpan: 12,
+              rules: {
+                required: "Password is required",
+                minLength: { value: 8, message: "Password must be at least 8 characters" },
+              },
+              options: { type: "password", placeholder: "Min 8 characters" },
+            } satisfies TFormItemProps,
+          ]),
+      {
+        type: EFormItemType.Select,
+        name: "role",
+        label: "Role",
+        colSpan: 12,
+        choices: [
+          { value: "member", label: "Member" },
+          { value: "admin", label: "Admin" },
+        ],
+        rules: { required: "Role is required" },
+      },
+    ],
+    [isEdit],
+  );
+
+  const onSubmit = form.handleSubmit(async ({ username, name, password, role }) => {
+    setSaving(true);
+    try {
+      if (isEdit && user) {
+        await apiClient.put(`/api/users/${user.id}`, { username, name, role });
+        message.success(`User ${username} updated`);
+      } else {
+        await apiClient.post("/api/users", { username, name, password, role });
+        message.success(`User ${username} created`);
       }
-    },
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      form.setError("root", { message: err instanceof Error ? err.message : "Failed to save user" });
+    } finally {
+      setSaving(false);
+    }
   });
 
   const handleDelete = async () => {
@@ -68,8 +121,8 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
       message.success(`Deleted user ${user.username}`);
       onSaved();
       onClose();
-    } catch (err: any) {
-      message.error(err.message || "Failed to delete user");
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : "Failed to delete user");
     } finally {
       setDeleting(false);
     }
@@ -84,8 +137,8 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
       });
       setGeneratedPassword(result.password);
       message.success(`Password reset for ${user.username}`);
-    } catch (err: any) {
-      message.error(err.message || "Failed to reset password");
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : "Failed to reset password");
     } finally {
       setResetting(false);
     }
@@ -110,10 +163,10 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
           <RenderIf condition={isEdit}>
             <div className="mr-auto">
               <Button
-                size="small"
+                size="medium"
                 danger
                 disabled={deleting}
-                icon={<TrashBinMinimalisticIcon size={12} />}
+                icon={<TrashBinMinimalisticIcon size={14} />}
                 onClick={() => {
                   Modal.confirm({
                     title: "Delete user?",
@@ -132,118 +185,20 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
               </Button>
             </div>
           </RenderIf>
-          <Button type="text" size="small" onClick={onClose}>
+          <Button type="text" size="medium" onClick={onClose}>
             Cancel
           </Button>
-          <form.Subscribe selector={(s) => s.isSubmitting}>
-            {(isSubmitting) => (
-              <Button type="primary" size="small" onClick={() => form.handleSubmit()} loading={isSubmitting}>
-                {isEdit ? "Save" : "Create"}
-              </Button>
-            )}
-          </form.Subscribe>
+          <Button type="primary" size="medium" htmlType="submit" form="user-form" loading={saving}>
+            {isEdit ? "Save" : "Create"}
+          </Button>
         </div>
       }
       width={440}
       destroyOnHidden
     >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          form.handleSubmit();
-        }}
-        className="flex flex-col gap-3.5"
-      >
-        <form.Field
-          name="username"
-          validators={{
-            onSubmit: ({ value }) => (!value.trim() ? "Username is required" : undefined),
-          }}
-        >
-          {(field) => (
-            <Form.Item
-              label={
-                <span className="text-muted-foreground">
-                  Username<span className="text-destructive"> *</span>
-                </span>
-              }
-              validateStatus={field.state.meta.errors[0] ? "error" : undefined}
-              help={field.state.meta.errors[0]?.toString()}
-              className="mb-0!"
-              layout="vertical"
-            >
-              <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="john_doe" />
-            </Form.Item>
-          )}
-        </form.Field>
-
-        <form.Field
-          name="name"
-          validators={{
-            onSubmit: ({ value }) => (!value.trim() ? "Name is required" : undefined),
-          }}
-        >
-          {(field) => (
-            <Form.Item
-              label={
-                <span className="text-muted-foreground">
-                  Name<span className="text-destructive"> *</span>
-                </span>
-              }
-              validateStatus={field.state.meta.errors[0] ? "error" : undefined}
-              help={field.state.meta.errors[0]?.toString()}
-              className="mb-0!"
-              layout="vertical"
-            >
-              <Input value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="John Doe" />
-            </Form.Item>
-          )}
-        </form.Field>
-
-        <RenderIf condition={!isEdit}>
-          <form.Field
-            name="password"
-            validators={{
-              onSubmit: ({ value }) => {
-                if (!value) return "Password is required";
-                if (value.length < 8) return "Password must be at least 8 characters";
-                return undefined;
-              },
-            }}
-          >
-            {(field) => (
-              <Form.Item
-                label={
-                  <span className="text-muted-foreground">
-                    Password<span className="text-destructive"> *</span>
-                  </span>
-                }
-                validateStatus={field.state.meta.errors[0] ? "error" : undefined}
-                help={field.state.meta.errors[0]?.toString()}
-                className="mb-0!"
-                layout="vertical"
-              >
-                <Input type="password" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Min 8 characters" />
-              </Form.Item>
-            )}
-          </form.Field>
-        </RenderIf>
-
-        <form.Field name="role">
-          {(field) => (
-            <Form.Item
-              label={
-                <span className="text-muted-foreground">
-                  Role<span className="text-destructive"> *</span>
-                </span>
-              }
-              className="mb-0!"
-              layout="vertical"
-            >
-              <Select value={field.state.value} onChange={(val) => field.handleChange(val as "admin" | "member")} options={[...ROLE_OPTIONS]} className="w-full" />
-            </Form.Item>
-          )}
-        </form.Field>
+      <form id="user-form" onSubmit={onSubmit} className="flex flex-col">
+        <SchemaForm form={form} items={items} />
+        {rootError ? <div className="mb-3 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
 
         <RenderIf condition={isEdit}>
           <div className="flex flex-col gap-2 border-t border-border-subtle pt-3.5">

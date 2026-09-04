@@ -1,7 +1,7 @@
+import { Button, EFormItemType, Empty, Modal, SchemaForm, Spin, type TFormItemProps, message } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { AlarmIcon } from "@solar-icons/react/dynamic/alarm";
-import { Alert, Button, Form, Input, Modal, Spin, message } from "antd";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { wsClient } from "src/common/api/wsClient";
 import { useNow } from "src/common/hooks/useNow";
@@ -14,42 +14,48 @@ import { createJob, fetchJobs, removeJobLocal, updateJobLocal, upsertJobLocal } 
 import { jobIsScheduled } from "./common/schedule";
 import { JobCard } from "./components/JobCard";
 
+type CreateJobValues = { name: string };
+
+const CREATE_JOB_ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Name",
+    colSpan: 12,
+    rules: {
+      required: "Name is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+    },
+    options: { placeholder: "Daily digest", autoFocus: true },
+  },
+];
+
 function CreateJobDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (job: Job) => void }) {
   const dispatch = useAppDispatch();
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [name, setName] = useState("");
+  const form = useForm<CreateJobValues>({ defaultValues: { name: "" }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
-  const handleSubmit = async () => {
-    const n = name.trim();
-    if (!n) {
-      setError("Name is required");
-      return;
-    }
+  const onSubmit = form.handleSubmit(async ({ name }) => {
     setSaving(true);
-    setError("");
     try {
-      const job = (await dispatch(createJob({ name: n, cron: "" })).unwrap()) as Job;
+      const job = (await dispatch(createJob({ name: name.trim(), cron: "" })).unwrap()) as Job;
       message.success("Job created");
       onCreated(job);
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
-    <Modal open title="New job" onCancel={onClose} onOk={handleSubmit} okText="Create" confirmLoading={saving} destroyOnHidden>
-      <RenderIf condition={!!error}>
-        <Alert type="error" description={error} showIcon className="mb-3" />
-      </RenderIf>
-      <Form layout="vertical">
-        <Form.Item label="Name" required>
-          <Input value={name} placeholder="Daily digest" onChange={(e) => setName(e.target.value)} autoFocus onPressEnter={() => void handleSubmit()} />
-        </Form.Item>
-      </Form>
+    <Modal open title="New job" onCancel={onClose} okText="Create" confirmLoading={saving} destroyOnHidden onOk={() => void onSubmit()}>
+      <form id="create-job-form" onSubmit={onSubmit}>
+        <SchemaForm form={form} items={CREATE_JOB_ITEMS} />
+        {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
+      </form>
     </Modal>
   );
 }
@@ -118,16 +124,11 @@ export default function JobsPage() {
       <RenderIf
         condition={items.length > 0 || loading}
         fallback={
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-5 py-16">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand/12 text-brand-soft">
-              <AlarmIcon size={28} weight="BoldDuotone" />
-            </div>
-            <p className="mb-1 text-base font-semibold text-foreground">No jobs yet</p>
-            <p className="m-0 mb-5 max-w-sm text-center text-sm text-muted-foreground">Create a script, set when it should fire, then run it manually or let the schedule take over.</p>
+          <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No jobs yet">
             <Button type="primary" icon={<AddCircleIcon size={16} weight="BoldDuotone" />} onClick={() => setShowCreate(true)}>
               New job
             </Button>
-          </div>
+          </Empty>
         }
       >
         <Spin spinning={loading && items.length === 0}>

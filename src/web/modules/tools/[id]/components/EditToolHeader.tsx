@@ -1,14 +1,14 @@
+import type { MenuProps } from "@nonla-agents/ui";
+import { Dropdown, Modal } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
-import type { MenuProps } from "antd";
-import { Dropdown, Modal } from "antd";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "src/common/lib/cn";
 import { ToolIconPicker } from "../../components/ToolIconPicker";
 
-/** Same raised fill as RawButton default. */
+/** Same raised fill as NonlaUI Button default. */
 const TRACK_RAISED = "shadow-[inset_0_1px_1px_rgb(255_255_255_/_0.07),0_1px_2px_rgb(0_0_0_/_0.28),0_1px_1px_rgb(0_0_0_/_0.18)]";
 const THUMB_RAISED = "shadow-[inset_0_1px_1px_rgb(255_255_255_/_0.14),0_1px_2px_rgb(0_0_0_/_0.35),0_1px_1px_rgb(0_0_0_/_0.2)]";
 

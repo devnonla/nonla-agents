@@ -1,5 +1,5 @@
-import { Dropdown } from "antd";
-import type { MenuProps } from "antd";
+import { Dropdown } from "@nonla-agents/ui";
+import type { MenuProps } from "@nonla-agents/ui";
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { DatatableColumn } from "src/common/types";
@@ -139,8 +139,6 @@ export function EditableCell({
           autoFocus
           open
           needConfirm
-          changeOnBlur={false}
-          previewValue={false}
           value={toPickerDate(typeof value === "string" ? value : null, timeZone)}
           format={DATETIME_PICKER_FORMAT}
           className="absolute left-0 top-0 z-30 h-9! w-[calc(100%+20px)] min-w-[calc(100%+20px)] rounded-md! border-transparent! bg-muted! shadow-panel!"

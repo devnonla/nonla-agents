@@ -1,15 +1,14 @@
 // ─── Tools Page ──────────────────────────────────────────────────────────────
 // Route: /tools — Custom tools organized by folder.
 
+import { Button, message } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { FolderIcon } from "@solar-icons/react/dynamic/folder";
-import { message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AgentTool } from "src/common/types";
 import { MissingProviderCallout } from "src/components/MissingProviderCallout";
 import { PageShell } from "src/components/PageShell";
-import { RawButton } from "src/components/RawButton";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 import { deleteToolFolder, fetchToolFolders } from "./common/toolFoldersSlice";
 import type { ToolFolderWithTools } from "./common/toolFoldersSlice";
@@ -55,13 +54,13 @@ export default function ToolsPage() {
         <div className="mb-8 flex items-center justify-between">
           <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Tools</h1>
           <div className="flex items-center gap-2">
-            <RawButton type="default" icon={<FolderIcon size={16} />} onClick={() => setCreatingFolder(true)}>
+            <Button type="default" icon={<FolderIcon size={16} />} onClick={() => setCreatingFolder(true)}>
               New Folder
-            </RawButton>
+            </Button>
             <AddToolDialog onCreated={handleToolClick}>
-              <RawButton type="primary" icon={<AddIcon size={16} />}>
+              <Button type="primary" icon={<AddIcon size={16} />}>
                 New Tool
-              </RawButton>
+              </Button>
             </AddToolDialog>
           </div>
         </div>

@@ -2,10 +2,10 @@
 // Single card node (like Tools / MCP Servers). Click opens a popover listing other
 // agents grouped by team, each with a Switch to enable/disable call_agent.
 
+import { Popover, Switch } from "@nonla-agents/ui";
+import { BotIcon } from "@solar-icons/react/dynamic/bot";
 import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
-import { FaceScanSquareIcon } from "@solar-icons/react/dynamic/face-scan-square";
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { Popover, Switch } from "antd";
 import { useMemo, useState } from "react";
 import { UserAvatar } from "src/components/UserAvatar";
 
@@ -82,7 +82,7 @@ export function CallAgentsNode({ data }: NodeProps<CallAgentsNodeType>) {
               }}
             >
               <div className="w-7 h-7 rounded-[7px] flex items-center justify-center shrink-0 ring-1 ring-edge-call-agent/25" style={{ background: "color-mix(in srgb, var(--edge-call-agent) 22%, transparent)", color: CALL_AGENT_COLOR }}>
-                <FaceScanSquareIcon weight="BoldDuotone" size={15} />
+                <BotIcon weight="BoldDuotone" size={15} />
               </div>
               <div className="min-w-0 flex-1 text-[14px] font-semibold text-foreground truncate">Call Agents</div>
               <button type="button" className="nodrag nopan shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background/40 transition-colors" aria-label="Close" onClick={() => setOpen(false)}>
@@ -115,7 +115,7 @@ export function CallAgentsNode({ data }: NodeProps<CallAgentsNodeType>) {
         }
       >
         <button type="button" className={`nodrag nopan relative flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border bg-card px-2 py-3 text-center font-[inherit] transition-colors duration-150 hover:bg-muted/30 ${hasConnection ? "border-edge-call-agent/40" : "border-border"}`}>
-          <FaceScanSquareIcon weight="BoldDuotone" size={20} className="block" style={{ color: CALL_AGENT_COLOR }} />
+          <BotIcon weight="BoldDuotone" size={20} className="block" style={{ color: CALL_AGENT_COLOR }} />
           <div className="w-full text-[11px] font-semibold leading-none text-foreground">Call Agents</div>
         </button>
       </Popover>

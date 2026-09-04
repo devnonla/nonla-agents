@@ -1,7 +1,7 @@
+import { Popover, Switch } from "@nonla-agents/ui";
 import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
 import { Planet2Icon } from "@solar-icons/react/dynamic/planet-2";
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { Popover, Switch } from "antd";
 import { useState } from "react";
 
 export type McpToolToggleItem = {

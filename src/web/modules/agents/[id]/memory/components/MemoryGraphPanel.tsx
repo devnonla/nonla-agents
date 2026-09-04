@@ -1,7 +1,7 @@
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
 import { type Node, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Empty, Input, Modal, message } from "antd";
+import { Button, Empty, Input, Modal, message } from "@nonla-agents/ui";
 import { useEffect, useMemo, useState } from "react";
 import { authorizedFetch } from "src/common/api";
 import { cn } from "src/common/lib/cn";
@@ -155,7 +155,7 @@ function MemoryFlowCanvas({
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="max-w-xs text-center">
-          <Empty description="No nodes for this user" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description="No nodes for this user" />
           <p className="m-0 mt-2 text-xs text-muted-foreground">The agent will grow this graph as it remembers people, projects, and preferences.</p>
         </div>
       </div>
@@ -203,18 +203,20 @@ function MemoryFlowCanvas({
         confirmLoading={saving}
         destroyOnHidden
         width={520}
-        footer={(_, { OkBtn, CancelBtn }) => (
+        footer={
           <div className="flex items-center justify-between gap-2">
             <button type="button" onClick={removeNode} className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border-none bg-transparent px-2 py-1 text-[12px] text-destructive hover:bg-destructive/10">
               <TrashBinMinimalisticIcon size={13} />
               Forget
             </button>
             <div className="flex gap-2">
-              <CancelBtn />
-              <OkBtn />
+              <Button onClick={() => setSelected(null)}>Cancel</Button>
+              <Button type="primary" loading={saving} onClick={() => void saveNode()}>
+                Save
+              </Button>
             </div>
           </div>
-        )}
+        }
       >
         <div className="flex flex-col gap-3 pt-1">
           <Input.TextArea value={contentDraft} onChange={(e) => setContentDraft(e.target.value)} placeholder="Who / what — keep it short…" autoSize={{ minRows: 3, maxRows: 8 }} />
@@ -264,7 +266,7 @@ export function MemoryGraphPanel({ agentId, data, onRefresh }: MemoryGraphPanelP
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="max-w-xs text-center">
-          <Empty description="No user memory yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description="No user memory yet" />
           <p className={cn("m-0 mt-2 text-xs text-muted-foreground")}>Preferences, people, and projects appear here as a knowledge graph.</p>
         </div>
       </div>

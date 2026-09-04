@@ -1,8 +1,8 @@
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { Button, Form, Input, Modal, message } from "antd";
-import type { InputRef } from "antd";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useAppDispatch } from "src/store/store";
 import { createToolFolder, updateToolFolder } from "../common/toolFoldersSlice";
 import type { ToolFolderWithTools } from "../common/toolFoldersSlice";
@@ -13,23 +13,40 @@ interface FolderDialogProps {
   folder?: ToolFolderWithTools | null;
 }
 
+type FolderValues = {
+  name: string;
+};
+
+const ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Folder Name",
+    colSpan: 12,
+    rules: {
+      required: "Please enter a folder name",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Please enter a folder name"),
+    },
+    options: { placeholder: "e.g. Integrations, Scrapers…", autoComplete: "off" },
+  },
+];
+
 export function FolderDialog({ open, onClose, folder }: FolderDialogProps) {
   const dispatch = useAppDispatch();
   const isEdit = !!folder;
-  const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const nameRef = useRef<InputRef>(null);
+  const form = useForm<FolderValues>({ defaultValues: { name: "" }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
   useEffect(() => {
-    if (open) {
-      setName(folder?.name ?? "");
-      setSaving(false);
-      setTimeout(() => nameRef.current?.focus(), 150);
-    }
-  }, [open, folder]);
+    if (!open) return;
+    form.reset({ name: folder?.name ?? "" });
+    setSaving(false);
+    const t = window.setTimeout(() => form.setFocus("name"), 150);
+    return () => window.clearTimeout(t);
+  }, [open, folder, form]);
 
-  const handleSubmit = async () => {
-    if (!name.trim()) return;
+  const onSubmit = form.handleSubmit(async ({ name }) => {
     setSaving(true);
     try {
       if (isEdit && folder) {
@@ -41,11 +58,11 @@ export function FolderDialog({ open, onClose, folder }: FolderDialogProps) {
       }
       onClose();
     } catch {
-      message.error(isEdit ? "Failed to update folder" : "Failed to create folder");
+      form.setError("root", { message: isEdit ? "Failed to update folder" : "Failed to create folder" });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const icon = isEdit ? <PenNewSquareIcon size={16} /> : <AddIcon size={16} />;
 
@@ -66,40 +83,19 @@ export function FolderDialog({ open, onClose, folder }: FolderDialogProps) {
       destroyOnHidden
       footer={
         <div className="flex justify-end gap-2.5">
-          <Button type="text" size="small" onClick={onClose}>
+          <Button type="text" size="medium" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="primary" size="small" loading={saving} onClick={handleSubmit} disabled={!name.trim()}>
+          <Button type="primary" size="medium" htmlType="submit" form="folder-form" loading={saving}>
             {saving ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create Folder"}
           </Button>
         </div>
       }
     >
-      <div className="flex flex-col gap-4 pt-4">
-        <Form.Item
-          label={
-            <span className="text-muted-foreground">
-              Folder Name<span className="text-destructive"> *</span>
-            </span>
-          }
-          className="mb-0!"
-          layout="vertical"
-        >
-          <Input
-            ref={nameRef}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-            placeholder="e.g. Integrations, Scrapers…"
-            autoComplete="off"
-          />
-        </Form.Item>
-      </div>
+      <form id="folder-form" className="pt-4" onSubmit={onSubmit}>
+        <SchemaForm form={form} items={ITEMS} />
+        {rootError ? <div className="mt-4 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
+      </form>
     </Modal>
   );
 }

@@ -1,22 +1,11 @@
-import { ConfigProvider, Input } from "antd";
-import type { TextAreaRef } from "antd/es/input/TextArea";
+import { Input } from "@nonla-agents/ui";
+import type { TextAreaRef } from "@nonla-agents/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "src/common/lib/cn";
 import RenderIf from "src/components/RenderIf";
 import { SelectModel } from "./SelectModel";
 import { type ChatToolItem, SelectTools } from "./SelectTools";
-
-const borderlessInputTheme = {
-  components: {
-    Input: {
-      activeBorderColor: "transparent",
-      hoverBorderColor: "transparent",
-      activeShadow: "none",
-      colorText: "#ececec",
-    },
-  },
-};
 
 const chatComposerTextStyle = {
   fontSize: "var(--chat-composer-size)",
@@ -54,7 +43,8 @@ function isEditableTarget(el: EventTarget | null): boolean {
 }
 
 function getNativeTextArea(ref: TextAreaRef | null): HTMLTextAreaElement | null {
-  return ref?.resizableTextArea?.textArea ?? null;
+  if (!ref) return null;
+  return ref.resizableTextArea?.textArea ?? ref;
 }
 
 export function InputArea({ generating, placeholder = "", onSend, onCancel, providerId, model, onModelChange, hideConfig, tools, toolsLoading, focusSignal, autoFocus = false, enableTypeToFocus = true, className }: InputAreaProps) {
@@ -131,29 +121,24 @@ export function InputArea({ generating, placeholder = "", onSend, onCancel, prov
   };
 
   return (
-    <div className={cn("shrink-0 mx-2 mb-3 pt-1 rounded-xl border overflow-hidden flex flex-col", noModel ? "bg-muted/50 border-border" : "bg-[#3c3c3c]/90 border-border", className)}>
-      <ConfigProvider theme={borderlessInputTheme}>
-        <Input.TextArea
-          ref={textareaRef}
-          data-chat-input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={generating || noModel}
-          placeholder={noModel ? "Select a model to start chatting" : placeholder}
-          autoSize={{ minRows: 1, maxRows: 6 }}
-          variant="borderless"
-          styles={{ textarea: chatComposerTextStyle }}
-          classNames={{
-            root: "bg-transparent shadow-none",
-            textarea: cn(
-              "px-3.5 pt-3.5 pb-2 font-medium font-family-chat antialiased transition-none text-(length:--chat-composer-size) leading-(--chat-composer-leading)",
-              "outline-none focus:outline-none focus-visible:outline-none! focus-visible:outline-offset-0!",
-              noModel ? "text-muted-foreground cursor-not-allowed placeholder:text-border-hover" : "text-[#ececec] placeholder:text-muted-foreground placeholder:font-medium",
-            ),
-          }}
-        />
-      </ConfigProvider>
+    <div className={cn("shrink-0 mx-2 mb-2 rounded-xl border overflow-hidden flex flex-col", noModel ? "bg-muted/50 border-border" : "bg-[#3c3c3c]/90 border-border", className)}>
+      <Input.TextArea
+        ref={textareaRef}
+        data-chat-input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={generating || noModel}
+        placeholder={noModel ? "Select a model to start chatting" : placeholder}
+        autoSize={{ minRows: 1, maxRows: 10 }}
+        variant="borderless"
+        style={chatComposerTextStyle}
+        className={cn(
+          "bg-transparent focus:bg-transparent shadow-none px-3.5 pt-1.5 pb-2 font-medium font-family-chat antialiased transition-none text-(length:--chat-composer-size) leading-(--chat-composer-leading)",
+          "outline-none focus:outline-none focus-visible:outline-none! focus-visible:outline-offset-0!",
+          noModel ? "text-muted-foreground cursor-not-allowed placeholder:text-border-hover" : "text-[#ececec] placeholder:text-muted-foreground placeholder:font-medium",
+        )}
+      />
 
       <div className="flex items-center gap-1.5 pb-2 px-2">
         <RenderIf condition={!hideConfig}>

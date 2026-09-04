@@ -1,20 +1,40 @@
-import { Form, Input } from "antd";
-import type { ReactNode } from "react";
-import { RawButton } from "src/components/RawButton";
+import { Button, EFormItemType, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
+import { type ReactNode, useMemo } from "react";
+import { useForm } from "react-hook-form";
 import RenderIf from "src/components/RenderIf";
+
+type UnlockValues = {
+  password: string;
+};
+
+const ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "password",
+    label: "Password",
+    colSpan: 12,
+    rules: { required: "Password is required" },
+    options: { type: "password", placeholder: "Enter the password", autoComplete: "current-password", autoFocus: true, size: "large" },
+  },
+];
 
 type PublicUnlockScreenProps = {
   icon: ReactNode;
   title: string;
   description?: string;
-  password: string;
-  onPasswordChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
   error: string;
   verifying: boolean;
+  onSubmit: (password: string) => void;
 };
 
-export function PublicUnlockScreen({ icon, title, description, password, onPasswordChange, onSubmit, error, verifying }: PublicUnlockScreenProps) {
+export function PublicUnlockScreen({ icon, title, description, error, verifying, onSubmit }: PublicUnlockScreenProps) {
+  const form = useForm<UnlockValues>({ defaultValues: { password: "" }, mode: "onSubmit" });
+  const items = useMemo(() => ITEMS.map((item) => ({ ...item, options: { ...item.options, disabled: verifying } })), [verifying]);
+
+  const handleSubmit = form.handleSubmit(({ password }) => {
+    onSubmit(password);
+  });
+
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-background p-5 sm:p-6">
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60 bg-[linear-gradient(to_right,color-mix(in_oklab,var(--brand)_9%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--brand)_6%,transparent)_1px,transparent_1px)] bg-size-[48px_48px]" />
@@ -46,22 +66,16 @@ export function PublicUnlockScreen({ icon, title, description, password, onPassw
             </RenderIf>
           </div>
 
-          <form onSubmit={onSubmit} className="border-t border-border-subtle px-6 py-6 sm:px-8 sm:pb-8">
-            <div className="flex flex-col gap-5">
-              <Form.Item label={<span className="text-foreground">Password</span>} layout="vertical" required className="mb-0!">
-                <Input.Password value={password} onChange={(e) => onPasswordChange(e.target.value)} placeholder="Enter the password" autoComplete="current-password" autoFocus disabled={verifying} size="large" />
-              </Form.Item>
-
-              <RenderIf condition={!!error}>
-                <div role="alert" className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2">
-                  <p className="text-xs text-destructive font-medium">{error}</p>
-                </div>
-              </RenderIf>
-
-              <RawButton htmlType="submit" type="primary" size="large" block loading={verifying} className="mt-1 h-10 rounded-md">
-                Unlock
-              </RawButton>
-            </div>
+          <form onSubmit={handleSubmit} className="border-t border-border-subtle px-6 py-6 sm:px-8 sm:pb-8">
+            <SchemaForm form={form} items={items} />
+            <RenderIf condition={!!error}>
+              <div role="alert" className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2">
+                <p className="text-xs text-destructive font-medium">{error}</p>
+              </div>
+            </RenderIf>
+            <Button htmlType="submit" type="primary" size="large" block loading={verifying}>
+              Unlock
+            </Button>
           </form>
         </div>
       </div>

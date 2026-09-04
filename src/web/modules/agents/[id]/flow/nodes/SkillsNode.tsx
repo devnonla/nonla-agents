@@ -1,7 +1,7 @@
+import { Popover, Switch } from "@nonla-agents/ui";
 import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
 import { StarsIcon } from "@solar-icons/react/dynamic/stars";
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { Popover, Switch } from "antd";
 import { useMemo, useState } from "react";
 
 export type SkillToggleItem = {

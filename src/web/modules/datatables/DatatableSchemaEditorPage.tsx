@@ -1,7 +1,7 @@
+import { Button, message } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
-import { Button, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "src/common/api";

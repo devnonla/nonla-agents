@@ -1,5 +1,5 @@
+import { Button } from "@nonla-agents/ui";
 import { AppLogo } from "src/components/AppLogo";
-import { RawButton } from "src/components/RawButton";
 
 interface AgentPanelHeaderProps {
   title: string;
@@ -11,7 +11,7 @@ export function AgentPanelHeader({ title, onNewChat }: AgentPanelHeaderProps) {
     <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
       <AppLogo variant="current" size={16} className="shrink-0 text-foreground opacity-40" />
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</span>
-      <RawButton
+      <Button
         type="text"
         size="xs"
         icon={

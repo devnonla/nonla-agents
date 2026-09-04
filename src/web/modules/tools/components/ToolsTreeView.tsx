@@ -1,14 +1,14 @@
 import { type CollisionDetection, DndContext, type DragEndEvent, type DragOverEvent, DragOverlay, type DragStartEvent, PointerSensor, type UniqueIdentifier, closestCorners, getFirstCollision, pointerWithin, rectIntersection, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Button, Dropdown, Modal, Tag, message } from "@nonla-agents/ui";
+import type { MenuProps } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { FolderIcon } from "@solar-icons/react/dynamic/folder";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
-import { Button, Dropdown, Modal, Tag, message } from "antd";
-import type { MenuProps } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentTool } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

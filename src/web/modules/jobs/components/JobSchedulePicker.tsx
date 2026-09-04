@@ -1,4 +1,4 @@
-import { Segmented, Select, Switch } from "antd";
+import { Segmented, Select, Switch } from "@nonla-agents/ui";
 import { DEFAULT_JOB_SCHEDULE, INTERVAL_OPTIONS_MINUTES, type JobSchedule, WEEKDAYS, buildJobCron, formatJobScheduleLabel } from "../common/schedule";
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({

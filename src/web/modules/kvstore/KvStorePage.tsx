@@ -1,24 +1,42 @@
+import { Button, EFormItemType, Empty, Modal, Pagination, Popconfirm, SchemaForm, type TFormItemProps, Table, Tooltip, message } from "@nonla-agents/ui";
+import type { ColumnsType } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { KeyMinimalisticIcon } from "@solar-icons/react/dynamic/key-minimalistic";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Alert, Button, Empty, Form, Input, Modal, Pagination, Popconfirm, Table, Tooltip, message } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import type { KvStoreEntry } from "src/common/types";
 import { PageShell } from "src/components/PageShell";
 import RenderIf from "src/components/RenderIf";
+import { SearchInput } from "src/components/SearchInput";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 import { createKvEntry, deleteKvEntry, fetchKvStore, updateKvEntry, updateKvStoreFilter } from "./common/kvStoreSlice";
 
-const KEY_RE = /^[A-Z][A-Z0-9_]*$/;
 const PAGE_SIZE = 50;
 
-interface FormState {
-  key: string;
-  value: string;
-}
+type EntryValues = { key: string; value: string };
+
+const ENTRY_ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "key",
+    label: "Key",
+    colSpan: 12,
+    rules: {
+      required: "Key is required",
+      pattern: { value: "^[A-Z][A-Z0-9_]*$", message: "Key must match [A-Z][A-Z0-9_]* (e.g. BASE_URL)" },
+    },
+    options: { placeholder: "BASE_URL", autoFocus: true },
+  },
+  {
+    type: EFormItemType.Textarea,
+    name: "value",
+    label: "Value",
+    colSpan: 12,
+    rules: { required: "Value is required" },
+    options: { placeholder: "https://api.example.com", rows: 3 },
+  },
+];
 
 function EntryDialog({
   edit,
@@ -30,53 +48,46 @@ function EntryDialog({
   const dispatch = useAppDispatch();
   const isEdit = !!edit;
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [form, setForm] = useState<FormState>({
-    key: edit?.key ?? "",
-    value: edit?.value ?? "",
-  });
+  const form = useForm<EntryValues>({ defaultValues: { key: edit?.key ?? "", value: edit?.value ?? "" }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
-  const handleSubmit = async () => {
-    const key = form.key.trim();
-    if (!KEY_RE.test(key)) {
-      setError("Key must match [A-Z][A-Z0-9_]* (e.g. BASE_URL)");
-      return;
-    }
+  const onSubmit = form.handleSubmit(async ({ key, value }) => {
+    const nextKey = key.trim().toUpperCase();
     setSaving(true);
-    setError("");
     try {
       if (isEdit && edit) {
-        await dispatch(updateKvEntry({ id: edit.id, key, value: form.value })).unwrap();
+        await dispatch(updateKvEntry({ id: edit.id, key: nextKey, value })).unwrap();
         message.success("Updated");
       } else {
-        await dispatch(createKvEntry({ key, value: form.value })).unwrap();
+        await dispatch(createKvEntry({ key: nextKey, value })).unwrap();
         message.success("Created");
       }
       await dispatch(fetchKvStore());
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
-    <Modal open title={isEdit ? "Edit entry" : "New entry"} onCancel={onClose} onOk={handleSubmit} okText={isEdit ? "Save" : "Create"} confirmLoading={saving} destroyOnHidden>
-      <RenderIf condition={!!error}>
-        <Alert type="error" description={error} showIcon className="mb-3" />
-      </RenderIf>
+    <Modal open title={isEdit ? "Edit entry" : "New entry"} onCancel={onClose} onOk={() => void onSubmit()} okText={isEdit ? "Save" : "Create"} confirmLoading={saving} destroyOnHidden>
       <p className="mb-3 text-sm text-muted-foreground">
         Plaintext config for tools via <code className="text-xs">ctx.kv.get(&quot;KEY&quot;)</code>. Prefer Secrets for credentials.
       </p>
-      <Form layout="vertical">
-        <Form.Item label="Key" required>
-          <Input autoFocus value={form.key} placeholder="BASE_URL" onChange={(e) => setForm((f) => ({ ...f, key: e.target.value.toUpperCase() }))} />
-        </Form.Item>
-        <Form.Item label="Value" required>
-          <Input.TextArea rows={3} value={form.value} placeholder="https://api.example.com" onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} />
-        </Form.Item>
-      </Form>
+      <form onSubmit={onSubmit}>
+        <SchemaForm
+          form={form}
+          items={ENTRY_ITEMS}
+          valuesChangeDebounce={0}
+          onValuesChange={(all) => {
+            const upper = all.key.toUpperCase();
+            if (upper !== all.key) form.setValue("key", upper);
+          }}
+        />
+        {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
+      </form>
     </Modal>
   );
 }
@@ -88,11 +99,10 @@ export default function KvStorePage() {
   const page = useAppSelector((s) => s.kvStore.filter.page) ?? 1;
   const filterSearch = useAppSelector((s) => s.kvStore.filter.search) ?? "";
   const [dialog, setDialog] = useState<"create" | KvStoreEntry | null>(null);
-  const [searchInput, setSearchInput] = useState("");
   const tableHostRef = useRef<HTMLDivElement>(null);
   const [scrollY, setScrollY] = useState(400);
 
-  const hasSearch = searchInput.trim().length > 0 || filterSearch.length > 0;
+  const hasSearch = filterSearch.length > 0;
   const showTable = total > 0 || items.length > 0 || hasSearch;
   const showPagination = total > PAGE_SIZE;
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -101,16 +111,6 @@ export default function KvStorePage() {
   useEffect(() => {
     dispatch(fetchKvStore());
   }, [dispatch]);
-
-  useEffect(() => {
-    const q = searchInput.trim();
-    if (q === filterSearch) return;
-    const timer = setTimeout(() => {
-      dispatch(updateKvStoreFilter({ search: q || undefined, page: 1 }));
-      dispatch(fetchKvStore({ page: 1, search: q || undefined }));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [dispatch, searchInput, filterSearch]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
@@ -135,6 +135,12 @@ export default function KvStorePage() {
     measure();
     return () => ro.disconnect();
   }, [items.length]);
+
+  const handleSearch = (q: string) => {
+    if (q === filterSearch) return;
+    dispatch(updateKvStoreFilter({ search: q || undefined, page: 1 }));
+    dispatch(fetchKvStore({ page: 1, search: q || undefined }));
+  };
 
   const handlePageChange = (nextPage: number) => {
     dispatch(updateKvStoreFilter({ page: nextPage }));
@@ -186,24 +192,14 @@ export default function KvStorePage() {
       <div className="mb-6 flex shrink-0 items-center justify-between gap-4">
         <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">KV Store</h1>
         <div className="flex shrink-0 items-center gap-2">
-          <Input allowClear value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search…" prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} className="w-56" />
+          <SearchInput onChange={handleSearch} className="w-56" />
           <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialog("create")}>
             Add
           </Button>
         </div>
       </div>
 
-      <RenderIf
-        condition={showTable}
-        fallback={
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-5 py-16">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-              <KeyMinimalisticIcon size={28} />
-            </div>
-            <Empty description="No entries yet" />
-          </div>
-        }
-      >
+      <RenderIf condition={showTable} fallback={<Empty className="rounded-xl border border-dashed border-border px-5 py-16" description="No entries yet" />}>
         <div className="flex min-h-0 flex-1 flex-col">
           <div ref={tableHostRef} className="min-h-0 flex-1 overflow-hidden">
             <RenderIf

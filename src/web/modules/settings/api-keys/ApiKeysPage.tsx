@@ -1,10 +1,10 @@
+import { Button, Popconfirm, Table, Tag, Tooltip, message } from "@nonla-agents/ui";
+import type { ColumnsType } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
 import { LockPasswordIcon } from "@solar-icons/react/dynamic/lock-password";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Popconfirm, Table, Tag, Tooltip, message } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "src/common/api";
 import type { AgentListItem, ApiKey, DatatableProject, KvStoreEntry } from "src/common/types";
@@ -140,7 +140,7 @@ export function ApiKeysPage() {
         </Button>
       </div>
 
-      <Table<ApiKey>
+      <Table
         rowKey="id"
         columns={columns}
         dataSource={keys}

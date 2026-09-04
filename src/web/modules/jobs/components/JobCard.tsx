@@ -1,6 +1,6 @@
+import { Popover } from "@nonla-agents/ui";
 import { AlarmIcon } from "@solar-icons/react/dynamic/alarm";
 import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
-import { Popover } from "antd";
 import { cn } from "src/common/lib/cn";
 import type { Job } from "src/common/types";
 import { formatDateTime, relativeTime } from "src/common/utils/date";

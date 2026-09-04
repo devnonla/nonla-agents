@@ -1,3 +1,4 @@
+import { Button } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
 import { useEffect, useState } from "react";
@@ -5,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import type { AgentListItem } from "src/common/types";
 import { MissingProviderCallout } from "src/components/MissingProviderCallout";
 import { PageShell } from "src/components/PageShell";
-import { RawButton } from "src/components/RawButton";
 import { fetchAgents } from "src/modules/agents/common/agentsSlice";
 import { fetchTeams } from "src/modules/agents/common/teamsSlice";
 import type { TeamWithMembers } from "src/modules/agents/common/teamsSlice";
@@ -48,14 +48,14 @@ export default function AgentsPage() {
           <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Agents</h1>
           <div className="flex items-center gap-2">
             <NewTeamDialog>
-              <RawButton type="default" icon={<UsersGroupTwoRoundedIcon size={16} />}>
+              <Button type="default" icon={<UsersGroupTwoRoundedIcon size={14} />}>
                 New Team
-              </RawButton>
+              </Button>
             </NewTeamDialog>
             <NewAgentDialog>
-              <RawButton type="primary" icon={<AddIcon size={16} />}>
+              <Button type="primary" icon={<AddIcon size={14} />}>
                 New Agent
-              </RawButton>
+              </Button>
             </NewAgentDialog>
           </div>
         </div>

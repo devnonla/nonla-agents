@@ -1,4 +1,4 @@
-import { Input, Select, Switch } from "antd";
+import { Input, Select, Switch } from "@nonla-agents/ui";
 import type { DatatableColumn } from "src/common/types";
 import { DATETIME_PICKER_FORMAT, fromPickerDate, toPickerDate } from "src/common/utils/date";
 import DatePicker from "src/components/DatePicker";
@@ -11,7 +11,7 @@ export function cellEditor(col: DatatableColumn, value: unknown, onChange: (v: u
     case "boolean":
       return <Switch checked={Boolean(value)} onChange={(v) => onChange(v)} />;
     case "datetime":
-      return <DatePicker showTime allowClear needConfirm changeOnBlur={false} previewValue={false} className="w-full" format={DATETIME_PICKER_FORMAT} value={toPickerDate(typeof value === "string" ? value : null, timeZone)} onChange={(d) => onChange(fromPickerDate(d, timeZone))} />;
+      return <DatePicker showTime allowClear needConfirm className="w-full" format={DATETIME_PICKER_FORMAT} value={toPickerDate(typeof value === "string" ? value : null, timeZone)} onChange={(d) => onChange(fromPickerDate(d, timeZone))} />;
     case "select":
       return <Select className="w-full" allowClear value={typeof value === "string" ? value : undefined} onChange={(v) => onChange(v ?? null)} options={(col.options ?? []).map((o) => ({ value: o, label: o }))} />;
     case "json":

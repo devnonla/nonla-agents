@@ -1,8 +1,8 @@
+import type { TooltipPlacement } from "@nonla-agents/ui";
+import { Popover } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { Popover } from "antd";
-import type { TooltipPlacement } from "antd/es/tooltip";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmProvider } from "src/common/types";
 import { ProviderIcon } from "src/components/ProviderIcon";

@@ -5,37 +5,36 @@
  * Creates the first admin account + sets system timezone.
  */
 
-import { Button, Form, Input, Select, message } from "antd";
-import { useEffect, useState } from "react";
+import { Button, EFormItemType, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { apiClient, setAuthToken } from "src/common/api";
 import type { User } from "src/common/types";
 import { AppLogo } from "src/components/AppLogo";
-import RenderIf from "src/components/RenderIf";
 
 interface TimezoneItem {
   tz: string;
   offset: string;
 }
 
-interface TimezoneOption {
-  value: string;
-  label: string;
-}
+type SetupValues = {
+  name: string;
+  username: string;
+  password: string;
+  confirmPassword: string;
+  timezone: string;
+};
+
+const EMPTY: SetupValues = { name: "", username: "", password: "", confirmPassword: "", timezone: "" };
 
 export default function SetupPage() {
   const navigate = useNavigate();
-
-  const [username, setUsername] = useState("");
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [timezone, setTimezone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [timezoneOptions, setTimezoneOptions] = useState<TimezoneOption[]>([]);
   const [checking, setChecking] = useState(true);
+  const [timezoneChoices, setTimezoneChoices] = useState<{ value: string; label: string }[]>([]);
+  const form = useForm<SetupValues>({ defaultValues: EMPTY, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
   useEffect(() => {
     apiClient
@@ -55,63 +54,100 @@ export default function SetupPage() {
     apiClient
       .get<TimezoneItem[]>("/api/settings/timezones")
       .then((items) => {
-        const options = items.map((item) => ({
-          value: item.tz,
-          label: `${item.tz} (${item.offset})`,
-        }));
-        setTimezoneOptions(options);
-
+        setTimezoneChoices(items.map((item) => ({ value: item.tz, label: `${item.tz} (${item.offset})` })));
         const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (detected && items.some((i) => i.tz === detected)) {
-          setTimezone(detected);
+          form.setValue("timezone", detected);
         }
       })
       .catch(() => {
         /* user can still select timezone */
       });
-  }, []);
+  }, [form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const accountItems: TFormItemProps[] = useMemo(
+    () => [
+      {
+        type: EFormItemType.Input,
+        name: "name",
+        label: "Name",
+        colSpan: 12,
+        rules: {
+          required: "Name is required",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+        },
+        options: { placeholder: "Your display name", autoComplete: "name", autoFocus: true, disabled: loading },
+      },
+      {
+        type: EFormItemType.Input,
+        name: "username",
+        label: "Username",
+        colSpan: 12,
+        rules: {
+          required: "Username is required",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Username is required"),
+        },
+        options: { placeholder: "Choose a username", autoComplete: "username", disabled: loading },
+      },
+      {
+        type: EFormItemType.Input,
+        name: "password",
+        label: "Password",
+        colSpan: 12,
+        rules: {
+          required: "Password is required",
+          minLength: { value: 8, message: "Password must be at least 8 characters" },
+        },
+        options: { type: "password", placeholder: "At least 8 characters", autoComplete: "new-password", disabled: loading },
+      },
+      {
+        type: EFormItemType.Input,
+        name: "confirmPassword",
+        label: "Confirm Password",
+        colSpan: 12,
+        rules: {
+          required: "Please confirm your password",
+          validate: (value, values) => value === (values as SetupValues).password || "Passwords do not match",
+        },
+        options: { type: "password", placeholder: "Re-enter your password", autoComplete: "new-password", disabled: loading },
+      },
+    ],
+    [loading],
+  );
 
-    if (!username || !name || !password) {
-      setError("Please fill in all fields");
-      return;
-    }
+  const timezoneItems: TFormItemProps[] = useMemo(
+    () => [
+      {
+        type: EFormItemType.Select,
+        name: "timezone",
+        label: "Timezone",
+        colSpan: 12,
+        choices: timezoneChoices,
+        rules: { required: "Please select a timezone" },
+        options: { placeholder: "Select timezone...", searchable: true, disabled: loading },
+      },
+    ],
+    [timezoneChoices, loading],
+  );
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (!timezone) {
-      setError("Please select a timezone");
-      return;
-    }
-
+  const onSubmit = form.handleSubmit(async ({ name, username, password, timezone }) => {
     setLoading(true);
     try {
       const result = await apiClient.post<{ token: string; refreshToken: string; user: User }>("/api/auth/setup", {
-        username,
-        name,
+        username: username.trim(),
+        name: name.trim(),
         password,
         timezone,
       });
       setAuthToken(result.token, result.refreshToken);
       message.success(`Welcome, ${result.user.name}! Setup complete.`);
       navigate("/", { replace: true });
-    } catch (err: any) {
-      setError(err.message || "Setup failed");
+    } catch (err: unknown) {
+      form.setError("root", { message: err instanceof Error ? err.message : "Setup failed" });
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   if (checking) return null;
 
@@ -127,50 +163,30 @@ export default function SetupPage() {
             <p className="text-sm text-muted-foreground text-center">Create your admin account and configure the system</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="px-6 pb-6 pt-2">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Admin Account</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-
-              <Form.Item label="Name" layout="vertical" required className="mb-0!">
-                <Input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your display name" autoComplete="name" autoFocus disabled={loading} />
-              </Form.Item>
-
-              <Form.Item label="Username" layout="vertical" required className="mb-0!">
-                <Input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Choose a username" autoComplete="username" disabled={loading} />
-              </Form.Item>
-
-              <Form.Item label="Password" layout="vertical" required className="mb-0!">
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" autoComplete="new-password" disabled={loading} />
-              </Form.Item>
-
-              <Form.Item label="Confirm Password" layout="vertical" required className="mb-0!">
-                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" autoComplete="new-password" disabled={loading} />
-              </Form.Item>
-
-              <div className="flex items-center gap-2 mt-2 mb-1">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">System Settings</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-
-              <Form.Item label="Timezone" layout="vertical" required className="mb-0!">
-                <Select value={timezone || undefined} onChange={(val) => setTimezone(val)} options={timezoneOptions} placeholder="Select timezone..." showSearch={{ optionFilterProp: "label" }} className="w-full" disabled={loading} />
-              </Form.Item>
-
-              <RenderIf condition={!!error}>
-                <div className="px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <p className="text-xs text-destructive font-medium">{error}</p>
-                </div>
-              </RenderIf>
-
-              <Button htmlType="submit" type="primary" size="large" block loading={loading} className="mt-1">
-                Complete Setup
-              </Button>
+          <form onSubmit={onSubmit} className="px-6 pb-6 pt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Admin Account</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
+            <SchemaForm form={form} items={accountItems} />
+
+            <div className="flex items-center gap-2 mt-2 mb-1">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">System Settings</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <SchemaForm form={form} items={timezoneItems} />
+
+            {rootError ? (
+              <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
+                <p className="text-xs font-medium text-destructive">{rootError}</p>
+              </div>
+            ) : null}
+
+            <Button htmlType="submit" type="primary" size="large" block loading={loading} className="mt-1">
+              Complete Setup
+            </Button>
           </form>
         </div>
 

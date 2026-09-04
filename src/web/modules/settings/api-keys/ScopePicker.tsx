@@ -1,5 +1,5 @@
+import { Checkbox, Input, Switch } from "@nonla-agents/ui";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { Checkbox, Input, Switch } from "antd";
 import { type ReactNode, useMemo, useState } from "react";
 
 function toggleIds(current: string[], ids: string[], checked: boolean): string[] {
@@ -77,7 +77,7 @@ export function ScopePicker<T>({
             ) : (
               <>
                 <div className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-muted/40" onClick={() => onChange(toggleIds(selectedIds, visibleIds, !allChecked))}>
-                  <Checkbox checked={allChecked} indeterminate={someChecked} onClick={(e) => e.stopPropagation()} onChange={(e) => onChange(toggleIds(selectedIds, visibleIds, e.target.checked))} />
+                  <Checkbox checked={allChecked} indeterminate={someChecked} onClick={(e) => e.stopPropagation()} onChange={(checked) => onChange(toggleIds(selectedIds, visibleIds, checked))} />
                   <span className="text-[12px] text-muted-foreground">Select all</span>
                 </div>
                 {visible.map((item) => {
@@ -85,7 +85,7 @@ export function ScopePicker<T>({
                   const checked = selected.has(id);
                   return (
                     <div key={id} className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 hover:bg-muted/40" onClick={() => onChange(toggleIds(selectedIds, [id], !checked))}>
-                      <Checkbox checked={checked} onClick={(e) => e.stopPropagation()} onChange={(e) => onChange(toggleIds(selectedIds, [id], e.target.checked))} />
+                      <Checkbox checked={checked} onClick={(e) => e.stopPropagation()} onChange={(checked) => onChange(toggleIds(selectedIds, [id], checked))} />
                       {renderItem ? renderItem(item) : <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">{getLabel(item)}</span>}
                     </div>
                   );

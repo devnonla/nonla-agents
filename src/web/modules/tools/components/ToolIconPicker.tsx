@@ -1,6 +1,6 @@
+import { Button, Input, Popover, Spin, Tooltip } from "@nonla-agents/ui";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
 import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
-import { Button, Input, Popover, Spin, Tooltip } from "antd";
 import type { ReactNode, UIEvent } from "react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { fetchLucideSvg, fetchLucideSvgs, getLucideIconNames } from "../common/iconify";

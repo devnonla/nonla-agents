@@ -1,9 +1,9 @@
+import { Button, Dropdown, Tag } from "@nonla-agents/ui";
+import type { MenuProps } from "@nonla-agents/ui";
 import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Dropdown, Tag } from "antd";
-import type { MenuProps } from "antd";
 import { cn } from "src/common/lib/cn";
 import type { DatatableProject } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

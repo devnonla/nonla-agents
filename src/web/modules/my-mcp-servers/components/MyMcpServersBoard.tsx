@@ -1,5 +1,4 @@
-import { CpuIcon } from "@solar-icons/react/dynamic/cpu";
-import { Alert } from "antd";
+import { Alert, Empty } from "@nonla-agents/ui";
 import { useEffect, useState } from "react";
 import type { MyMcpServer } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
@@ -50,18 +49,7 @@ export function MyMcpServersBoard({ createOpen, onCreateOpenChange }: { createOp
         <Alert type="error" description={error} showIcon className="mb-4 border-destructive/30 bg-destructive/10" />
       </RenderIf>
 
-      <RenderIf
-        condition={servers.length > 0}
-        fallback={
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-5 py-16">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-edge-mcp/12 text-edge-mcp">
-              <CpuIcon weight="BoldDuotone" size={28} />
-            </div>
-            <p className="mb-1 text-base font-semibold text-foreground">No MCP servers yet</p>
-            <p className="m-0 max-w-sm text-center text-sm text-muted-foreground">Pick tools, then connect Cursor or Claude Code.</p>
-          </div>
-        }
-      >
+      <RenderIf condition={servers.length > 0} fallback={<Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No MCP servers yet" />}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {servers.map((server) => (
             <MyMcpServerCard key={server.id} server={server} toggling={togglingIds.has(server.id)} onOpen={() => setDrawerId(server.id)} onToggleActive={(checked) => void handleToggleActive(server.id, checked)} />

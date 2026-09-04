@@ -1,5 +1,5 @@
+import { BotIcon } from "@solar-icons/react/dynamic/bot";
 import { ChatRoundIcon } from "@solar-icons/react/dynamic/chat-round";
-import { FaceScanSquareIcon } from "@solar-icons/react/dynamic/face-scan-square";
 import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { PlugCircleIcon } from "@solar-icons/react/dynamic/plug-circle";
 import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
@@ -31,7 +31,7 @@ const JUMPS = [
     to: "/agents",
     title: "Agents",
     blurb: "Build, prompt, and publish your crew.",
-    icon: FaceScanSquareIcon,
+    icon: BotIcon,
     tone: "text-brand-soft",
   },
   {
@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
         <div className="mt-7 flex flex-wrap gap-2">
           <button type="button" onClick={() => navigate("/agents")} className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-background/60 px-3 py-2 text-sm text-foreground transition-colors hover:border-brand/40 hover:bg-accent cursor-pointer">
-            <FaceScanSquareIcon size={16} className="text-brand-soft" />
+            <BotIcon size={16} className="text-brand-soft" />
             <span className="font-medium">{agents.length}</span>
             <span className="text-muted-foreground">agents</span>
           </button>

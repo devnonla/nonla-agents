@@ -1,11 +1,12 @@
+import { EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { BookBookmarkIcon } from "@solar-icons/react/dynamic/book-bookmark";
 import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
 import { FileTextIcon } from "@solar-icons/react/dynamic/file-text";
 import { FolderIcon } from "@solar-icons/react/dynamic/folder";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
-import { Form, Input, Modal, message } from "antd";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { cn } from "src/common/lib/cn";
 import type { SkillReference } from "src/common/types";
 import { slugify } from "src/common/utils/slug";
@@ -25,7 +26,33 @@ interface SkillFileTreeProps {
 const PANEL_DEFAULT = 220;
 const PANEL_MIN = 160;
 const PANEL_MAX = 420;
-const REF_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+type RefValues = { title: string; name: string };
+
+const REF_ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "title",
+    label: "Title",
+    colSpan: 12,
+    rules: {
+      required: "Title is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Title is required"),
+    },
+    options: { placeholder: "Edge cases" },
+  },
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Name",
+    colSpan: 12,
+    rules: {
+      required: "Name is required",
+      pattern: { value: "^[a-z0-9]+(?:-[a-z0-9]+)*$", message: "Name must be lowercase kebab-case (a-z, 0-9, hyphens)" },
+    },
+    options: { placeholder: "edge-cases" },
+  },
+];
 
 export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, onSelect, onCreateReference, onDeleteReference }: SkillFileTreeProps) {
   const sortedRefs = useMemo(() => [...references].sort((a, b) => a.name.localeCompare(b.name)), [references]);
@@ -33,8 +60,8 @@ export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, on
   const [isDragging, setIsDragging] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
-  const [form, setForm] = useState({ name: "", title: "" });
+  const form = useForm<RefValues>({ defaultValues: { title: "", name: "" }, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
   const nameTouched = useRef(false);
   const dragRef = useRef({ active: false, startX: 0, startW: 0 });
 
@@ -62,38 +89,28 @@ export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, on
 
   const openCreate = () => {
     nameTouched.current = false;
-    setForm({ name: "", title: "" });
-    setCreateError("");
+    form.reset({ name: "", title: "" });
     setCreateOpen(true);
   };
 
-  const handleCreate = async () => {
-    const title = form.title.trim();
-    const name = form.name.trim();
-    if (!title) {
-      setCreateError("Title is required");
-      return;
-    }
-    if (!name) {
-      setCreateError("Name is required");
-      return;
-    }
-    if (!REF_NAME_RE.test(name)) {
-      setCreateError("Name must be lowercase kebab-case (a-z, 0-9, hyphens)");
-      return;
-    }
+  useEffect(() => {
+    if (!createOpen) return;
+    const t = window.setTimeout(() => form.setFocus("title"), 150);
+    return () => window.clearTimeout(t);
+  }, [createOpen, form]);
+
+  const onCreate = form.handleSubmit(async ({ title, name }) => {
     setCreating(true);
-    setCreateError("");
     try {
-      await onCreateReference({ name, title });
+      await onCreateReference({ name: name.trim(), title: title.trim() });
       setCreateOpen(false);
       message.success("Reference created");
     } catch (err: unknown) {
-      setCreateError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setCreating(false);
     }
-  };
+  });
 
   const handleDelete = (ref: SkillReference) => {
     Modal.confirm({
@@ -170,33 +187,21 @@ export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, on
 
       <div onMouseDown={startDrag} className={cn("z-10 h-full w-px shrink-0 cursor-col-resize transition-colors duration-150", isDragging ? "bg-brand/60" : "bg-border hover:bg-brand/40")} />
 
-      <Modal open={createOpen} title="New reference" onCancel={() => setCreateOpen(false)} onOk={() => void handleCreate()} okText="Create" confirmLoading={creating} destroyOnHidden>
-        {createError ? <p className="mb-3 text-sm text-destructive">{createError}</p> : null}
-        <Form layout="vertical">
-          <Form.Item label="Title" required>
-            <Input
-              value={form.title}
-              placeholder="Edge cases"
-              onChange={(e) => {
-                const title = e.target.value;
-                setForm((f) => ({
-                  title,
-                  name: nameTouched.current ? f.name : slugify(title),
-                }));
-              }}
-            />
-          </Form.Item>
-          <Form.Item label="Name" required extra="Lowercase kebab-case slug used in the path">
-            <Input
-              value={form.name}
-              placeholder="edge-cases"
-              onChange={(e) => {
-                nameTouched.current = true;
-                setForm((f) => ({ ...f, name: e.target.value }));
-              }}
-            />
-          </Form.Item>
-        </Form>
+      <Modal open={createOpen} title="New reference" onCancel={() => setCreateOpen(false)} onOk={() => void onCreate()} okText="Create" confirmLoading={creating} destroyOnHidden>
+        <form onSubmit={onCreate}>
+          <SchemaForm
+            form={form}
+            items={REF_ITEMS}
+            valuesChangeDebounce={0}
+            onValuesChange={(all) => {
+              const auto = slugify(all.title);
+              if (all.name !== auto && all.name !== "") nameTouched.current = true;
+              if (!nameTouched.current && all.name !== auto) form.setValue("name", auto);
+            }}
+          />
+          <p className="-mt-2 mb-3 text-xs text-muted-foreground">Lowercase kebab-case slug used in the path</p>
+          {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
+        </form>
       </Modal>
     </div>
   );

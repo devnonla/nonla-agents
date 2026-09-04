@@ -1,8 +1,8 @@
+import { Button, Popconfirm, Table, message } from "@nonla-agents/ui";
+import type { ColumnsType } from "@nonla-agents/ui";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { StarsIcon } from "@solar-icons/react/dynamic/stars";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Popconfirm, Table, message } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import { useMemo } from "react";
 import type { Skill } from "src/common/types";
 import { useAppDispatch } from "src/store/store";
@@ -19,10 +19,8 @@ export function SkillsTable({ skills, onNavigate }: { skills: Skill[]; onNavigat
         key: "name",
         width: 280,
         render: (name: string) => (
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-edge-skill/12 text-edge-skill">
-              <StarsIcon size={14} weight="BoldDuotone" />
-            </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <StarsIcon size={16} weight="BoldDuotone" className="shrink-0 text-edge-skill" />
             <span className="truncate text-sm font-medium text-foreground">{name}</span>
           </div>
         ),

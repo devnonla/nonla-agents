@@ -1,3 +1,4 @@
+import { Alert, Button, Drawer, Empty, Input, Popconfirm, Segmented, message } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
 import { ClipboardCheckIcon } from "@solar-icons/react/dynamic/clipboard-check";
@@ -7,13 +8,11 @@ import { PlugCircleIcon } from "@solar-icons/react/dynamic/plug-circle";
 import { RefreshCircleIcon } from "@solar-icons/react/dynamic/refresh-circle";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
 import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
-import { Alert, Button, Drawer, Empty, Input, Popconfirm, Segmented, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "src/common/api";
 import { cn } from "src/common/lib/cn";
 import type { McpServer } from "src/common/types";
 import { PageShell } from "src/components/PageShell";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import { MyMcpServersBoard } from "src/modules/my-mcp-servers/components/MyMcpServersBoard";
 import { useAppDispatch, useAppSelector } from "src/store/store";
@@ -133,9 +132,9 @@ export default function McpServersPage() {
             Add
           </Button>
         ) : (
-          <RawButton type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setMineCreateOpen(true)}>
+          <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setMineCreateOpen(true)}>
             New server
-          </RawButton>
+          </Button>
         )}
       </div>
 
@@ -147,18 +146,7 @@ export default function McpServersPage() {
             <Alert type="error" description={error} showIcon className="mb-4 border-destructive/30 bg-destructive/10" />
           </RenderIf>
 
-          <RenderIf
-            condition={servers.length > 0}
-            fallback={
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-5 py-16">
-                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-edge-mcp/12 text-edge-mcp">
-                  <PlugCircleIcon weight="BoldDuotone" size={28} />
-                </div>
-                <p className="mb-1 text-base font-semibold text-foreground">No servers yet</p>
-                <p className="m-0 max-w-sm text-center text-sm text-muted-foreground">Add a remote MCP endpoint to expose its tools to your agents.</p>
-              </div>
-            }
-          >
+          <RenderIf condition={servers.length > 0} fallback={<Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No servers yet" />}>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {servers.map((server) => (
                 <McpServerCard key={server.id} server={server} toggling={togglingIds.has(server.id)} onOpen={() => setDrawerId(server.id)} onToggleActive={(checked) => handleToggleActive(server.id, checked)} />
@@ -244,7 +232,7 @@ export default function McpServersPage() {
                             </ul>
                           }
                         >
-                          <Empty className="py-10" image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-sm text-muted-foreground">No matching tools</span>} />
+                          <Empty className="py-10" description={<span className="text-sm text-muted-foreground">No matching tools</span>} />
                         </RenderIf>
                       }
                     >

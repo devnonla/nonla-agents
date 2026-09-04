@@ -314,10 +314,10 @@ export default function PublicChatPage() {
     };
   }, [conversationId, agentId, setMessages]);
 
-  const verifyPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!enteredPassword || !agent) return;
+  const verifyPassword = async (password: string) => {
+    if (!password || !agent) return;
 
+    setEnteredPassword(password);
     setVerifying(true);
     setAuthError("");
 
@@ -325,7 +325,7 @@ export default function PublicChatPage() {
       const res = await fetch(`/api/public/agents/${agent.id}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: enteredPassword }),
+        body: JSON.stringify({ password }),
       });
       const data = await res.json();
       if (data.valid) {
@@ -417,7 +417,7 @@ export default function PublicChatPage() {
   if (error) return <ErrorScreen error={error} />;
 
   if (!isAuthenticated && agent?.requiresPassword) {
-    return <PasswordGate agentName={agent.name} enteredPassword={enteredPassword} onPasswordChange={setEnteredPassword} onSubmit={verifyPassword} authError={authError} verifying={verifying} />;
+    return <PasswordGate agentName={agent.name} onSubmit={verifyPassword} authError={authError} verifying={verifying} />;
   }
 
   if (!agent) return <ErrorScreen error="Agent unavailable" />;

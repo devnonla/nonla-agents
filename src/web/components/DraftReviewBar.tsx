@@ -1,8 +1,7 @@
+import { Button, Popconfirm } from "@nonla-agents/ui";
 import { AltArrowRightIcon } from "@solar-icons/react/dynamic/alt-arrow-right";
 import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { RestartIcon } from "@solar-icons/react/dynamic/restart";
-import { Popconfirm } from "antd";
-import { RawButton } from "src/components/RawButton";
 
 export interface DraftReviewConfirm {
   title: string;
@@ -51,27 +50,27 @@ export function DraftReviewBar({ onApprove, onDiscard, approving = false, discar
     <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
       {fileAware ? <span className="mr-1 max-w-40 truncate font-mono text-[11px] font-medium text-muted-foreground">{onChangedFile ? `${currentFile} · ${currentIndex + 1}/${changedFiles?.length}` : `${changedFiles?.length} files to review`}</span> : null}
       {showNext ? (
-        <RawButton size="xs" icon={<AltArrowRightIcon size={12} />} onClick={onReviewNext}>
+        <Button size="xs" icon={<AltArrowRightIcon size={12} />} onClick={onReviewNext}>
           {onChangedFile ? "Next file" : "Review next file"}
-        </RawButton>
+        </Button>
       ) : null}
       {showDecide ? (
         <>
           <Popconfirm title={discard.title} description={discard.description} okText="Discard" okType="danger" cancelText="Cancel" onConfirm={onDiscard} styles={{ root: { width: 280 } }}>
-            <RawButton size="xs" color="default" variant="filled" icon={<RestartIcon size={12} />} loading={discarding}>
+            <Button size="xs" color="default" variant="filled" icon={<RestartIcon size={12} />} loading={discarding}>
               Discard
-            </RawButton>
+            </Button>
           </Popconfirm>
           {approveConfirm ? (
-            <Popconfirm title={approveConfirm.title} description={approveConfirm.description} okText="Approve" okButtonProps={{ color: "green", variant: "solid" }} cancelText="Cancel" onConfirm={onApprove} styles={{ root: { width: 280 } }}>
-              <RawButton size="xs" color="green" variant="solid" icon={<CheckCircleIcon size={12} />} loading={approving}>
+            <Popconfirm title={approveConfirm.title} description={approveConfirm.description} okText="Approve" okButtonProps={{ type: "primary" }} cancelText="Cancel" onConfirm={onApprove} styles={{ root: { width: 280 } }}>
+              <Button size="xs" color="green" variant="solid" icon={<CheckCircleIcon size={12} />} loading={approving}>
                 Approve
-              </RawButton>
+              </Button>
             </Popconfirm>
           ) : (
-            <RawButton size="xs" color="green" variant="solid" icon={<CheckCircleIcon size={12} />} loading={approving} onClick={onApprove}>
+            <Button size="xs" color="green" variant="solid" icon={<CheckCircleIcon size={12} />} loading={approving} onClick={onApprove}>
               Approve
-            </RawButton>
+            </Button>
           )}
         </>
       ) : null}

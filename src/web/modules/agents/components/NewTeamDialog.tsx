@@ -1,7 +1,7 @@
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
-import { Button, Form, Input, Modal } from "antd";
-import type { InputRef } from "antd";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { createTeam } from "src/modules/agents/common/teamsSlice";
 import { useAppDispatch } from "src/store/store";
 
@@ -9,49 +9,55 @@ interface NewTeamDialogProps {
   children: ReactNode;
 }
 
+type NewTeamValues = {
+  name: string;
+};
+
+const ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Team Name",
+    colSpan: 12,
+    rules: {
+      required: "Please enter a team name",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Please enter a team name"),
+    },
+    options: { placeholder: "e.g. Marketing, Engineering…", autoComplete: "off" },
+  },
+];
+
+const EMPTY: NewTeamValues = { name: "" };
+
 export function NewTeamDialog({ children }: NewTeamDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const dispatch = useAppDispatch();
-  const nameRef = useRef<InputRef>(null);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const form = useForm<NewTeamValues>({ defaultValues: EMPTY, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
   useEffect(() => {
-    if (open) {
-      setName("");
-      setError("");
-      setSaving(false);
-      setTimeout(() => nameRef.current?.focus(), 150);
-    }
-  }, [open]);
+    if (!open) return;
+    form.reset(EMPTY);
+    setSaving(false);
+    const t = window.setTimeout(() => form.setFocus("name"), 150);
+    return () => window.clearTimeout(t);
+  }, [open, form]);
 
   const handleClose = () => setOpen(false);
 
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      setError("Please enter a team name");
-      nameRef.current?.focus();
-      return;
-    }
+  const onSubmit = form.handleSubmit(async ({ name }) => {
     setSaving(true);
-    setError("");
     try {
       await dispatch(createTeam({ name: name.trim() })).unwrap();
+      message.success("Team created");
       handleClose();
-    } catch {
-      setError("Failed to create team");
+    } catch (err: unknown) {
+      form.setError("root", { message: err instanceof Error ? err.message : "Failed to create team" });
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleCreate();
-    }
-  };
+  });
 
   return (
     <>
@@ -74,10 +80,10 @@ export function NewTeamDialog({ children }: NewTeamDialogProps) {
         }
         footer={
           <div className="flex justify-end gap-2.5">
-            <Button type="text" size="small" onClick={handleClose}>
+            <Button type="text" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="primary" size="small" loading={saving} onClick={handleCreate}>
+            <Button type="primary" htmlType="submit" form="new-team-form" loading={saving}>
               {saving ? "Creating…" : "Create Team"}
             </Button>
           </div>
@@ -85,32 +91,10 @@ export function NewTeamDialog({ children }: NewTeamDialogProps) {
         width={420}
         destroyOnHidden
       >
-        <div className="flex flex-col gap-4 pt-4">
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Team Name<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input
-              ref={nameRef}
-              id="new-team-name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError("");
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="e.g. Marketing, Engineering…"
-              autoComplete="off"
-            />
-          </Form.Item>
-
-          {error && <div className="text-[12px] text-destructive font-medium">{error}</div>}
-        </div>
+        <form id="new-team-form" className="pt-4" onSubmit={onSubmit}>
+          <SchemaForm form={form} items={ITEMS} />
+          {rootError ? <div className="mt-4 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
+        </form>
       </Modal>
     </>
   );

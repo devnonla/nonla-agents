@@ -14,6 +14,7 @@ function resolveBuildId(): string {
 }
 
 const APP_BUILD_ID = resolveBuildId();
+const apiPort = process.env.PORT ?? "8429";
 
 function buildMetaPlugin(buildId: string, version: string): Plugin {
   return {
@@ -33,10 +34,19 @@ export default defineConfig({
   root: import.meta.dirname,
   plugins: [tailwindcss(), react(), buildMetaPlugin(APP_BUILD_ID, pkg.version)],
   resolve: {
-    alias: {
+    alias: [
+      // Exact package entry — do not prefix-match subpaths like styles.css
+      {
+        find: /^@nonla-agents\/ui$/,
+        replacement: `${import.meta.dirname}/../nonla-ui/src/index.ts`,
+      },
+      {
+        find: "@nonla-agents/ui/styles.css",
+        replacement: `${import.meta.dirname}/../nonla-ui/src/styles.css`,
+      },
       // "src/common/..." → packages/web/common/...
-      src: import.meta.dirname,
-    },
+      { find: "src", replacement: import.meta.dirname },
+    ],
   },
   build: {
     outDir: "dist",
@@ -70,7 +80,7 @@ export default defineConfig({
           ) {
             return;
           }
-          // Remaining node_modules (react, antd, …) → one shared chunk
+          // Remaining node_modules (react, …) → one shared chunk
           // NOTE: do NOT split react/react-dom into a separate chunk — packages
           // in vendor-misc import react, creating a circular chunk dependency
           // that causes a runtime TypeError on the production build.
@@ -82,26 +92,25 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5888,
     open: true,
     proxy: {
       // Proxy API calls to the Hono server during dev
       "/api": {
-        target: "http://127.0.0.1:15888",
+        target: `http://127.0.0.1:${apiPort}`,
         changeOrigin: true,
       },
       // Public site HTML + assets (Hono React sites — not the SPA shell)
       "/public/sites": {
-        target: "http://127.0.0.1:15888",
+        target: `http://127.0.0.1:${apiPort}`,
         changeOrigin: true,
       },
       "/mcp/": {
-        target: "http://127.0.0.1:15888",
+        target: `http://127.0.0.1:${apiPort}`,
         changeOrigin: true,
       },
       // Proxy WebSocket connections to the Hono server
       "/ws": {
-        target: "ws://127.0.0.1:15888",
+        target: `ws://127.0.0.1:${apiPort}`,
         ws: true,
         changeOrigin: true,
       },

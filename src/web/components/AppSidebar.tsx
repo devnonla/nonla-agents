@@ -1,7 +1,9 @@
+import { Dropdown } from "@nonla-agents/ui";
+import type { MenuProps } from "@nonla-agents/ui";
 import { AlarmPlayIcon } from "@solar-icons/react/dynamic/alarm-play";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
+import { BotIcon } from "@solar-icons/react/dynamic/bot";
 import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
-import { FaceScanSquareIcon } from "@solar-icons/react/dynamic/face-scan-square";
 import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { HomeAngleIcon } from "@solar-icons/react/dynamic/home-angle";
 import { KeyMinimalisticIcon } from "@solar-icons/react/dynamic/key-minimalistic";
@@ -13,8 +15,6 @@ import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
 import { SettingsIcon } from "@solar-icons/react/dynamic/settings";
 import { StarsIcon } from "@solar-icons/react/dynamic/stars";
 import { UserIcon } from "@solar-icons/react/dynamic/user";
-import { Dropdown } from "antd";
-import type { MenuProps } from "antd";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient, clearAuthToken, getRefreshToken } from "src/common/api";
@@ -38,7 +38,7 @@ const ICON = { size: 16, weight: "BoldDuotone" as const };
 
 const WORKSPACE_NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: <HomeAngleIcon {...ICON} /> },
-  { to: "/agents", label: "Agents", icon: <FaceScanSquareIcon {...ICON} /> },
+  { to: "/agents", label: "Agents", icon: <BotIcon {...ICON} /> },
   { to: "/tools", label: "Tools", icon: <ProgrammingIcon {...ICON} /> },
   { to: "/skills", label: "Skills", icon: <StarsIcon {...ICON} /> },
   { to: "/mcp-servers", label: "MCP", icon: <Planet2Icon {...ICON} /> },
@@ -74,7 +74,7 @@ function SidebarNavLink({ item, end }: { item: NavItem; end?: boolean }) {
       to={item.to}
       end={end}
       title={item.label}
-      className={({ isActive }) => cn("group flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md px-3 text-left text-base no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "font-normal text-sidebar-foreground hover:bg-muted")}
+      className={({ isActive }) => cn("group flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "font-normal text-sidebar-foreground hover:bg-muted")}
     >
       {({ isActive }) => (
         <>

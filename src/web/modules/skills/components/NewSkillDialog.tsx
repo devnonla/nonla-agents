@@ -1,48 +1,67 @@
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { Button, Form, Input, Modal, message } from "antd";
-import type { InputRef } from "antd";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import type { Skill } from "src/common/types";
 import { useAppDispatch } from "src/store/store";
 import { defaultSkillTemplate } from "../common/frontmatter";
 import { createSkill } from "../common/skillsSlice";
 
+type NewSkillValues = {
+  name: string;
+  description: string;
+};
+
+const ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Name",
+    colSpan: 12,
+    rules: {
+      required: "Name is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+    },
+    options: { placeholder: "Code Review", autoComplete: "off" },
+  },
+  {
+    type: EFormItemType.Textarea,
+    name: "description",
+    label: "Description",
+    colSpan: 12,
+    rules: {
+      required: "Description is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Description is required"),
+    },
+    options: { placeholder: "When to use this skill (injected into the agent prompt)", rows: 3 },
+  },
+];
+
+const EMPTY: NewSkillValues = { name: "", description: "" };
+
 export function NewSkillDialog({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const nameRef = useRef<InputRef>(null);
+  const form = useForm<NewSkillValues>({ defaultValues: EMPTY, mode: "onSubmit" });
+  const rootError = form.formState.errors.root?.message;
 
   useEffect(() => {
-    if (open) {
-      setName("");
-      setDescription("");
-      setError("");
-      setSaving(false);
-      setTimeout(() => nameRef.current?.focus(), 150);
-    }
-  }, [open]);
+    if (!open) return;
+    form.reset(EMPTY);
+    setSaving(false);
+    const t = window.setTimeout(() => form.setFocus("name"), 150);
+    return () => window.clearTimeout(t);
+  }, [open, form]);
 
   const handleClose = () => setOpen(false);
 
-  const handleCreate = async () => {
+  const onSubmit = form.handleSubmit(async ({ name, description }) => {
     const trimmedName = name.trim();
     const trimmedDescription = description.trim();
-    if (!trimmedName) {
-      setError("Name is required");
-      return;
-    }
-    if (!trimmedDescription) {
-      setError("Description is required");
-      return;
-    }
     setSaving(true);
-    setError("");
     try {
       const created = (await dispatch(
         createSkill({
@@ -55,11 +74,11 @@ export function NewSkillDialog({ children }: { children: ReactNode }) {
       handleClose();
       navigate(`/skills/${created.id}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
     <>
@@ -84,59 +103,19 @@ export function NewSkillDialog({ children }: { children: ReactNode }) {
         destroyOnHidden
         footer={
           <div className="flex justify-end gap-2.5">
-            <Button type="text" size="small" onClick={handleClose}>
+            <Button type="text" size="medium" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="primary" size="small" loading={saving} onClick={handleCreate}>
+            <Button type="primary" size="medium" htmlType="submit" form="new-skill-form" loading={saving}>
               {saving ? "Creating…" : "Create"}
             </Button>
           </div>
         }
       >
-        <div className="flex flex-col gap-4 pt-4">
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Name<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input
-              ref={nameRef}
-              value={name}
-              placeholder="Code Review"
-              autoComplete="off"
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError("");
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Description<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input.TextArea
-              rows={3}
-              value={description}
-              placeholder="When to use this skill (injected into the agent prompt)"
-              onChange={(e) => {
-                setDescription(e.target.value);
-                if (error) setError("");
-              }}
-            />
-          </Form.Item>
-
-          {error && <div className="text-[12px] font-medium text-destructive">{error}</div>}
-        </div>
+        <form id="new-skill-form" className="pt-4" onSubmit={onSubmit}>
+          <SchemaForm form={form} items={ITEMS} />
+          {rootError ? <div className="mt-4 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
+        </form>
       </Modal>
     </>
   );

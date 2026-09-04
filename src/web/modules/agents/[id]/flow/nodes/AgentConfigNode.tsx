@@ -3,11 +3,11 @@
 // Contains: avatar, name, description, model picker, instruct button.
 // Receives edges from tools (right-top) and callable agents (right-bottom).
 
+import { Popover, Switch } from "@nonla-agents/ui";
 import { AltArrowRightIcon } from "@solar-icons/react/dynamic/alt-arrow-right";
 import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
 import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { Popover, Switch } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AvatarEditorPanel } from "src/components/AvatarEditorPanel";

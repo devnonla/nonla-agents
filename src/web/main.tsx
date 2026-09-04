@@ -1,7 +1,6 @@
-import { ConfigProvider } from "antd";
+import { App as NonlaApp } from "@nonla-agents/ui";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
-import { antdModalConfig, antdPopoverConfig, antdTheme } from "src/antd/theme";
 import { initReloadOnStaleDeploy } from "src/common/reloadOnStaleDeploy";
 import { initScrollbarHover } from "src/common/scrollbarHover";
 import { initTheme } from "src/common/theme";
@@ -13,16 +12,6 @@ initTheme();
 initScrollbarHover();
 initReloadOnStaleDeploy();
 
-// Static Modal.confirm / message / notification render outside the React tree —
-// wrap their holders so they inherit the dark theme.
-ConfigProvider.config({
-  holderRender: (children) => (
-    <ConfigProvider theme={antdTheme} modal={antdModalConfig} popover={antdPopoverConfig}>
-      {children}
-    </ConfigProvider>
-  ),
-});
-
 const rootEl = document.getElementById("root");
 if (!rootEl) {
   throw new Error("Root element not found");
@@ -30,8 +19,8 @@ if (!rootEl) {
 
 createRoot(rootEl).render(
   <Provider store={store}>
-    <ConfigProvider theme={antdTheme} modal={antdModalConfig} popover={antdPopoverConfig}>
+    <NonlaApp>
       <App />
-    </ConfigProvider>
+    </NonlaApp>
   </Provider>,
 );

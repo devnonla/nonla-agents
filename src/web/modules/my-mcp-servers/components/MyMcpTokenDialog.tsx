@@ -1,7 +1,6 @@
+import { Alert, Button, Input, Modal, message } from "@nonla-agents/ui";
 import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
-import { Alert, Input, Modal, message } from "antd";
 import type { MyMcpServer } from "src/common/types";
-import { RawButton } from "src/components/RawButton";
 import { claudeCodeMcpSnippet, cursorMcpSnippet, mcpEndpointUrl } from "../common/snippets";
 
 export function MyMcpTokenDialog({ server, onClose }: { server: MyMcpServer; onClose: () => void }) {
@@ -25,9 +24,9 @@ export function MyMcpTokenDialog({ server, onClose }: { server: MyMcpServer; onC
       title="Copy this token now"
       onCancel={onClose}
       footer={
-        <RawButton type="primary" onClick={onClose}>
+        <Button type="primary" onClick={onClose}>
           Done
-        </RawButton>
+        </Button>
       }
       destroyOnHidden
       width={640}
@@ -38,7 +37,7 @@ export function MyMcpTokenDialog({ server, onClose }: { server: MyMcpServer; onC
           <span className="text-xs text-muted-foreground">Token</span>
           <div className="flex items-center gap-2">
             <Input value={secret} readOnly className="font-mono text-[12px]" />
-            <RawButton type="text" icon={<ClipboardIcon size={14} />} onClick={() => void copy(secret, "Token")} aria-label="Copy token" />
+            <Button type="text" icon={<ClipboardIcon size={14} />} onClick={() => void copy(secret, "Token")} aria-label="Copy token" />
           </div>
         </div>
         <SnippetBlock title="Cursor — mcp.json" value={cursor} onCopy={() => void copy(cursor, "Cursor snippet")} />
@@ -53,9 +52,9 @@ function SnippetBlock({ title, value, onCopy }: { title: string; value: string; 
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
         <span className="text-xs text-muted-foreground">{title}</span>
-        <RawButton type="text" size="small" icon={<ClipboardIcon size={13} />} onClick={onCopy}>
+        <Button type="text" size="small" icon={<ClipboardIcon size={13} />} onClick={onCopy}>
           Copy
-        </RawButton>
+        </Button>
       </div>
       <pre className="m-0 max-h-48 overflow-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-foreground">{value}</pre>
     </div>

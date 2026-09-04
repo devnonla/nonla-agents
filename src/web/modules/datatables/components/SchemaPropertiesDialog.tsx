@@ -1,7 +1,7 @@
+import { Button, Input, Modal, Popconfirm, Select, Switch, message } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { RestartIcon } from "@solar-icons/react/dynamic/restart";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Input, Modal, Popconfirm, Select, Switch, message } from "antd";
 import { useMemo, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { DatatableColumn, DatatableColumnType, DatatableTable } from "src/common/types";

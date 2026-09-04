@@ -1,10 +1,10 @@
+import type { MenuProps } from "@nonla-agents/ui";
+import { Dropdown, Modal, message } from "@nonla-agents/ui";
 import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
 import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
 import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
-import { Dropdown, Modal, message } from "antd";
-import type { MenuProps } from "antd";
 import { useMemo, useState } from "react";
 import type { Agent, AgentListItem } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

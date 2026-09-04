@@ -1,12 +1,11 @@
+import { Button, Empty, Input } from "@nonla-agents/ui";
 import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { Empty, Input } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Skill } from "src/common/types";
 import { MissingProviderCallout } from "src/components/MissingProviderCallout";
 import { PageShell } from "src/components/PageShell";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 import { fetchSkills } from "./common/skillsSlice";
@@ -36,9 +35,9 @@ export default function SkillsPage() {
       <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Skills</h1>
         <NewSkillDialog>
-          <RawButton type="primary" icon={<AddIcon size={16} />}>
+          <Button type="primary" icon={<AddIcon size={16} />}>
             New skill
-          </RawButton>
+          </Button>
         </NewSkillDialog>
       </div>
 
@@ -53,7 +52,7 @@ export default function SkillsPage() {
       </RenderIf>
 
       <RenderIf condition={items.length > 0 && filtered.length === 0}>
-        <Empty className="py-12" image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matches" />
+        <Empty className="py-12" description="No matches" />
       </RenderIf>
 
       <RenderIf condition={filtered.length > 0}>

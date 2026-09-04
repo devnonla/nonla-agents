@@ -31,9 +31,10 @@ const SiteEditorPage = lazy(() => import("./modules/sites/[id]/SiteEditorPage"))
 const JobsPage = lazy(() => import("./modules/jobs/JobsPage"));
 const JobEditPage = lazy(() => import("./modules/jobs/[id]/JobEditPage"));
 const NotFoundPage = lazy(() => import("./modules/not-found/NotFoundPage"));
+const NonlaUiDemoPage = lazy(() => import("./modules/dev/NonlaUiDemoPage"));
 
 // ── Public routes (no sidebar, no auth) ─────────────────────────────────────
-const PUBLIC_ROUTE_PREFIXES = ["/chat"];
+const PUBLIC_ROUTE_PREFIXES = ["/chat", "/dev/nonla-ui"];
 
 // ── Auth guard ──────────────────────────────────────────────────────────────
 function AuthGuard() {
@@ -103,6 +104,7 @@ function AppContent() {
           <Suspense fallback={null}>
             <Routes>
               <Route path="/chat/:id" element={<PublicChatPage />} />
+              <Route path="/dev/nonla-ui" element={<NonlaUiDemoPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>

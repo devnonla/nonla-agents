@@ -1,8 +1,8 @@
+import { Button, Table } from "@nonla-agents/ui";
+import type { ColumnsType } from "@nonla-agents/ui";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
 import { UserPlusIcon } from "@solar-icons/react/dynamic/user-plus";
 import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
-import { Button, Table } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "src/common/api";
 import type { User } from "src/common/types";
@@ -85,7 +85,7 @@ export function UsersPage() {
         </Button>
       </div>
 
-      <Table<User>
+      <Table
         rowKey="id"
         columns={columns}
         dataSource={users}

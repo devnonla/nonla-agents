@@ -1,13 +1,12 @@
+import { Button, Popover } from "@nonla-agents/ui";
 import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { LockIcon } from "@solar-icons/react/dynamic/lock";
 import { SquareTopDownIcon } from "@solar-icons/react/dynamic/square-top-down";
 import { UnlinkMinimalisticIcon } from "@solar-icons/react/dynamic/unlink-minimalistic";
-import { Button, Popover } from "antd";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { Site } from "src/common/types";
-import { RawButton } from "src/components/RawButton";
 import RenderIf from "src/components/RenderIf";
 import { sitesApi } from "../common/sitesApi";
 
@@ -109,7 +108,7 @@ export function SiteOpenPublicButton({ site }: { site: Site }) {
   if (!site.isPublished) return null;
 
   return (
-    <RawButton
+    <Button
       type="text"
       size="xs"
       icon={<SquareTopDownIcon size={12} />}
@@ -120,7 +119,7 @@ export function SiteOpenPublicButton({ site }: { site: Site }) {
       }}
     >
       Open
-    </RawButton>
+    </Button>
   );
 }
 

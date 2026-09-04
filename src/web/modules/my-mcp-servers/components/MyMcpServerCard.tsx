@@ -1,6 +1,6 @@
+import { Switch } from "@nonla-agents/ui";
 import { CpuIcon } from "@solar-icons/react/dynamic/cpu";
 import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
-import { Switch } from "antd";
 import { cn } from "src/common/lib/cn";
 import type { MyMcpServer } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

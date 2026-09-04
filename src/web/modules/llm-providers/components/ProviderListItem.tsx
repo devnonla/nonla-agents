@@ -1,9 +1,10 @@
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { AltArrowUpIcon } from "@solar-icons/react/dynamic/alt-arrow-up";
 import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
-import { Button, Form, Input, Modal } from "antd";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";
 import type { LlmProvider } from "src/common/types";
 import { ProviderIcon } from "src/components/ProviderIcon";
@@ -14,6 +15,12 @@ interface ProviderListItemProps {
   item: LlmProvider;
 }
 
+type DraftValues = {
+  label: string;
+  apiKey: string;
+  customBaseUrl: string;
+};
+
 export function ProviderListItem({ item }: ProviderListItemProps) {
   const dispatch = useAppDispatch();
 
@@ -22,10 +29,9 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [detail, setDetail] = useState<LlmProvider | null>(null);
-  const [draft, setDraft] = useState({
-    label: item.label,
-    apiKey: "",
-    customBaseUrl: "",
+  const form = useForm<DraftValues>({
+    defaultValues: { label: item.label, apiKey: "", customBaseUrl: "" },
+    mode: "onSubmit",
   });
 
   const meta = getProviderMeta(item.provider);
@@ -38,17 +44,49 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
     if (expanded && !detail) {
       apiClient.get<LlmProvider>(`/api/providers/${item.id}`).then((res) => {
         setDetail(res);
-        setDraft({
+        form.reset({
           label: res.label,
           apiKey: "",
           customBaseUrl: res.customBaseUrl ?? "",
         });
       });
     }
-  }, [expanded, detail, item.id]);
+  }, [expanded, detail, item.id, form]);
 
-  const handleSave = async () => {
-    if (!draft.label.trim()) return;
+  const items: TFormItemProps[] = useMemo(() => {
+    const list: TFormItemProps[] = [
+      {
+        type: EFormItemType.Input,
+        name: "label",
+        label: "Label",
+        colSpan: 12,
+        rules: {
+          required: "Label is required",
+          validate: (value) => (typeof value === "string" && value.trim() ? true : "Label is required"),
+        },
+        options: { placeholder: meta.label },
+      },
+      {
+        type: EFormItemType.Input,
+        name: "apiKey",
+        label: "New API Key",
+        colSpan: 12,
+        options: { type: "password", placeholder: "••••••••", autoComplete: "new-password" },
+      },
+    ];
+    if (showCustomBaseUrl) {
+      list.push({
+        type: EFormItemType.Input,
+        name: "customBaseUrl",
+        label: "Base URL",
+        colSpan: 12,
+        options: { placeholder: meta.defaultBase || "https://…" },
+      });
+    }
+    return list;
+  }, [meta, showCustomBaseUrl]);
+
+  const handleSave = form.handleSubmit(async (draft) => {
     setSaving(true);
     try {
       const payload: { id: string; label: string; customBaseUrl: string; apiKey?: string } = {
@@ -64,10 +102,10 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const handleDiscard = () => {
-    setDraft({
+    form.reset({
       label: detail?.label ?? item.label,
       apiKey: "",
       customBaseUrl: detail?.customBaseUrl ?? "",
@@ -121,44 +159,8 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
       </button>
 
       {expanded && (
-        <div className="flex flex-col gap-3 px-3.5 pb-3.5 pt-3 border-t border-border bg-muted/50">
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                Label<span className="text-destructive"> *</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input value={draft.label} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))} placeholder={meta.label} />
-          </Form.Item>
-
-          <Form.Item
-            label={
-              <span className="text-muted-foreground">
-                New API Key <span className="font-normal text-muted-foreground">(leave blank to keep)</span>
-              </span>
-            }
-            className="mb-0!"
-            layout="vertical"
-          >
-            <Input.Password value={draft.apiKey} onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))} placeholder="••••••••" visibilityToggle={false} autoComplete="new-password" />
-          </Form.Item>
-
-          {showCustomBaseUrl && (
-            <Form.Item
-              label={
-                <span className="text-muted-foreground">
-                  Base URL <span className="font-normal text-muted-foreground">(optional)</span>
-                </span>
-              }
-              className="mb-0!"
-              layout="vertical"
-            >
-              <Input value={draft.customBaseUrl} onChange={(e) => setDraft((d) => ({ ...d, customBaseUrl: e.target.value }))} placeholder={meta.defaultBase || "https://…"} />
-            </Form.Item>
-          )}
+        <form className="flex flex-col gap-3 px-3.5 pb-3.5 pt-3 border-t border-border bg-muted/50" onSubmit={handleSave}>
+          <SchemaForm form={form} items={items} />
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -194,12 +196,12 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
                 Cancel
               </Button>
 
-              <Button type="primary" size="small" loading={saving} onClick={handleSave}>
+              <Button type="primary" size="small" htmlType="submit" loading={saving}>
                 {saving ? "Saving…" : "Save"}
               </Button>
             </div>
           </div>
-        </div>
+        </form>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
+import { message } from "@nonla-agents/ui";
 import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
-import { message } from "antd";
 import { useState } from "react";
 import { apiClient } from "src/common/api";
 import { fetchCurrentUser } from "src/common/authSlice";

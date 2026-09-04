@@ -1,5 +1,5 @@
+import { Button } from "@nonla-agents/ui";
 import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
-import { Button } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Avatar from "react-nice-avatar";
 import { ColorPicker } from "src/components/ColorPicker";

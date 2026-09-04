@@ -1,8 +1,8 @@
+import { Button, message } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
 import { SettingsIcon } from "@solar-icons/react/dynamic/settings";
 import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
-import { Button, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "src/common/lib/cn";

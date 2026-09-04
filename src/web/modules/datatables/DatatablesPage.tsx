@@ -1,6 +1,5 @@
+import { Button, Empty, Modal, Spin, message } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
-import { Button, Modal, Spin, message } from "antd";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DatatableProject } from "src/common/types";
@@ -47,16 +46,11 @@ export default function DatatablesPage() {
       <RenderIf
         condition={items.length > 0 || loading}
         fallback={
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-5 py-16">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand/12 text-brand-soft">
-              <DatabaseIcon size={28} weight="BoldDuotone" />
-            </div>
-            <p className="mb-1 text-base font-semibold text-foreground">No projects yet</p>
-            <p className="m-0 mb-5 max-w-sm text-center text-sm text-muted-foreground">Create a project to hold your tables</p>
+          <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No projects yet">
             <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialog("create")}>
               New project
             </Button>
-          </div>
+          </Empty>
         }
       >
         <Spin spinning={loading && items.length === 0}>

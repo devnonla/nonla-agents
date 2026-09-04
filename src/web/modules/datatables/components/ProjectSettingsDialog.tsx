@@ -1,9 +1,26 @@
+import { Button, EFormItemType, Modal, Popconfirm, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
 import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { Button, Form, Input, Modal, Popconfirm, message } from "antd";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import type { DatatableProject } from "src/common/types";
 import { datatablesApi } from "../common/datatablesApi";
+
+type SettingsValues = { name: string };
+
+const ITEMS: TFormItemProps[] = [
+  {
+    type: EFormItemType.Input,
+    name: "name",
+    label: "Name",
+    colSpan: 12,
+    rules: {
+      required: "Name is required",
+      validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
+    },
+    options: { placeholder: "Project name", autoFocus: true },
+  },
+];
 
 export function ProjectSettingsDialog({
   project,
@@ -15,23 +32,19 @@ export function ProjectSettingsDialog({
   onUpdated: (project: DatatableProject) => void;
 }) {
   const navigate = useNavigate();
-  const [name, setName] = useState(project.name);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    setName(project.name);
-  }, [project.name]);
-
+  const form = useForm<SettingsValues>({ defaultValues: { name: project.name }, mode: "onSubmit" });
+  const name = form.watch("name");
   const dirty = name.trim() !== project.name;
   const canSave = dirty && name.trim().length > 0;
 
-  const handleSave = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      message.error("Name is required");
-      return;
-    }
+  useEffect(() => {
+    form.reset({ name: project.name });
+  }, [project.name, form]);
+
+  const onSubmit = form.handleSubmit(async ({ name: nextName }) => {
+    const trimmed = nextName.trim();
     if (!canSave) {
       onClose();
       return;
@@ -47,7 +60,7 @@ export function ProjectSettingsDialog({
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -62,12 +75,10 @@ export function ProjectSettingsDialog({
   };
 
   return (
-    <Modal open title="Project settings" onCancel={onClose} onOk={() => void handleSave()} confirmLoading={saving} okText="Save" okButtonProps={{ disabled: deleting || !canSave }} cancelButtonProps={{ disabled: saving || deleting }} destroyOnHidden>
-      <Form layout="vertical">
-        <Form.Item label="Name" required>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" onPressEnter={() => void handleSave()} autoFocus />
-        </Form.Item>
-      </Form>
+    <Modal open title="Project settings" onCancel={onClose} onOk={() => void onSubmit()} confirmLoading={saving} okText="Save" okButtonProps={{ disabled: deleting || !canSave }} cancelButtonProps={{ disabled: saving || deleting }} destroyOnHidden>
+      <form onSubmit={onSubmit}>
+        <SchemaForm form={form} items={ITEMS} />
+      </form>
 
       <div className="mt-2 border-t border-border-subtle pt-4">
         <p className="m-0 text-[11px] font-medium text-muted-foreground">Danger zone</p>

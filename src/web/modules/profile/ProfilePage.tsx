@@ -1,4 +1,4 @@
-import { Form, Input } from "antd";
+import { Input } from "@nonla-agents/ui";
 import { useState } from "react";
 import { PageShell } from "src/components/PageShell";
 import { SectionRow } from "src/components/SectionRow";
@@ -25,9 +25,8 @@ export default function ProfilePage() {
 
       <SectionRow title="Account" description="Your account credentials">
         <div className="max-w-sm space-y-1.5">
-          <Form.Item label={<span className="text-muted-foreground">Username</span>} layout="vertical" className="mb-0!">
-            <Input value={user.username} disabled className="bg-card/50 opacity-60" />
-          </Form.Item>
+          <span className="text-sm text-muted-foreground">Username</span>
+          <Input value={user.username} disabled className="bg-card/50 opacity-60" />
           <p className="text-[10px] text-muted-foreground italic">Username cannot be changed.</p>
         </div>
       </SectionRow>

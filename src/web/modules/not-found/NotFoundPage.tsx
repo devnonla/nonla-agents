@@ -1,5 +1,5 @@
+import { Button } from "@nonla-agents/ui";
 import { HomeAngleIcon } from "@solar-icons/react/dynamic/home-angle";
-import { Button } from "antd";
 import { Link } from "react-router-dom";
 
 export default function NotFoundPage() {

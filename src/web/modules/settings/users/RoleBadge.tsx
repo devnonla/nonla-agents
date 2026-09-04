@@ -1,4 +1,4 @@
-import { Tag } from "antd";
+import { Tag } from "@nonla-agents/ui";
 import { cn } from "src/lib/utils";
 
 const ROLE_STYLES: Record<string, string> = {

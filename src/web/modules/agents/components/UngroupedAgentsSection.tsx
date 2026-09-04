@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/core";
-import { FaceScanSquareIcon } from "@solar-icons/react/dynamic/face-scan-square";
+import { BotIcon } from "@solar-icons/react/dynamic/bot";
 import { cn } from "src/common/lib/cn";
 import type { AgentListItem } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
@@ -24,7 +24,7 @@ export function UngroupedAgentsSection({ agents, onNavigate }: UngroupedAgentsSe
       <AgentsSectionHeader
         icon={
           <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <FaceScanSquareIcon size={16} />
+            <BotIcon size={16} />
           </div>
         }
         title="Ungrouped"

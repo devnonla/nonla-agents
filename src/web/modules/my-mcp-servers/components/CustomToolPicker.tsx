@@ -1,5 +1,5 @@
+import { Checkbox, Input } from "@nonla-agents/ui";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { Checkbox, Input } from "antd";
 import { useMemo, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { AgentTool, ToolFolder } from "src/common/types";
@@ -63,7 +63,7 @@ export function CustomToolPicker({
     const checked = selected.has(tool.id);
     return (
       <div key={tool.id} className={cn("flex cursor-pointer items-center gap-2 py-1.5 pr-3 hover:bg-muted/60", nested ? "pl-8" : "px-3")} onClick={() => toggle([tool.id], !checked)}>
-        <Checkbox checked={checked} onClick={(e) => e.stopPropagation()} onChange={(e) => toggle([tool.id], e.target.checked)} />
+        <Checkbox checked={checked} onClick={(e) => e.stopPropagation()} onChange={(checked) => toggle([tool.id], checked)} />
         <span className="min-w-0 truncate text-[13px] text-foreground">{tool.label || tool.name}</span>
       </div>
     );
@@ -83,7 +83,7 @@ export function CustomToolPicker({
             return (
               <div key={folder.id} className="mb-1">
                 <div className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground" onClick={() => toggle(ids, checkedCount !== ids.length)}>
-                  <Checkbox checked={checkedCount === ids.length} indeterminate={checkedCount > 0 && checkedCount < ids.length} onClick={(e) => e.stopPropagation()} onChange={(e) => toggle(ids, e.target.checked)} />
+                  <Checkbox checked={checkedCount === ids.length} indeterminate={checkedCount > 0 && checkedCount < ids.length} onClick={(e) => e.stopPropagation()} onChange={(checked) => toggle(ids, checked)} />
                   {folder.name}
                 </div>
                 {folderTools.map((tool) => renderTool(tool, true))}

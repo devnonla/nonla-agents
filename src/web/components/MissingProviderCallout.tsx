@@ -1,7 +1,7 @@
-import { KeyIcon } from "@solar-icons/react/dynamic/key";
+import { Button } from "@nonla-agents/ui";
+import { SuitcaseIcon } from "@solar-icons/react/dynamic/suitcase";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { RawButton } from "src/components/RawButton";
 import { ensureLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 
@@ -22,7 +22,7 @@ export function MissingProviderCallout() {
       <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-brand" />
       <div className="flex min-w-0 items-start gap-3">
         <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand-soft">
-          <KeyIcon size={18} />
+          <SuitcaseIcon size={18} />
         </span>
         <div className="min-w-0">
           <p id="missing-provider-title" className="m-0 text-sm font-semibold text-foreground">
@@ -31,9 +31,9 @@ export function MissingProviderCallout() {
           <p className="m-0 mt-1 text-sm leading-relaxed text-muted-foreground">Agents, jobs, and tools need a model to run. Configure a provider with an API key first.</p>
         </div>
       </div>
-      <RawButton type="primary" className="shrink-0 self-start sm:self-center" icon={<KeyIcon size={14} />} onClick={() => navigate("/settings/providers")}>
+      <Button type="primary" className="shrink-0 self-start sm:self-center" icon={<SuitcaseIcon size={14} />} onClick={() => navigate("/settings/providers")}>
         Add provider
-      </RawButton>
+      </Button>
     </section>
   );
 }
