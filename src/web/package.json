@@ -46,7 +46,7 @@
     "@biomejs/biome": "1.9.4",
     "@tailwindcss/vite": "^4.1.18",
     "@types/dagre": "^0.7.54",
-    "@types/lodash": "^4.17.24",
+    "@types/lodash": "^4.17.25",
     "@types/node": "^25.5.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
