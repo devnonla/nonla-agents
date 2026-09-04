@@ -1,12 +1,14 @@
 services:
   nonla-agents:
+    # Published image — https://hub.docker.com/r/devnonla/nonla-agents
     image: devnonla/nonla-agents:latest
     container_name: nonla-agents
     ports:
-      - "15888:15888"
+      - "8429:8429"
     volumes:
       - nonla-agents-data:/data
     restart: unless-stopped
+    # Default DB is SQLite at /data/data.db.
     # Custom tools and site backend.ts workers are sandboxed with bubblewrap
     # (namespace + capability isolation — see src/server/src/common/sandbox/).
     # bwrap needs to call clone()/unshare() to create those namespaces, which

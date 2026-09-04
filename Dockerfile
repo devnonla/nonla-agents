@@ -8,13 +8,14 @@
 #   docker build --build-arg BUILD_ID=$(git rev-parse --short HEAD) -t devnonla/nonla-agents:latest .
 #
 # Run:
-#   docker run -d -p 15888:15888 \
+#   docker run -d -p 8429:8429 \
 #     -v nonla-agents-data:/data \
+#     --security-opt seccomp=unconfined \
 #     devnonla/nonla-agents:latest
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
-FROM oven/bun:1 AS deps
+FROM oven/bun:1.4 AS deps
 
 WORKDIR /app
 
@@ -22,6 +23,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY src/server/package.json src/server/
 COPY src/web/package.json src/web/
+COPY src/nonla-ui/package.json src/nonla-ui/
 
 # Install all dependencies (including devDependencies for build)
 # Use BuildKit cache mount to persist bun's download cache across builds
@@ -49,7 +51,7 @@ RUN cd src/web && bun run build
 RUN cd src/server && bun run build
 
 # ── Stage 3: Runtime base (cache apt-get layer) ───────────────────────────
-FROM oven/bun:1-debian AS runtime-base
+FROM oven/bun:1.4-debian AS runtime-base
 
 # Install bubblewrap to sandbox custom tools and site backend.ts workers
 # (src/server/src/common/sandbox/) — needs `security_opt: [seccomp:unconfined]`
@@ -71,6 +73,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/bun.lock ./
 COPY --from=builder /app/src/server/package.json ./src/server/
 COPY --from=builder /app/src/web/package.json ./src/web/
+COPY --from=builder /app/src/nonla-ui/package.json ./src/nonla-ui/
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --production --frozen-lockfile
 
@@ -100,14 +103,14 @@ RUN mkdir -p /data
 # ── Environment ─────────────────────────────────────────────────────────────
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
-ENV PORT=15888
+ENV PORT=8429
 ENV DATA_DIR=/data
 
-EXPOSE 15888
+EXPOSE 8429
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD bun -e "fetch('http://127.0.0.1:15888/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+  CMD bun -e "fetch('http://127.0.0.1:8429/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Data volume
 VOLUME ["/data"]

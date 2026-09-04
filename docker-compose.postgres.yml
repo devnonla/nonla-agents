@@ -1,0 +1,44 @@
+# Nonla Agents + PostgreSQL
+# Usage: docker compose -f docker-compose.postgres.yml up -d
+#
+# Defaults: user / password / database = nonla
+# Override with POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nonla-agents-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nonla}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nonla}
+      POSTGRES_DB: ${POSTGRES_DB:-nonla}
+    volumes:
+      - nonla-agents-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nonla} -d ${POSTGRES_DB:-nonla}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  nonla-agents:
+    # Published image — https://hub.docker.com/r/devnonla/nonla-agents
+    image: devnonla/nonla-agents:latest
+    container_name: nonla-agents
+    ports:
+      - "8429:8429"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nonla}:${POSTGRES_PASSWORD:-nonla}@db:5432/${POSTGRES_DB:-nonla}
+    volumes:
+      - nonla-agents-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    # bwrap sandbox needs clone/unshare — see docker-compose.yml
+    security_opt:
+      - seccomp:unconfined
+
+volumes:
+  nonla-agents-data:
+  nonla-agents-pg:
