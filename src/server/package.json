@@ -15,7 +15,7 @@
     "@langchain/google-genai": "^2.1.28",
     "@langchain/langgraph": "^1.2.9",
     "@langchain/openai": "^1.4.4",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@mozilla/readability": "^0.6.0",
     "@resvg/resvg-js": "^2.6.2",
     "cloakbrowser": "^0.4.10",
