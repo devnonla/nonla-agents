@@ -2,7 +2,7 @@
   "name": "nonla-agents",
   "version": "0.1.0",
   "type": "module",
-  "description": "Nonla Agents — AI Agent Manager. Self-hosted AI agent platform.",
+  "description": "Nonla Agents \u2014 AI Agent Manager. Self-hosted AI agent platform.",
   "author": "devlangla <devlangla0x01@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -36,8 +36,7 @@
     "test:watch": "bun test --watch src/server/src/__tests__/"
   },
   "dependencies": {
-    "@langchain/openrouter": "^0.4.3",
-    "@tanstack/react-form": "^1.33.0"
+    "@langchain/openrouter": "^0.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

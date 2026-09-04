@@ -1,0 +1,618 @@
+/**
+ * NonlaUI theme
+ *
+ * Edit --nonla-* knobs (or the exact surface hexes) — shadcn aliases follow.
+ */
+
+:root,
+.dark,
+.nonla-ui {
+  /* ── Knobs ───────────────────────────────────────────────────────────── */
+  --nonla-bg: #121212; /* colorBgBase / colorBgLayout */
+  --nonla-fg: #d4d4d4; /* colorText */
+  --nonla-brand: #dd7627; /* colorPrimary */
+  --nonla-brand-soft: #ffa333; /* colorPrimaryHover */
+  --nonla-danger: #ef4444; /* colorError */
+  --nonla-success: #0ac864; /* colorSuccess */
+  --nonla-warn: #f1b467; /* colorWarning */
+  --nonla-link: #599ce7; /* colorInfo */
+  --nonla-radius: 8px;
+
+  /* Surfaces — exact hex (not color-mix) */
+  --nonla-ink: #e8e8e8; /* light emphasis; CTA stays on --brand */
+  --nonla-surface: #191919; /* colorBgContainer / card / modal */
+  --nonla-elevated: #1e1e1e; /* colorBgElevated / popover */
+  --nonla-chip: #212121; /* control / secondary / muted */
+  --nonla-chip-hover: #2a2a2a; /* control hover / segmented track */
+
+  /* ── Shadcn standard map ─────────────────────────────────────────────── */
+  --radius: var(--nonla-radius);
+  --background: var(--nonla-bg);
+  --foreground: var(--nonla-fg);
+  --card: var(--nonla-surface);
+  --card-foreground: var(--nonla-fg);
+  --popover: var(--nonla-elevated);
+  --popover-foreground: var(--nonla-fg);
+  /* Nonla: --primary = light ink (emphasis), not CTA — CTA is --brand */
+  --primary: var(--nonla-ink);
+  --primary-foreground: var(--nonla-bg);
+  --secondary: var(--nonla-chip);
+  --secondary-foreground: var(--nonla-fg);
+  --muted: var(--nonla-chip);
+  --muted-foreground: #8a8a8a; /* colorTextSecondary */
+  --accent: color-mix(in oklab, var(--nonla-brand) 14%, transparent);
+  --accent-foreground: var(--nonla-brand-soft);
+  --destructive: var(--nonla-danger);
+  --destructive-foreground: #fafafa;
+  --border: rgba(102, 102, 102, 0.12); /* colorBorderSecondary */
+  --input: rgba(102, 102, 102, 0.2); /* outlined control edge */
+  --ring: color-mix(in oklab, var(--nonla-fg) 45%, transparent);
+
+  /* ── Nonla aliases ───────────────────────────────────────────────────── */
+  --brand: var(--nonla-brand);
+  --brand-soft: var(--nonla-brand-soft);
+  --brand-text: var(--nonla-brand);
+  --link: var(--nonla-link);
+  --success: var(--nonla-success);
+  --warn: var(--nonla-warn);
+  --tertiary-foreground: #9a9a9a; /* colorTextTertiary */
+  --quaternary-foreground: #6e6e6e; /* colorTextQuaternary */
+  --border-subtle: rgba(102, 102, 102, 0.08);
+  --control-bg: var(--nonla-chip);
+  --control-bg-hover: var(--nonla-chip-hover);
+  --elevated-shadow: 0 0 0 1px rgba(102, 102, 102, 0.32), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --popper-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --popper-border: rgba(102, 102, 102, 0.32);
+  --mask: rgba(0, 0, 0, 0.55);
+
+  /* Motion — shadcn-like ease-out-expo */
+  --nonla-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --nonla-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --nonla-dur-fast: 150ms;
+  --nonla-dur: 200ms;
+  --nonla-dur-slow: 300ms;
+
+  /* Chat type — compact default (agent sidebars / panels) */
+  --chat-body-size: 14px;
+  --chat-body-leading: 24px;
+  --chat-composer-size: 14px;
+  --chat-composer-leading: 22px;
+}
+
+/* Full-page chat reading measure */
+.nonla-chat-size-lg,
+.chat-size-lg {
+  --chat-body-size: 16px;
+  --chat-body-leading: 28px;
+}
+
+@keyframes nonla-chat-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.nonla-chat-shimmer {
+  background-image: linear-gradient(90deg, var(--muted-foreground) 0%, var(--foreground) 45%, var(--muted-foreground) 90%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: nonla-chat-shimmer 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nonla-chat-shimmer {
+    animation: none;
+    background-image: none;
+    background-clip: border-box;
+    -webkit-background-clip: border-box;
+    color: var(--muted-foreground);
+  }
+}
+
+/* Toast host — top-center stack */
+.nonla-message-host {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+.nonla-message-item {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--popper-shadow);
+  border: 1px solid var(--popper-border);
+  font-size: 14px;
+  line-height: 1.5714;
+  animation: nonla-message-in var(--nonla-dur) var(--nonla-ease-out);
+  will-change: transform, opacity;
+}
+
+.nonla-message-item.is-leaving {
+  animation: nonla-message-out 150ms var(--nonla-ease-in) forwards;
+}
+
+.nonla-message-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nonla-message-content {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.nonla-message-spin {
+  animation: nonla-message-spin 0.8s linear infinite;
+}
+
+@keyframes nonla-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nonla-message-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@keyframes nonla-message-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Spin: agent / subAgent (3×3 random snake — color only) ─────────────── */
+.nonla-spin-matrix {
+  align-content: center;
+  justify-content: center;
+}
+
+.nonla-spin-matrix-cell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: #2e2e2e;
+  transition: background 120ms linear;
+}
+
+.nonla-spin-matrix-cell.is-on {
+  background: #f0f0f0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nonla-spin-matrix-cell {
+    transition: none;
+  }
+}
+
+@keyframes nonla-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes nonla-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes nonla-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* shadcn-style zoom: fade + scale(0.95) ↔ 1 (no slide) */
+@keyframes nonla-modal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@keyframes nonla-modal-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.95);
+  }
+}
+@keyframes nonla-modal-in-centered {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes nonla-modal-out-centered {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+@keyframes nonla-drawer-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes nonla-drawer-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes nonla-drawer-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes nonla-drawer-out-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes nonla-drawer-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes nonla-drawer-out-bottom {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes nonla-drawer-in-top {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes nonla-drawer-out-top {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+/* Direction-aware popper (Popover / Select / Dropdown / Tooltip) */
+@keyframes nonla-pop-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes nonla-pop-in-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes nonla-pop-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes nonla-pop-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes nonla-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.nonla-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--mask);
+}
+.nonla-overlay[data-state="open"] {
+  animation: nonla-overlay-in var(--nonla-dur) var(--nonla-ease-out);
+}
+.nonla-overlay[data-state="closed"] {
+  animation: nonla-overlay-out var(--nonla-dur-fast) var(--nonla-ease-in);
+}
+
+.nonla-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: var(--mask);
+}
+.nonla-modal-overlay[data-state="open"] {
+  animation: nonla-overlay-in var(--nonla-dur) var(--nonla-ease-out);
+}
+.nonla-modal-overlay[data-state="closed"] {
+  animation: nonla-overlay-out var(--nonla-dur-fast) var(--nonla-ease-in);
+}
+
+.nonla-modal-content {
+  position: fixed;
+  left: 50%;
+  top: 60px;
+  z-index: 9991;
+  transform: translate(-50%, 0);
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 88px);
+  overflow: hidden;
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+  padding: 0;
+  outline: none;
+  will-change: transform, opacity;
+}
+.nonla-modal-content[data-state="open"] {
+  animation: nonla-modal-in var(--nonla-dur) var(--nonla-ease-out);
+}
+.nonla-modal-content[data-state="closed"] {
+  animation: nonla-modal-out var(--nonla-dur-fast) var(--nonla-ease-in);
+}
+.nonla-modal-content[data-centered="true"] {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-height: calc(100vh - 64px);
+}
+.nonla-modal-content[data-centered="true"][data-state="open"] {
+  animation: nonla-modal-in-centered var(--nonla-dur) var(--nonla-ease-out);
+}
+.nonla-modal-content[data-centered="true"][data-state="closed"] {
+  animation: nonla-modal-out-centered var(--nonla-dur-fast) var(--nonla-ease-in);
+}
+
+.nonla-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  background: var(--nonla-elevated);
+}
+.nonla-modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+.nonla-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px -4px 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.nonla-modal-close:hover {
+  color: var(--foreground);
+  background: var(--control-bg);
+}
+.nonla-modal-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 16px 16px 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--foreground);
+  background: var(--card);
+}
+.nonla-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: var(--nonla-elevated);
+}
+
+.nonla-drawer-panel {
+  will-change: transform;
+}
+.nonla-drawer-panel[data-side="right"][data-state="open"] {
+  animation: nonla-drawer-in-right var(--nonla-dur-slow) var(--nonla-ease-out);
+}
+.nonla-drawer-panel[data-side="right"][data-state="closed"] {
+  animation: nonla-drawer-out-right var(--nonla-dur) var(--nonla-ease-in);
+}
+.nonla-drawer-panel[data-side="left"][data-state="open"] {
+  animation: nonla-drawer-in-left var(--nonla-dur-slow) var(--nonla-ease-out);
+}
+.nonla-drawer-panel[data-side="left"][data-state="closed"] {
+  animation: nonla-drawer-out-left var(--nonla-dur) var(--nonla-ease-in);
+}
+.nonla-drawer-panel[data-side="bottom"][data-state="open"] {
+  animation: nonla-drawer-in-bottom var(--nonla-dur-slow) var(--nonla-ease-out);
+}
+.nonla-drawer-panel[data-side="bottom"][data-state="closed"] {
+  animation: nonla-drawer-out-bottom var(--nonla-dur) var(--nonla-ease-in);
+}
+.nonla-drawer-panel[data-side="top"][data-state="open"] {
+  animation: nonla-drawer-in-top var(--nonla-dur-slow) var(--nonla-ease-out);
+}
+.nonla-drawer-panel[data-side="top"][data-state="closed"] {
+  animation: nonla-drawer-out-top var(--nonla-dur) var(--nonla-ease-in);
+}
+
+.nonla-popper {
+  will-change: transform, opacity;
+  transform-origin: var(--radix-popover-content-transform-origin, var(--radix-dropdown-menu-content-transform-origin, var(--radix-select-content-transform-origin, var(--radix-tooltip-content-transform-origin, center))));
+}
+.nonla-popper[data-state="open"][data-side="top"] {
+  animation: nonla-pop-in-top var(--nonla-dur-fast) var(--nonla-ease-out);
+}
+.nonla-popper[data-state="open"][data-side="bottom"] {
+  animation: nonla-pop-in-bottom var(--nonla-dur-fast) var(--nonla-ease-out);
+}
+.nonla-popper[data-state="open"][data-side="left"] {
+  animation: nonla-pop-in-left var(--nonla-dur-fast) var(--nonla-ease-out);
+}
+.nonla-popper[data-state="open"][data-side="right"] {
+  animation: nonla-pop-in-right var(--nonla-dur-fast) var(--nonla-ease-out);
+}
+.nonla-popper[data-state="open"]:not([data-side]) {
+  animation: nonla-pop-in-bottom var(--nonla-dur-fast) var(--nonla-ease-out);
+}
+.nonla-popper[data-state="closed"] {
+  animation: nonla-pop-out 100ms var(--nonla-ease-in);
+}
+
+/* ── CodeBlock (sugar-high) ─────────────────────────────────────────────── */
+.nonla-codeblock {
+  --sh-class: #599ce7;
+  --sh-identifier: #c8c8c8;
+  --sh-sign: #8a8a8a;
+  --sh-property: #7eb8ff;
+  --sh-entity: #3ecf8e;
+  --sh-jsxliterals: #b0b0b0;
+  --sh-string: #0ac864;
+  --sh-keyword: #f87171;
+  --sh-comment: #6e6e6e;
+  --sh-break: var(--sh-sign);
+}
+
+.nonla-codeblock-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: var(--foreground);
+}
+
+.nonla-codeblock-pre .sh__line {
+  display: inline-block;
+  width: 100%;
+  min-height: 1.65em;
+}
+
+.nonla-codeblock-lines code {
+  counter-reset: nonla-code-line;
+}
+
+.nonla-codeblock-lines .sh__line::before {
+  counter-increment: nonla-code-line;
+  content: counter(nonla-code-line);
+  display: inline-block;
+  width: 1.75rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: var(--quaternary-foreground);
+  user-select: none;
+  font-size: 11px;
+}
