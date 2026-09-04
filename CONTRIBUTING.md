@@ -1,6 +1,6 @@
 # Contributing to Nonla Agents
 
-Thank you for your interest in contributing to Nonla Agents! 🎉
+Thank you for your interest in contributing to Nonla Agents!
 
 ## Getting Started
 
@@ -23,7 +23,8 @@ bun install
 bun run dev
 ```
 
-The dev server will be available at `http://localhost:15123`.
+Dev UI: [http://localhost:5173](http://localhost:5173) (proxies API/WebSocket to the server).  
+Production-style: `bun run build && bun run start` → [http://localhost:8429](http://localhost:8429).
 
 ## Development Workflow
 
@@ -34,29 +35,32 @@ The dev server will be available at `http://localhost:15123`.
 
 2. **Make your changes** — follow the project's coding style.
 
-3. **Lint & format** before committing:
+3. **Lint, typecheck, and test** before committing:
    ```bash
-   bun run biome:check
+   bun run lint
+   bun run typecheck
+   bun run typecheck:server
+   bun run test
    ```
 
-4. **Commit** with a clear message:
+4. **Commit** with a clear message (Conventional Commits):
    ```
    feat: add new tool type for HTTP requests
    fix: resolve websocket reconnection issue
-   docs: update CLI reference
+   docs: update README quick start
    ```
 
-5. **Push** and open a Pull Request against `main`.
+5. **Push** and open a Pull Request against `main`. CI must pass.
 
 ## Branch Naming
 
-| Prefix    | Usage                  |
-| --------- | ---------------------- |
-| `feat/`   | New features           |
-| `fix/`    | Bug fixes              |
-| `docs/`   | Documentation changes  |
-| `refactor/` | Code refactoring     |
-| `chore/`  | Build, CI, tooling     |
+| Prefix      | Usage                 |
+| ----------- | --------------------- |
+| `feat/`     | New features          |
+| `fix/`      | Bug fixes             |
+| `docs/`     | Documentation         |
+| `refactor/` | Code refactoring      |
+| `chore/`    | Build, CI, tooling    |
 
 ## Commit Messages
 
@@ -74,22 +78,31 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 - Keep PRs focused — one feature or fix per PR.
 - Fill in the PR template.
-- Ensure lint passes (`bun run biome:check`).
+- Ensure CI passes (lint, typecheck, tests).
 - Add a clear description of what changed and why.
 - Link related issues using `Closes #123`.
 
 ## Reporting Bugs
 
-Please use the [Bug Report](https://github.com/devnonla/nonla-agents/issues/new?template=bug_report.md) issue template.
+Use the [Bug Report](https://github.com/devnonla/nonla-agents/issues/new?template=01-bug.yml) template.
 
 Include:
+
 - Steps to reproduce
 - Expected vs actual behavior
-- Environment info (OS, Bun version, etc.)
+- Environment info (OS, Bun / Docker version, Nonla Agents version)
 
 ## Requesting Features
 
-Please use the [Feature Request](https://github.com/devnonla/nonla-agents/issues/new?template=feature_request.md) issue template.
+Use the [Feature Request](https://github.com/devnonla/nonla-agents/issues/new?template=02-feature.yml) template.
+
+## Questions
+
+For questions and discussion (not bugs/features), use [GitHub Discussions](https://github.com/devnonla/nonla-agents/discussions).
+
+## Security
+
+Do **not** file public issues for vulnerabilities. See [SECURITY.md](SECURITY.md).
 
 ## Code Style
 
@@ -102,13 +115,13 @@ Please use the [Feature Request](https://github.com/devnonla/nonla-agents/issues
 
 ```
 nonla-agents/
-├── bin/            # CLI entry point
 ├── src/
 │   ├── server/     # Hono backend (API, WebSocket, DB)
-│   └── web/        # React frontend (Vite, Tailwind)
-├── public/         # Built frontend assets
-├── scripts/        # Build & deploy scripts
-└── docs/           # Documentation
+│   └── web/        # React frontend (Vite, Tailwind, NonlaUI)
+├── public/         # Built frontend assets (generated)
+├── .github/        # Issue/PR templates and workflows
+├── Dockerfile
+└── docker-compose.yml
 ```
 
 ## License

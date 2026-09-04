@@ -1,15 +1,21 @@
 # Rules for auto-labeling Pull Requests based on modified files
+# https://github.com/actions/labeler
 
-"area/server":
-  - any-glob-to-any-file: "src/server/**/*"
+area/server:
+  - changed-files:
+      - any-glob-to-any-file: src/server/**
 
-"area/web":
-  - any-glob-to-any-file: "src/web/**/*"
+area/web:
+  - changed-files:
+      - any-glob-to-any-file: src/web/**
 
-"area/ci":
-  - any-glob-to-any-file: ".github/**/*"
+area/ci:
+  - changed-files:
+      - any-glob-to-any-file: .github/**
 
-"area/docs":
-  - any-glob-to-any-file:
-      - "docs/**/*"
-      - "*.md"
+area/docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - "*.md"
+          - "**/*.md"

@@ -128,7 +128,11 @@ docker run -d -p 8429:8429 -v nonla-agents-data:/data \
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Questions belong in [Discussions](https://github.com/devnonla/nonla-agents/discussions).
+
+## Security
+
+Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
 
 ## License
 
