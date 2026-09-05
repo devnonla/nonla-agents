@@ -52,7 +52,7 @@ export function makePreviewSiteTool(siteId: string) {
           editorErrors,
           ...(editorErrors.length > 0
             ? {
-                hint: "Fix editorErrors with edit_ui / edit_backend / edit_deps / edit_styles before other work.",
+                hint: "Fix editorErrors, then continue. Prefer check_site once after related fixes — do not keep calling preview_site.",
               }
             : {}),
         });
@@ -63,7 +63,7 @@ export function makePreviewSiteTool(siteId: string) {
           editorErrors,
           ...(editorErrors.length > 0
             ? {
-                hint: "Fix editorErrors with edit_ui / edit_backend / edit_deps / edit_styles before other work.",
+                hint: "Fix editorErrors, then continue. Prefer check_site once after related fixes — do not keep calling preview_site.",
               }
             : {}),
         });
@@ -71,7 +71,7 @@ export function makePreviewSiteTool(siteId: string) {
     },
     {
       name: "preview_site",
-      description: "SSR-render the draft site and return a short HTML preview + data summary, plus editorErrors (TypeScript/JSON diagnostics). Fix editorErrors before other work. Use once after related edits.",
+      description: "Optional HTML peek + editorErrors (TypeScript/JSON). Prefer check_site for validation. Use only when you need HTML/diagnostics — never every turn, and never together with check_site in the same verify step. Fix editorErrors then continue editing; do not re-call after every tiny fix.",
       schema: z.object({}),
     },
   );

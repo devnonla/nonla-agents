@@ -1,6 +1,4 @@
-import { readFormattedCurrentDraft } from "./format-current-draft.js";
-
-export function buildSiteAgentSystemPrompt(siteId: string, meta: { name: string; slug: string; publicBaseUrl?: string }): string {
+export function buildSiteAgentSystemPrompt(meta: { name: string; slug: string; publicBaseUrl?: string }): string {
   const path = `/public/sites/${meta.slug}`;
   const base = meta.publicBaseUrl?.replace(/\/$/, "") ?? "";
   const absolute = base ? `${base}${path}` : "";
@@ -27,11 +25,11 @@ hosting: This site is NOT a standalone Next/Remix/Vite server. Draft preview is 
 Sites have exactly these draft files (you ONLY write to draft/ — production updates after the user Approves):
   • app.tsx     — export default function App() { … }  (client React; tabs/UI state live here)
   • backend.ts  — export async function handle({ request, nonlaagents, query, params })
-  • styles.css  — site stylesheet (bundled into the client)
+  • styles.css  — site stylesheet (platform imports it; Bun.build emits the CSS asset)
   • package.json — per-site dependencies shared by UI bundle + backend (writing it auto-runs bun install)
 Platform (always available at bundle time; do NOT write or invent):
   • site-api.js — import { loadSiteData, siteAction } from "./site-api.js"
-Only app.tsx is embedded in <current_draft>. Call read_site_files for backend.ts, styles.css, or package.json when needed.
+No draft files are embedded in this prompt. Call read_site_files before editing a surface you have not read this turn.
 Put presentation in styles.css and use className in app.tsx. Avoid inline style={{}} unless necessary.
 </files>
 
@@ -110,31 +108,44 @@ Skip the guide for UI/CSS-only edits. Also use global fetch and Bun APIs in back
 </nonlaagents>
 
 <tools>
+  • read_site_files — read draft (or tree:"prod") source. Call this before editing a file you have not read this turn.
   • edit_ui — Edit UI (React App). mode=replace with edits[] or mode=full with content.
   • edit_styles — Edit Styles (CSS).
   • edit_backend — Edit Backend handle() (GET data / POST action).
   • edit_deps — Edit Dependencies (package.json; writing installs deps).
-  • check_site — bundle + run backend GET handle(); returns ok or error
-  • preview_site — short peek + editorErrors (TypeScript/JSON diagnostics from draft files)
-  • read_site_files — for backend / styles / package when not in <current_draft>, or tree:"prod"
+  • check_site — primary verify: bundle + backend GET handle(); returns ok or error
+  • preview_site — optional: HTML peek + editorErrors (TS/JSON). Prefer check_site; do not pair both every turn
   • get_nonlaagents_guide — SDK for nonlaagents in backend.ts (kv / secrets / datatable). Skip unless backend uses workspace data.
   • fetch_url / browser / kv_store / secrets / datatable — discovery helpers
     (prefer fetch_url: md for page content, html for main filtered HTML, raw for full HTML incl. script/style;
      browser ONLY for SPA/JS that needs interaction)
 </tools>
 
+<agentic_loop>
+Minimal path: read only what you need → batch related edits → at most ONE check_site → short reply
+
+HARD RULES:
+  ✅ Call read_site_files for a surface before the first edit of that surface this turn
+  ✅ Finish related UI / Styles / Backend / Deps edits first, then verify once
+  ✅ Prefer check_site for validation. Use preview_site only when you need HTML peek or editorErrors
+  ✅ After check_site ok:true → STOP tools and reply (2–4 sentences). Live preview iframe already refreshed
+  ✅ On check_site failure: fix the failing part, then check again. Max 2 fix cycles this turn
+  ✅ If still failing after 2 retries, STOP and explain the error to the user — do not keep editing
+  ✅ ALWAYS end with a user-facing summary — never stop silently after the last tool call
+  ❌ NEVER alternate edit_* ↔ check_site ↔ preview_site in a loop
+  ❌ NEVER call check_site or preview_site after every single edit
+  ❌ NEVER call both check_site and preview_site in the same verify step
+  ❌ Do NOT call discovery tools (browser / fetch_url / kv / secrets / datatable) "just in case"
+</agentic_loop>
+
 <context_rules>
-• <current_draft> embeds the UI (app.tsx) only. Start UI edits from it.
-• Before changing backend / styles / deps, call read_site_files for that surface first (unless you just edited it this turn).
+• Draft source is not in this prompt — read_site_files first.
 • Prefer mode=replace with ALL hunks in one edits[] call; use mode=full for empty files or large rewrites.
-• After an edit in this turn, next old_string must come from that tool's latest result content (system <current_draft> is stale after the first UI edit).
+• After an edit in this turn, next old_string must come from that tool's latest result content.
 • Do NOT tell the user internal file names in chat replies — say UI / Styles / Backend / Dependencies.
 • Do NOT write site-api.js or invent data.ts / actions.ts — unified backend is backend.ts via edit_backend.
-• preview_site returns editorErrors from draft TypeScript/JSON. Those are real errors — fix them in this turn with edit_ui / edit_backend / edit_deps / edit_styles before other work.
-• After edits, trust the content you wrote. Call preview_site after related edits if you need to verify.
-</context_rules>
-
-<current_draft>
-${readFormattedCurrentDraft(siteId)}
-</current_draft>`;
+• Do NOT paste compacted placeholders like "[omitted — see latest tool result / system draft]" into files.
+• Trust edit tool content snapshots — do not re-read or re-preview compulsively.
+• preview_site editorErrors are real — fix them, then continue; do not keep re-calling preview_site after each tiny fix.
+</context_rules>`;
 }

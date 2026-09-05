@@ -23,19 +23,34 @@ function summarizeLoaderData(data: unknown): unknown {
 
 function classifyError(message: string): { stage: string; hint: string } {
   const m = message.toLowerCase();
+  if (m.includes("ebadf") || m.includes("posix_spawn") || m.includes("bad file descriptor")) {
+    return {
+      stage: "runtime",
+      hint: "Host failed to spawn the site backend process (not a backend.ts bug). Retry check_site once. If it still fails, tell the user to restart the server.",
+    };
+  }
   if (m.includes("bundle") || m.includes("build") || m.includes("cannot find module") || m.includes("resolve")) {
     return {
       stage: "bundle",
-      hint: "Client bundle failed — fix app.tsx / imports, or update package.json (deps install automatically on write).",
+      hint: "Client bundle failed — fix app.tsx / imports or package.json, then check_site once more (max 2 retries). If still failing, stop and explain.",
     };
   }
   if (m.includes("handle(") || m.includes("backend.ts") || m.includes("load()") || m.includes("data.ts") || m.includes("loader")) {
-    return { stage: "backend", hint: "backend.ts handle() threw — check method branching, nonlaagents calls, await usage, and return shape." };
+    return {
+      stage: "backend",
+      hint: "backend.ts handle() threw — fix method branching / nonlaagents / await / return shape, then check_site once more (max 2 retries). If still failing, stop and explain.",
+    };
   }
   if (m.includes("timed out")) {
-    return { stage: "timeout", hint: "Timed out — simplify handle() work or fix an infinite loop." };
+    return {
+      stage: "timeout",
+      hint: "Timed out — simplify handle() or fix an infinite loop, then check_site once more. If still failing, stop and explain.",
+    };
   }
-  return { stage: "runtime", hint: "Fix the error in draft files, then call check_site again." };
+  return {
+    stage: "runtime",
+    hint: "Fix the failing part, then check_site again (max 2 retries this turn). If still failing, stop and explain to the user.",
+  };
 }
 
 async function withToolTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -75,7 +90,8 @@ export function makeCheckSiteTool(siteId: string) {
     },
     {
       name: "check_site",
-      description: "Validate the draft site by bundling the React app and running backend.ts handle() for GET. Returns ok or a structured error. Call after edits when you need to verify. The live preview iframe refreshes after writes.",
+      description:
+        "Primary validation: bundle the React app and run backend.ts handle() for GET. Call ONCE after a batch of related edits — not after every edit. On ok:true, stop tools and reply. On failure, fix then retry (max 2). Prefer this over preview_site; do not call both in the same verify step. Live preview iframe already refreshes after writes.",
       schema: z.object({}),
     },
   );

@@ -50,9 +50,9 @@ export function toolCallArgs(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
 }
 
-/** Cross-turn: redact ALL site edit payloads (including latest). */
+/** Cross-turn: redact edit args; keep the latest successful snapshot per surface. */
 export function compactSiteWriteHistory(messages: SiteAgentStreamRequest["messages"]): SiteAgentStreamRequest["messages"] {
-  return redactEditHistoryPayloads(messages);
+  return redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true });
 }
 
 function appendToolResults(result: BaseMessage[], toolMsgs: ToolCallMessage[], idFallback: (k: number) => string) {
@@ -152,7 +152,7 @@ export async function streamSiteAgent(siteId: string, body: SiteAgentStreamReque
     makeDatatableTool(["list_projects", "get_schema"]),
   ];
 
-  const systemPrompt = buildSiteAgentSystemPrompt(siteId, {
+  const systemPrompt = buildSiteAgentSystemPrompt({
     name: site.name,
     slug: site.slug,
     publicBaseUrl: publicBaseUrl || undefined,
@@ -167,7 +167,7 @@ export async function streamSiteAgent(siteId: string, body: SiteAgentStreamReque
   await streamAgentSSE({
     agent,
     messages: buildLangChainMessages(messages),
-    maxSteps: 30,
+    maxSteps: 20,
     stream,
     abortSignal,
   });
