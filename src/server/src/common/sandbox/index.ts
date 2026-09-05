@@ -20,7 +20,9 @@ import { isSeatbeltAvailable, wrapForSandbox as wrapWithSeatbelt } from "./seatb
 import type { SandboxWrapOpts } from "./types.js";
 
 export type { SandboxWrapOpts } from "./types.js";
+export { SANDBOX_TSCONFIG, rewriteSandboxTs } from "./rewrite-source.js";
 export { SANDBOX_ENV_ALLOWLIST, sandboxChildEnv };
+export { spawnCaptured, readCapturedOutput, unlinkCaptured, type CapturedSpawn } from "./spawn-captured.js";
 
 let warnedUnsupportedPlatform = false;
 

@@ -12,6 +12,7 @@
  * to running unwrapped.
  */
 
+import { readCapturedOutput, spawnCaptured, unlinkCaptured } from "./spawn-captured.js";
 import type { SandboxWrapOpts } from "./types.js";
 
 let availability: Promise<boolean> | undefined;
@@ -58,13 +59,10 @@ async function probeBwrap(): Promise<boolean> {
   if (process.platform !== "linux") return false;
   if (!Bun.which("bwrap")) return false;
 
+  const captured = await spawnCaptured(bwrapArgv(["true"], { cwd: "/" }));
   try {
-    const proc = Bun.spawn(bwrapArgv(["true"], { cwd: "/" }), {
-      stdout: "ignore",
-      stderr: "pipe",
-      stdin: "ignore",
-    });
-    const [exitCode, stderrText] = await Promise.all([proc.exited, new Response(proc.stderr!).text()]);
+    const exitCode = await captured.exited;
+    const { stderr: stderrText } = await readCapturedOutput(captured);
     if (exitCode !== 0) {
       console.warn(`[sandbox] bubblewrap unavailable, running unsandboxed: ${stderrText.trim().slice(0, 300)}`);
       return false;
@@ -73,6 +71,8 @@ async function probeBwrap(): Promise<boolean> {
   } catch (err) {
     console.warn(`[sandbox] bubblewrap not usable, running unsandboxed: ${err instanceof Error ? err.message : String(err)}`);
     return false;
+  } finally {
+    await unlinkCaptured(captured);
   }
 }
 

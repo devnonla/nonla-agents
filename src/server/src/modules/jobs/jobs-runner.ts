@@ -1,5 +1,6 @@
 import { rmSync } from "node:fs";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
+import { rewriteSandboxTs } from "../../common/sandbox/index.js";
 import { getDataDir } from "../../common/utils/data-dir.js";
 import { startNonlaagentsProxy } from "../tools/common/nonlaagents-proxy.js";
 import { type JobLogEntry, createLineBuffer } from "./common/job-logs.js";
@@ -43,7 +44,7 @@ async function writeWorkspace(runId: string, code: string): Promise<string> {
   await Bun.write(`${legacyPkgDir}/index.ts`, JOBS_NONLAAGENTS_INDEX_TS);
 
   await Bun.write(`${dir}/package.json`, JSON.stringify({ name: `job-run-${runId}`, type: "module" }));
-  await Bun.write(`${dir}/main.ts`, code);
+  await Bun.write(`${dir}/main.ts`, rewriteSandboxTs(code));
   return dir;
 }
 

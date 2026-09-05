@@ -1,5 +1,6 @@
+import { rmSync } from "node:fs";
 import { BadRequestException, ServiceUnavailableException } from "../../common/exceptions/http.exception.js";
-import { sandboxChildEnv, wrapForSandbox } from "../../common/sandbox/index.js";
+import { ensureWritableDir, readCapturedOutput, sandboxChildEnv, spawnCaptured, unlinkCaptured, wrapForSandbox } from "../../common/sandbox/index.js";
 import { tmpDir } from "../../common/utils/data-dir.js";
 import { startNonlaagentsProxy } from "../tools/common/nonlaagents-proxy.js";
 
@@ -92,44 +93,15 @@ function parseWorkerStdout(stdout: string): Record<string, unknown> {
   throw new BadRequestException(`Backend worker returned invalid JSON: ${stdout.slice(0, 500)}`);
 }
 
-type SiteWorkerProc = {
-  stdout: ReadableStream<Uint8Array> | null;
-  stderr: ReadableStream<Uint8Array> | null;
-  exited: Promise<number>;
-  kill: (signal?: number | NodeJS.Signals) => void;
-};
+type CapturedWorker = Awaited<ReturnType<typeof spawnCaptured>>;
 
-function killWorker(proc: SiteWorkerProc, signal?: number | NodeJS.Signals) {
-  try {
-    if (signal === undefined) proc.kill();
-    else proc.kill(signal);
-  } catch {
-    /* ignore */
-  }
+function killWorker(proc: CapturedWorker, signal?: number | NodeJS.Signals) {
+  proc.kill(signal);
 }
 
-async function readPipeText(stream: ReadableStream<Uint8Array> | null): Promise<string> {
-  if (!stream) return "";
-  try {
-    return await new Response(stream).text();
-  } catch {
-    return "";
-  }
-}
-
-async function awaitWorker(proc: SiteWorkerProc, wallMs: number): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean }> {
-  let stdout = "";
-  let stderr = "";
-
-  const readStdout = readPipeText(proc.stdout).then((text) => {
-    stdout = text;
-  });
-  const readStderr = readPipeText(proc.stderr).then((text) => {
-    stderr = text;
-  });
-
+async function awaitWorker(proc: CapturedWorker, wallMs: number): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean }> {
   let killedForTimeout = false;
-  const finished = Promise.all([readStdout, readStderr, proc.exited]).then(([, , exitCode]) => ({
+  const finished = proc.exited.then((exitCode) => ({
     exitCode,
     timedOut: false as const,
   }));
@@ -150,6 +122,7 @@ async function awaitWorker(proc: SiteWorkerProc, wallMs: number): Promise<{ stdo
 
   try {
     const outcome = await Promise.race([finished, wall]);
+    const { stdout, stderr } = await readCapturedOutput(proc);
     if (killedForTimeout || outcome.timedOut) {
       await Promise.race([finished.catch(() => undefined), new Promise<void>((r) => setTimeout(r, 500))]);
       return { stdout, stderr, exitCode: -1, timedOut: true };
@@ -168,6 +141,15 @@ async function unlinkQuiet(path: string | undefined) {
     .catch(() => undefined);
 }
 
+function rmQuiet(dir: string | undefined) {
+  if (!dir) return;
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function runSiteBackendWorker(opts: {
   runtimeDir: string;
   treeDir: string;
@@ -181,20 +163,24 @@ export async function runSiteBackendWorker(opts: {
   let requestPath: string | undefined;
   let queryPath: string | undefined;
   let paramsPath: string | undefined;
+  let bunTmp: string | undefined;
+  let captured: CapturedWorker | undefined;
   const wallMs = workerWallMs();
 
   try {
     requestPath = await serializeRequestToFile(opts.request);
     queryPath = await serializeJsonFile("site-backend-query", opts.query ?? {});
     paramsPath = await serializeJsonFile("site-backend-params", opts.params ?? {});
+    bunTmp = ensureWritableDir(`${tmpDir()}/site-backend-${crypto.randomUUID()}`);
 
     const workerPath = resolveWorkerPath();
     if (Bun.file(workerPath).size === 0) {
       throw new BadRequestException(`Backend worker not found at ${workerPath}`);
     }
 
-    const argv = await wrapForSandbox(["bun", workerPath], { cwd: opts.treeDir });
-    const proc = Bun.spawn(argv, {
+    const argv = await wrapForSandbox([process.execPath, workerPath], { cwd: opts.treeDir, writablePaths: [bunTmp] });
+    captured = await spawnCaptured(argv, {
+      cwd: opts.treeDir,
       env: sandboxChildEnv({
         SITE_RUNTIME_DIR: opts.runtimeDir,
         SITE_TREE_DIR: opts.treeDir,
@@ -203,14 +189,14 @@ export async function runSiteBackendWorker(opts: {
         SITE_PARAMS_PATH: paramsPath,
         NONLAAGENTS_URL: proxy.url,
         NONLAAGENTS_TOKEN: proxy.token,
+        TMPDIR: bunTmp,
+        TMP: bunTmp,
+        TEMP: bunTmp,
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: `${bunTmp}/bun-cache`,
       }),
-      stdout: "pipe",
-      stderr: "pipe",
-      stdin: "ignore",
-      cwd: opts.treeDir,
     });
 
-    const { stdout, stderr, timedOut } = await awaitWorker(proc, wallMs);
+    const { stdout, stderr, timedOut } = await awaitWorker(captured, wallMs);
 
     if (timedOut) {
       throw new BadRequestException(`Backend worker timed out after ${wallMs}ms`);
@@ -234,6 +220,7 @@ export async function runSiteBackendWorker(opts: {
   } finally {
     proxy.stop();
     releaseWorkerSlot();
-    await Promise.all([unlinkQuiet(requestPath), unlinkQuiet(queryPath), unlinkQuiet(paramsPath)]);
+    rmQuiet(bunTmp);
+    await Promise.all([unlinkQuiet(requestPath), unlinkQuiet(queryPath), unlinkQuiet(paramsPath), captured ? unlinkCaptured(captured) : undefined]);
   }
 }

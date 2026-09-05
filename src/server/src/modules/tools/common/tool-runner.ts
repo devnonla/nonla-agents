@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { builtinModules } from "node:module";
-import { ensureWritableDir, sandboxChildEnv, wrapForSandbox } from "../../../common/sandbox/index.js";
+import { SANDBOX_TSCONFIG, ensureWritableDir, rewriteSandboxTs, sandboxChildEnv, wrapForSandbox } from "../../../common/sandbox/index.js";
 import { bgTaskRegistry } from "./bg-task-registry.js";
 import { startNonlaagentsProxy } from "./nonlaagents-proxy.js";
 import { writeToolsNonlaagentsPackage } from "./nonlaagents-ts.js";
@@ -478,10 +478,11 @@ async function prepareToolRun(toolId: string, code: string, dataDir: string): Pr
 
   await writeToolsNonlaagentsPackage(sandboxDir);
 
-  const userCode = ensureDefaultExport(code);
+  const userCode = rewriteSandboxTs(ensureDefaultExport(code));
   const userFile = `user_${hashShort(userCode)}.ts`;
   const userPath = `${sandboxDir}/${userFile}`;
   const runPath = `${sandboxDir}/run.ts`;
+  const tsconfigPath = `${sandboxDir}/tsconfig.json`;
   // Retain before the file becomes visible on disk (no await in between) so a
   // concurrent run's sweep on this same sandboxDir can never observe the file
   // without also observing it as live.
@@ -491,6 +492,7 @@ async function prepareToolRun(toolId: string, code: string, dataDir: string): Pr
       await Bun.write(userPath, userCode);
     }
     await writeIfChanged(runPath, HARNESS_TS);
+    await writeIfChanged(tsconfigPath, SANDBOX_TSCONFIG);
     await sweepSandboxDir(sandboxDir, userFile);
     const proxy = startNonlaagentsProxy();
     return { sandboxDir, runPath, userFile, proxy };
