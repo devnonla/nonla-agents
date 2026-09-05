@@ -325,6 +325,8 @@ let diffModelSeq = 0;
 export function MonacoDiffEditor({ theme = RAW_DARK_THEME, options, height = "100%", onMount, originalModelPath, modifiedModelPath, language, ...props }: DiffEditorComponentProps) {
   const idRef = useRef(`diff-${++diffModelSeq}`);
   const ext = modelExtForLanguage(language);
+  const originalPath = originalModelPath ?? `inmemory://original/${idRef.current}${ext}`;
+  const modifiedPath = modifiedModelPath ?? `inmemory://modified/${idRef.current}${ext}`;
   const handleMount: NonNullable<MonacoDiffEditorProps["onMount"]> = useCallback(
     (editor, monacoInstance) => {
       prepareMonaco(monacoInstance);
@@ -335,22 +337,21 @@ export function MonacoDiffEditor({ theme = RAW_DARK_THEME, options, height = "10
       };
       const sub = editor.onDidUpdateDiff(paint);
       onMount?.(editor, monacoInstance);
-      editor.onDidDispose(() => sub.dispose());
+      // @monaco-editor/react disposes TextModels before DiffEditorWidget by default, which throws
+      // "TextModel got disposed before DiffEditorWidget model got reset". keepCurrent* avoids that;
+      // dispose our models after the widget has detached them.
+      editor.onDidDispose(() => {
+        sub.dispose();
+        queueMicrotask(() => {
+          for (const path of [originalPath, modifiedPath]) {
+            const model = monacoInstance.editor.getModel(monacoInstance.Uri.parse(path));
+            if (model && !model.isDisposed()) model.dispose();
+          }
+        });
+      });
     },
-    [onMount, theme],
+    [onMount, theme, originalPath, modifiedPath],
   );
 
-  return (
-    <MonacoReactDiffEditor
-      {...props}
-      language={language}
-      originalModelPath={originalModelPath ?? `inmemory://original/${idRef.current}${ext}`}
-      modifiedModelPath={modifiedModelPath ?? `inmemory://modified/${idRef.current}${ext}`}
-      height={height}
-      theme={theme}
-      options={{ ...DEFAULT_DIFF_OPTIONS, ...options }}
-      onMount={handleMount}
-      beforeMount={prepareMonaco}
-    />
-  );
+  return <MonacoReactDiffEditor {...props} language={language} originalModelPath={originalPath} modifiedModelPath={modifiedPath} keepCurrentOriginalModel keepCurrentModifiedModel height={height} theme={theme} options={{ ...DEFAULT_DIFF_OPTIONS, ...options }} onMount={handleMount} beforeMount={prepareMonaco} />;
 }

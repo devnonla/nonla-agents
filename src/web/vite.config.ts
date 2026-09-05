@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -8,9 +9,7 @@ import pkg from "../../package.json" with { type: "json" };
 function resolveBuildId(): string {
   const fromEnv = process.env.BUILD_ID?.trim();
   if (fromEnv) return fromEnv;
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return randomBytes(8).toString("hex");
 }
 
 const APP_BUILD_ID = resolveBuildId();

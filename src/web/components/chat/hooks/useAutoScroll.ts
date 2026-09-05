@@ -11,7 +11,7 @@ export function useAutoScroll(opts?: {
   threshold?: number;
   onScrolledUpChange?: (scrolledUp: boolean) => void;
 }) {
-  const threshold = opts?.threshold ?? 80;
+  const threshold = opts?.threshold ?? 10;
   const onScrolledUpChangeRef = useRef(opts?.onScrolledUpChange);
   onScrolledUpChangeRef.current = opts?.onScrolledUpChange;
 
