@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-05
+
+### Added
+
+- Sites bundle CSS from `styles.css` through Bun.build instead of a hand-rolled minifier
+- Restyled default site starter (blank-canvas copy and a ping demo)
+
+### Changed
+
+- Site assistant no longer embeds draft files in the system prompt — it reads first and verifies with at most one `check_site` per turn
+- Coding agents keep the latest successful edit snapshot in history so later edits are not made from `[omitted]` placeholders
+- Untrusted tool, job, and site TypeScript is rewritten before Bun runs it (caret regex literals and `@ts-nocheck`)
+
+### Fixed
+
+- Refuse writing compacted `[omitted — …]` placeholders into tools, jobs, skills, and site files
+- Child processes no longer fail with `posix_spawn` EBADF on macOS when many file descriptors are open
+- Monaco diff editor no longer throws when disposing models
+- Chat auto-scroll follows new messages more closely
+
+### Upgrade notes
+
+- Pull or rebuild the Docker image. No database migration. Existing published sites are unchanged; newly created sites use the new starter.
+
 ## [0.1.0] - 2026-08-26
 
 First public release of **Nonla Agents** — self-hosted AI agents with a web UI, TypeScript tools, MCP, Jobs, and Sites. One Docker container, SQLite, MIT.
@@ -47,4 +71,6 @@ First public release of **Nonla Agents** — self-hosted AI agents with a web UI
 - Dashboard, Docker image `devnonla/nonla-agents`, data in `/data` (Docker) or `~/.nonla-agents` (source)
 - Workspace SDK: `import nonlaagents` (`kv`, `secrets`, `datatable`, `agents`); env `NONLAAGENTS_URL` / `NONLAAGENTS_TOKEN`; header `X-Nonlaagents-Token`
 
+[Unreleased]: https://github.com/devnonla/nonla-agents/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/devnonla/nonla-agents/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devnonla/nonla-agents/releases/tag/v0.1.0
