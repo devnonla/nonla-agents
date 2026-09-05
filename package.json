@@ -1,8 +1,8 @@
 {
   "name": "nonla-agents",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Nonla Agents \u2014 AI Agent Manager. Self-hosted AI agent platform.",
+  "description": "Nonla Agents — AI Agent Manager. Self-hosted AI agent platform.",
   "author": "devlangla <devlangla0x01@gmail.com>",
   "license": "MIT",
   "repository": {
