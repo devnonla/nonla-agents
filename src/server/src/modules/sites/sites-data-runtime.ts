@@ -1,9 +1,11 @@
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
+import { rewriteSandboxTs } from "../../common/sandbox/index.js";
 import { runSiteBackendWorker } from "./sites-backend-runner.js";
 import { type SiteTree, getTreeDir, readSourceFile, treeContentHash } from "./sites-fs.js";
 
 const importGeneration = new Map<string, number>();
-const DATA_REV = "backend-v2";
+const DATA_REV = "backend-v3";
 
 function treeKey(siteId: string, tree: SiteTree) {
   return `${siteId}:${tree}`;
@@ -16,7 +18,28 @@ export function invalidateSiteDataModules(siteId: string) {
   }
 }
 
-async function materializeDataDir(siteId: string, tree: SiteTree): Promise<string> {
+/**
+ * Single-flight per (siteId, tree) — concurrent GET/POST requests (page load fires GET
+ * …/data while an in-flight action or the agent's check_site also hits handle()) race on
+ * the same on-disk generation dir otherwise, causing flaky "backend.ts threw" errors that
+ * are pure races. Only the materialize step is deduped; each caller still runs its own
+ * runSiteBackendWorker so POST side effects are never shared/skipped.
+ */
+const materializeLocks = new Map<string, Promise<string>>();
+
+function materializeDataDir(siteId: string, tree: SiteTree): Promise<string> {
+  const key = treeKey(siteId, tree);
+  const inFlight = materializeLocks.get(key);
+  if (inFlight) return inFlight;
+
+  const run = materializeDataDirUnlocked(siteId, tree).finally(() => {
+    materializeLocks.delete(key);
+  });
+  materializeLocks.set(key, run);
+  return run;
+}
+
+async function materializeDataDirUnlocked(siteId: string, tree: SiteTree): Promise<string> {
   const dir = getTreeDir(siteId, tree);
   const key = treeKey(siteId, tree);
   let gen = importGeneration.get(key) ?? 0;
@@ -38,7 +61,9 @@ async function materializeDataDir(siteId: string, tree: SiteTree): Promise<strin
   }
 
   const out = dirFor(gen);
-  await Bun.write(`${out}/backend.ts`, readSourceFile(siteId, tree, "backend.ts") || "export async function handle(){return{}}");
+  const backend = readSourceFile(siteId, tree, "backend.ts") || "export async function handle(){return{}}";
+  if (isOmittedSource(backend)) throw new BadRequestException(`backend.ts ${OMITTED_WRITE_MESSAGE}`);
+  await Bun.write(`${out}/backend.ts`, rewriteSandboxTs(backend));
   await Bun.write(stampPath(gen), stamp);
   return out;
 }

@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { SignJWT, jwtVerify } from "jose";
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { getDb, sites } from "../../common/db/client.js";
 import { listQuery } from "../../common/db/list-query.util.js";
 import { qall, qone, qrun } from "../../common/db/query.js";
@@ -11,7 +12,7 @@ import { resolveSiteSelection } from "./common/resolve-selection.js";
 import { buildSiteBundle, buildSiteShellHtml, buildSiteUnlockHtml, invalidateSiteCaches as invalidateBundleCaches } from "./sites-bundle.js";
 import { invalidateSiteDataModules, runSiteActionModule, runSiteLoad } from "./sites-data-runtime.js";
 import { installSiteDeps } from "./sites-deps.js";
-import { type SiteSourceFile, type SiteTree, discardDraft, ensureReactSiteSources, isAllowedSourceFile, isDraftDirty, promoteDraftToProd, readAllSourceFiles, removeSiteDir, writeScaffold, writeSourceFile } from "./sites-fs.js";
+import { SITE_SOURCE_FILES, type SiteSourceFile, type SiteTree, discardDraft, ensureReactSiteSources, isAllowedSourceFile, isDraftDirty, promoteDraftToProd, readAllSourceFiles, readSourceFile, removeSiteDir, writeScaffold, writeSourceFile } from "./sites-fs.js";
 import { readSiteThumbnailPng, writeSiteThumbnailPng } from "./sites-thumbnail.js";
 
 function sitePublicPath(slug: string) {
@@ -279,6 +280,9 @@ export async function updateSiteFile(id: string, file: string, content: string, 
   }
   if (!isAllowedSourceFile(file)) throw new BadRequestException(`Invalid file: ${file}`);
   if (typeof content !== "string") throw new BadRequestException("content must be a string");
+  if (isOmittedSource(content)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   writeSourceFile(id, tree, file as SiteSourceFile, content);
   invalidateSiteCaches(id);
 
@@ -342,6 +346,11 @@ function parseOptionalSourceFiles(file?: string): SiteSourceFile[] | undefined {
 export async function approveSite(id: string, file?: string) {
   await getSiteOrThrow(id);
   const files = parseOptionalSourceFiles(file);
+  for (const f of files ?? SITE_SOURCE_FILES) {
+    if (isOmittedSource(readSourceFile(id, "draft", f))) {
+      throw new BadRequestException(`${f} ${OMITTED_WRITE_MESSAGE}`);
+    }
+  }
   promoteDraftToProd(id, files);
   invalidateSiteCaches(id);
 

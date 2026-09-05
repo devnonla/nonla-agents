@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { getDataDir } from "../../common/utils/data-dir.js";
 
 function join(...parts: string[]): string {
@@ -22,8 +23,8 @@ export const SITE_RUNTIME_FILES = ["app.tsx"] as const;
 const DEFAULT_BACKEND = `export async function handle({ request, nonlaagents, query }) {
   if (request.method === "GET" || request.method === "HEAD") {
     return {
-      title: "Hello Site",
-      message: "Edit app.tsx, backend.ts, and styles.css — then Approve to publish.",
+      title: "This site is a blank canvas",
+      message: "Tell the assistant what to build — describe the idea in chat and it will rewrite this page for you.",
     };
   }
 
@@ -49,6 +50,7 @@ export default async function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ponged, setPonged] = useState(false);
 
   const refresh = () => {
     setError("");
@@ -63,8 +65,10 @@ export default async function App() {
 
   const onDemoAction = async () => {
     setBusy(true);
+    setPonged(false);
     try {
       await siteAction({ _action: "ping" });
+      setPonged(true);
       refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -76,10 +80,14 @@ export default async function App() {
   if (error) {
     return (
       <div className="page">
-        <p className="message error">{error}</p>
-        <button type="button" onClick={refresh}>
-          Retry
-        </button>
+        <div className="halo" aria-hidden="true" />
+        <main className="shell">
+          <span className="eyebrow">Something broke</span>
+          <p className="message error">{error}</p>
+          <button type="button" className="btn" onClick={refresh}>
+            Retry
+          </button>
+        </main>
       </div>
     );
   }
@@ -87,45 +95,197 @@ export default async function App() {
   if (!data) {
     return (
       <div className="page">
-        <p className="message">Loading…</p>
+        <div className="halo" aria-hidden="true" />
+        <main className="shell">
+          <p className="message">Loading…</p>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="page">
-      <h1 className="title">{data.title}</h1>
-      <p className="message">{data.message}</p>
-      <button type="button" disabled={busy} onClick={() => void onDemoAction()}>
-        {busy ? "Working…" : "Ping action"}
-      </button>
+      <div className="grid" aria-hidden="true" />
+      <div className="halo" aria-hidden="true" />
+      <main className="shell">
+        <span className="eyebrow">New site · unpublished</span>
+        <h1 className="title">{data.title}</h1>
+        <p className="message">{data.message}</p>
+        <div className="actions">
+          <button type="button" className="btn" disabled={busy} onClick={() => void onDemoAction()}>
+            {busy ? "Pinging…" : "Ping the backend"}
+          </button>
+          {ponged ? <span className="pong">Backend replied ✓</span> : null}
+        </div>
+        <p className="hint">This page + backend.ts are just a starter — describe your idea in chat and the assistant reshapes both.</p>
+      </main>
     </div>
   );
 }
 `;
 
-const DEFAULT_STYLES = `.page {
-  font-family: system-ui, sans-serif;
+const DEFAULT_STYLES = `@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap");
+
+:root {
+  --canvas: #121212;
+  --ink: #ebebeb;
+  --muted: #9a9a9a;
+  --brand: #dd7627;
+  --brand-soft: #ffa333;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   padding: 24px;
-  max-width: 720px;
-  margin: 0 auto;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image: linear-gradient(90deg, rgba(221, 118, 39, 0.08) 1px, transparent 1px), linear-gradient(rgba(221, 118, 39, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+.halo {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 60rem;
+  height: 34rem;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(221, 118, 39, 0.22), transparent 70%);
+  pointer-events: none;
+  animation: halo-breathe 6s ease-in-out infinite;
+}
+
+@keyframes halo-breathe {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 4px 12px;
+  border: 1px solid rgba(221, 118, 39, 0.35);
+  border-radius: 999px;
+  background: rgba(221, 118, 39, 0.1);
+  color: var(--brand-soft);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .title {
-  margin-bottom: 8px;
+  margin: 0 0 12px;
+  font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 
 .message {
-  color: #555;
+  margin: 0 0 28px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .message.error {
-  color: #b91c1c;
+  color: #f87171;
 }
 
-button {
-  margin-top: 12px;
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.btn:hover {
+  background: var(--brand-soft);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--brand-soft);
+  outline-offset: 3px;
+}
+
+.pong {
+  color: #4ade80;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hint {
+  margin: 0;
+  color: #6e6e6e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 28px;
+  }
 }
 `;
 
@@ -212,6 +372,7 @@ export function readSourceFile(siteId: string, tree: SiteTree, file: SiteSourceF
 
 export function writeSourceFile(siteId: string, tree: SiteTree, file: SiteSourceFile, content: string): void {
   if (!isAllowedSourceFile(file)) throw new Error(`Invalid site file: ${file}`);
+  if (isOmittedSource(content)) throw new Error(OMITTED_WRITE_MESSAGE);
   const dir = getTreeDir(siteId, tree);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, file), content, "utf8");

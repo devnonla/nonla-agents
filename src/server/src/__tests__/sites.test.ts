@@ -269,6 +269,66 @@ export default function App() {
     await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
   }, 180_000);
 
+  test("preview works when styles.css is a compacted omitted placeholder", async () => {
+    const createRes = await authRequest(app, token, "POST", "/api/sites", {
+      name: "Omitted CSS",
+      slug: "omitted-css",
+    });
+    expect(createRes.status).toBe(201);
+    const site = (await createRes.json()) as { id: string };
+
+    const { writeFileSync } = await import("node:fs");
+    const { EDIT_PAYLOAD_OMITTED } = await import("../common/ai/apply-exact-replace.js");
+    const { getTreeDir } = await import("../modules/sites/sites-fs.js");
+    writeFileSync(`${getTreeDir(site.id, "draft")}/styles.css`, EDIT_PAYLOAD_OMITTED);
+
+    const previewRes = await authRequest(app, token, "POST", `/api/sites/${site.id}/preview`, {});
+    expect(previewRes.status).toBe(200);
+    const preview = (await previewRes.json()) as { html: string };
+    expect(preview.html).toContain('id="root"');
+
+    await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
+  }, 180_000);
+
+  test("preview fails clearly when app.tsx is a compacted omitted placeholder", async () => {
+    const createRes = await authRequest(app, token, "POST", "/api/sites", {
+      name: "Omitted App",
+      slug: "omitted-app",
+    });
+    expect(createRes.status).toBe(201);
+    const site = (await createRes.json()) as { id: string };
+
+    const { writeFileSync } = await import("node:fs");
+    const { EDIT_PAYLOAD_OMITTED } = await import("../common/ai/apply-exact-replace.js");
+    const { getTreeDir } = await import("../modules/sites/sites-fs.js");
+    writeFileSync(`${getTreeDir(site.id, "draft")}/app.tsx`, EDIT_PAYLOAD_OMITTED);
+
+    const previewRes = await authRequest(app, token, "POST", `/api/sites/${site.id}/preview`, {});
+    expect(previewRes.status).toBe(422);
+    const preview = (await previewRes.json()) as { message: string };
+    expect(preview.message).toContain("app.tsx");
+    expect(preview.message).toContain("compacted edit placeholder");
+
+    await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
+  }, 180_000);
+
+  test("PUT omitted placeholder is rejected", async () => {
+    const createRes = await authRequest(app, token, "POST", "/api/sites", {
+      name: "CSS in app",
+      slug: "css-in-app",
+    });
+    expect(createRes.status).toBe(201);
+    const site = (await createRes.json()) as { id: string };
+
+    const omitted = await authRequest(app, token, "PUT", `/api/sites/${site.id}/files/styles.css`, {
+      content: "[omitted — see latest tool result / system draft]",
+      tree: "draft",
+    });
+    expect(omitted.status).toBe(400);
+
+    await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
+  }, 180_000);
+
   test("member cannot access another users site", async () => {
     const createRes = await authRequest(app, token, "POST", "/api/sites", {
       name: "Admin Only",

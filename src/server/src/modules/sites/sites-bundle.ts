@@ -1,25 +1,13 @@
 import { readdirSync, rmSync } from "node:fs";
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
+import { SANDBOX_TSCONFIG, rewriteSandboxTs } from "../../common/sandbox/index.js";
 import { ogMetaTags } from "../../common/spa-html.js";
 import { PLATFORM_ENTRY_SOURCE, PLATFORM_SITE_API_SOURCE } from "./platform/site-api-source.js";
 import { SITE_RUNTIME_FILES, type SiteTree, getTreeDir, readSourceFile, treeContentHash } from "./sites-fs.js";
 
 const importGeneration = new Map<string, number>();
-const BUNDLE_REV = "react-v6";
-
-const BUNDLE_TSCONFIG = `${JSON.stringify(
-  {
-    compilerOptions: {
-      jsx: "react-jsx",
-      module: "ESNext",
-      moduleResolution: "bundler",
-      target: "ES2022",
-      skipLibCheck: true,
-    },
-  },
-  null,
-  2,
-)}\n`;
+const BUNDLE_REV = "react-v10-omit-css";
 
 function join(...parts: string[]): string {
   return parts.join("/");
@@ -67,14 +55,15 @@ async function materializeBundleDir(siteId: string, tree: SiteTree): Promise<str
   for (const file of SITE_RUNTIME_FILES) {
     const content = readSourceFile(siteId, tree, file);
     if (!content.trim()) throw new BadRequestException(`Missing ${file} in ${tree}`);
-    await Bun.write(join(outDir, file), content);
+    if (isOmittedSource(content)) throw new BadRequestException(`${file} ${OMITTED_WRITE_MESSAGE}`);
+    await Bun.write(join(outDir, file), rewriteSandboxTs(content));
   }
 
   const css = readSourceFile(siteId, tree, "styles.css");
-  await Bun.write(join(outDir, "styles.css"), minifyCss(css));
+  await Bun.write(join(outDir, "styles.css"), isOmittedSource(css) ? "" : css);
   await Bun.write(join(outDir, "site-api.js"), PLATFORM_SITE_API_SOURCE);
   await Bun.write(join(outDir, "entry.tsx"), PLATFORM_ENTRY_SOURCE);
-  await Bun.write(join(outDir, "tsconfig.json"), BUNDLE_TSCONFIG);
+  await Bun.write(join(outDir, "tsconfig.json"), SANDBOX_TSCONFIG);
 
   return outDir;
 }
@@ -106,7 +95,28 @@ export type SiteBundleResult = {
   cached: boolean;
 };
 
-export async function buildSiteBundle(siteId: string, tree: SiteTree): Promise<SiteBundleResult> {
+/**
+ * Single-flight per (siteId, tree) — the live iframe HTML request and its two asset
+ * requests (app.js, styles.css) all hit this concurrently after every edit, plus the
+ * agent's own check_site call. Without dedup, concurrent callers race on the same
+ * on-disk generation dir (partial writes mid-Bun.build) and cause flaky "bundle failed"
+ * errors that are pure races, not real code problems.
+ */
+const buildLocks = new Map<string, Promise<SiteBundleResult>>();
+
+export function buildSiteBundle(siteId: string, tree: SiteTree): Promise<SiteBundleResult> {
+  const key = treeKey(siteId, tree);
+  const inFlight = buildLocks.get(key);
+  if (inFlight) return inFlight;
+
+  const run = buildSiteBundleUnlocked(siteId, tree).finally(() => {
+    buildLocks.delete(key);
+  });
+  buildLocks.set(key, run);
+  return run;
+}
+
+async function buildSiteBundleUnlocked(siteId: string, tree: SiteTree): Promise<SiteBundleResult> {
   const key = treeKey(siteId, tree);
   const genBefore = importGeneration.get(key) ?? 0;
   const outDir = await materializeBundleDir(siteId, tree);
@@ -127,17 +137,23 @@ export async function buildSiteBundle(siteId: string, tree: SiteTree): Promise<S
 
   const entry = join(outDir, "entry.tsx");
   const treeDir = getTreeDir(siteId, tree);
-  const result = await Bun.build({
-    entrypoints: [entry],
-    outdir: outDir,
-    root: treeDir,
-    tsconfig: join(outDir, "tsconfig.json"),
-    target: "browser",
-    format: "esm",
-    minify: true,
-    sourcemap: "none",
-    naming: "[name].[ext]",
-  });
+  let result: Awaited<ReturnType<typeof Bun.build>>;
+  try {
+    result = await Bun.build({
+      entrypoints: [entry],
+      outdir: outDir,
+      root: treeDir,
+      tsconfig: join(outDir, "tsconfig.json"),
+      target: "browser",
+      format: "esm",
+      minify: true,
+      sourcemap: "none",
+      naming: "[name].[ext]",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new BadRequestException(`Site bundle failed: ${message.slice(0, 2000)}`);
+  }
 
   if (!result.success) {
     const msg = formatBuildLogs(result.logs);
@@ -165,6 +181,9 @@ export async function buildSiteBundle(siteId: string, tree: SiteTree): Promise<S
   }
   if (!(await Bun.file(appJsPath).exists())) throw new BadRequestException("Site bundle produced no app.js");
 
+  const css = await collectBuiltCss(result, outDir);
+  await Bun.write(join(outDir, "styles.css"), css);
+
   await Bun.write(stampPath, stamp);
   // Drop older gens (keep current)
   const bundleRoot = join(getTreeDir(siteId, tree), ".bundle");
@@ -184,6 +203,24 @@ export async function buildSiteBundle(siteId: string, tree: SiteTree): Promise<S
     css: await Bun.file(join(outDir, "styles.css")).text(),
     cached: false,
   };
+}
+
+async function collectBuiltCss(result: { outputs: Array<{ path: string; text(): Promise<string> }> }, outDir: string): Promise<string> {
+  const fromBuild: string[] = [];
+  for (const output of result.outputs) {
+    if (!output.path.endsWith(".css") || output.path.endsWith(".css.map")) continue;
+    fromBuild.push(await output.text());
+  }
+  if (fromBuild.length > 0) return fromBuild.join("\n");
+
+  for (const name of ["entry.css", "app.css", "styles.css"]) {
+    const file = Bun.file(join(outDir, name));
+    if (await file.exists()) {
+      const text = await file.text();
+      if (text.trim()) return text;
+    }
+  }
+  return "";
 }
 
 function siteOgHead(origin: string | undefined, slug: string, title: string): string {
@@ -230,16 +267,6 @@ function escapeHtml(s: string) {
 /** Drop pretty whitespace from served HTML (keep script/json payloads intact). */
 function compactHtml(html: string): string {
   return html.replace(/>\s+</g, "><").trim();
-}
-
-/** Lightweight CSS minify — strip comments + collapse whitespace. */
-export function minifyCss(css: string): string {
-  return css
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*([{}:;,>~+])\s*/g, "$1")
-    .replace(/;}/g, "}")
-    .trim();
 }
 
 export function buildSiteUnlockHtml(opts: { title: string; slug: string; error?: string; origin?: string }) {
