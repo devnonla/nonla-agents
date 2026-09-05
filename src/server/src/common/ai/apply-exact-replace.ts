@@ -24,6 +24,22 @@ export type ApplyEditSuccess = {
 export type ApplyEditResult = ApplyEditSuccess | ApplyEditError;
 
 export const EDIT_PAYLOAD_OMITTED = "[omitted — see latest tool result / system draft]";
+export const OMITTED_WRITE_MESSAGE = "Refusing to write a compacted edit placeholder — use the real file contents";
+
+export function isOmittedSource(text: string | null | undefined): boolean {
+  return typeof text === "string" && text.includes(EDIT_PAYLOAD_OMITTED);
+}
+
+export function editPayloadIsOmitted(next: string, edits?: Array<{ old_string: string; new_string: string }>): boolean {
+  if (isOmittedSource(next)) return true;
+  return edits?.some((h) => isOmittedSource(h.old_string) || isOmittedSource(h.new_string)) ?? false;
+}
+
+export const OMITTED_EDIT_TOOL_ERROR = {
+  ok: false as const,
+  error: "edit payload is a compacted placeholder, not real source",
+  hint: "Copy old_string / code from the latest tool-result snapshot (current_code or content) or system <current_code> — never from redacted history.",
+};
 
 export function normalizeToLf(text: string): string {
   return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");

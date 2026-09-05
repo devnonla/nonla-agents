@@ -48,7 +48,7 @@ function toolCallArgs(input: unknown): Record<string, unknown> {
 }
 
 function compactEditCodeHistory(messages: JobCodingStreamRequest["messages"]): JobCodingStreamRequest["messages"] {
-  return redactEditHistoryPayloads(messages);
+  return redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true });
 }
 
 function buildLangChainMessages(messages: JobCodingStreamRequest["messages"]): BaseMessage[] {

@@ -37,7 +37,7 @@ function toolCallArgs(input: unknown): Record<string, unknown> {
 
 function buildLangChainMessages(messages: SkillStreamRequest["messages"]): BaseMessage[] {
   const result: BaseMessage[] = [];
-  const compacted = redactEditHistoryPayloads(messages);
+  const compacted = redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true });
 
   for (let i = 0; i < compacted.length; i++) {
     const msg = compacted[i];

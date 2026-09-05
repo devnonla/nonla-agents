@@ -4,7 +4,7 @@
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { type EditHunk, applyEdits, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
+import { type EditHunk, OMITTED_EDIT_TOOL_ERROR, applyEdits, editPayloadIsOmitted, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
 import { type SiteSourceFile, readSourceFile } from "../../sites-fs.js";
 import { updateSiteFile } from "../../sites.service.js";
 
@@ -41,12 +41,12 @@ export const SITE_EDIT_SURFACES: SiteEditSurface[] = [
   {
     name: "edit_ui",
     file: "app.tsx",
-    description: 'Edit the site UI (React App). mode="replace": edits[{ old_string, new_string, replace_all? }]. mode="full": write complete content. Prefer replace for small changes.',
+    description: 'Edit the site UI (React App). Call read_site_files first if you have not read app.tsx this turn. mode="replace": edits[{ old_string, new_string, replace_all? }]. mode="full": write complete content. Prefer replace for small changes.',
   },
   {
     name: "edit_styles",
     file: "styles.css",
-    description: 'Edit site styles. mode="replace" with edits[] or mode="full" with complete CSS content.',
+    description: 'Edit site styles.css. Call read_site_files first if you have not read styles this turn. mode="replace" with edits[] or mode="full" with complete CSS content.',
   },
   {
     name: "edit_backend",
@@ -93,15 +93,20 @@ export function makeEditSiteSurfaceTool(siteId: string, surface: SiteEditSurface
           next = applied.content;
         }
 
+        if (editPayloadIsOmitted(next, edits)) {
+          return JSON.stringify(OMITTED_EDIT_TOOL_ERROR);
+        }
+
         const result = await updateSiteFile(siteId, surface.file, next, "draft");
+        const written = readSourceFile(siteId, "draft", surface.file);
         return JSON.stringify({
           ok: true,
           mode,
           message: summary ?? "Draft updated.",
-          content: next,
+          content: written,
           draftDirty: result.draftDirty,
           depsInstalled: result.depsInstalled,
-          next: result.depsInstalled ? "Dependencies installed. Continue related edits, then check_site if you need to verify." : "Draft updated. Trust this content snapshot for further edits in this turn. Call check_site after related edits if you need to verify.",
+          next: result.depsInstalled ? "Dependencies installed. Finish any related edits, then call check_site at most once. On ok, stop and reply." : "Draft updated. Trust this content snapshot for further edits this turn. Finish related edits first, then check_site at most once — do not verify after every edit.",
         });
       } catch (err) {
         return JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) });

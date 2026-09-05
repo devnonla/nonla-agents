@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
-import { applyEdits, applyExactReplace, normalizeToLf } from "../common/ai/apply-exact-replace.js";
+import { EDIT_PAYLOAD_OMITTED, applyEdits, applyExactReplace, editPayloadIsOmitted, normalizeToLf } from "../common/ai/apply-exact-replace.js";
 import { compactEditMessagesInPlace, redactEditHistoryPayloads } from "../common/ai/compact-edit-middleware.js";
 import { buildLangChainMessages as buildSiteMessages, compactSiteWriteHistory, toolCallArgs as siteToolCallArgs } from "../modules/sites/services/site-agent.service.js";
 import { buildLangChainMessages as buildCodingMessages, toolCallArgs as codingToolCallArgs, compactGenerateCodeHistory } from "../modules/tools/services/coding-agent.service.js";
@@ -69,13 +69,19 @@ describe("applyEdits", () => {
     expect(r.ok).toBe(false);
   });
 
+  test("editPayloadIsOmitted detects compact placeholder in code or hunks", () => {
+    expect(editPayloadIsOmitted("ok")).toBe(false);
+    expect(editPayloadIsOmitted(EDIT_PAYLOAD_OMITTED)).toBe(true);
+    expect(editPayloadIsOmitted("body", [{ old_string: "a", new_string: EDIT_PAYLOAD_OMITTED }])).toBe(true);
+  });
+
   test("normalizeToLf", () => {
     expect(normalizeToLf("a\r\nb\rc")).toBe("a\nb\nc");
   });
 });
 
 describe("compactSiteWriteHistory", () => {
-  test("redacts all edit_ui payloads including latest", () => {
+  test("redacts edit args and older snapshots, keeps latest output", () => {
     const messages = [
       { role: "user" as const, content: "edit" },
       {
@@ -110,14 +116,15 @@ describe("compactSiteWriteHistory", () => {
     for (const e of edits) {
       const input = (e as { toolInput: { content: string } }).toolInput;
       expect(input.content).toContain("omitted");
-      expect((e as { toolOutput: string }).toolOutput).toContain("omitted");
     }
+    expect((edits[0] as { toolOutput: string }).toolOutput).toContain("omitted");
+    expect((edits[1] as { toolOutput: string }).toolOutput).toContain('"content":"v2"');
     expect(compacted.some((m) => m.role === "tool-call" && m.toolName === "check_site")).toBe(true);
   });
 });
 
 describe("compactGenerateCodeHistory", () => {
-  test("redacts all edit_code payloads including latest", () => {
+  test("redacts edit args and older snapshots, keeps latest current_code", () => {
     const messages = [
       {
         role: "tool-call" as const,
@@ -140,7 +147,8 @@ describe("compactGenerateCodeHistory", () => {
     const compacted = compactGenerateCodeHistory(messages);
     expect((compacted[0] as { toolInput: { code: string } }).toolInput.code).toContain("omitted");
     expect((compacted[1] as { toolInput: { code: string } }).toolInput.code).toContain("omitted");
-    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain("omitted");
+    expect((compacted[0] as { toolOutput: string }).toolOutput).toContain("omitted");
+    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain('"current_code":"new()"');
   });
 });
 
@@ -211,6 +219,42 @@ describe("redactEditHistoryPayloads", () => {
     ]);
     const input = out[0].toolInput as Record<string, unknown>;
     expect(String(input.edits)).toContain("omitted");
+  });
+
+  test("keeps latest successful snapshot by default", () => {
+    const out = redactEditHistoryPayloads([
+      {
+        role: "tool-call",
+        toolName: "edit_code",
+        toolInput: { mode: "full", code: "v1" },
+        toolOutput: JSON.stringify({ ok: true, current_code: "v1" }),
+      },
+      {
+        role: "tool-call",
+        toolName: "edit_code",
+        toolInput: { mode: "full", code: "v2" },
+        toolOutput: JSON.stringify({ ok: true, current_code: "v2" }),
+      },
+    ]);
+    expect(out[0].toolOutput).toContain("omitted");
+    expect(out[1].toolOutput).toContain('"current_code":"v2"');
+    expect(String((out[1].toolInput as { code: string }).code)).toContain("omitted");
+  });
+
+  test("keepLatestOutput: false redacts every snapshot", () => {
+    const out = redactEditHistoryPayloads(
+      [
+        {
+          role: "tool-call",
+          toolName: "edit_code",
+          toolInput: { mode: "full", code: "v1" },
+          toolOutput: JSON.stringify({ ok: true, current_code: "v1" }),
+        },
+      ],
+      undefined,
+      { keepLatestOutput: false },
+    );
+    expect(out[0].toolOutput).toContain("omitted");
   });
 });
 

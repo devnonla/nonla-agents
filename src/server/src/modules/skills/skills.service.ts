@@ -1,4 +1,5 @@
 import { and, eq, ne } from "drizzle-orm";
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { type NewSkill, type NewSkillReference, agentSkillAssignments, getDb, skillReferences, skills } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
 import { qall, qone, qrun } from "../../common/db/query.js";
@@ -74,6 +75,7 @@ export async function createSkill(body: {
   const name = (body.name ?? "").trim();
   const description = (body.description ?? "").trim();
   if (!description) throw new BadRequestException("description is required");
+  if (isOmittedSource(body.content)) throw new BadRequestException(OMITTED_WRITE_MESSAGE);
   await assertNameAvailable(name);
 
   const content = body.content?.trim() ? ensureSkillMarkdown(body.content, name, description) : composeSkillMarkdown(name, description, `# ${name}\n\n## Instructions\n\nDescribe how the agent should perform this skill.\n\n## Additional resources\n\n- Put detailed docs under \`references/\` and mention them here.\n`);
@@ -95,6 +97,9 @@ export async function createSkill(body: {
 /** Update skill; when `content` is set, sync name/description from SKILL.md frontmatter. */
 export async function updateSkill(id: string, body: Partial<{ name: string; description: string; content: string; draftContent: string | null }>) {
   await getSkillOrThrow(id);
+  if (isOmittedSource(body.content) || isOmittedSource(body.draftContent)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   const patch: Partial<NewSkill> = { updatedAt: new Date() };
 
   if (body.content !== undefined) {
@@ -180,6 +185,9 @@ export async function getReferenceByName(skillId: string, name: string) {
 
 export async function createReference(skillId: string, body: { name: string; title: string; content?: string; draftContent?: string | null }) {
   await getSkillOrThrow(skillId);
+  if (isOmittedSource(body.content) || isOmittedSource(body.draftContent)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   const name = (body.name ?? "").trim();
   const title = (body.title ?? "").trim() || name;
   assertRefName(name);
@@ -212,6 +220,9 @@ export async function createReference(skillId: string, body: { name: string; tit
 export async function updateReference(skillId: string, refId: string, body: Partial<{ name: string; title: string; content: string; draftContent: string | null }>) {
   const existing = await getReference(skillId, refId);
   if (!existing) throw new NotFoundException("Reference not found");
+  if (isOmittedSource(body.content) || isOmittedSource(body.draftContent)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
 
   const patch: Partial<NewSkillReference> = { updatedAt: new Date() };
 
@@ -279,6 +290,9 @@ export async function getWorkingContent(skillId: string, path: string): Promise<
 
 /** Write AI draft only — does not publish to content. */
 export async function writeSkillDraftPath(skillId: string, path: string, draft: string): Promise<{ path: string; content: string }> {
+  if (isOmittedSource(draft)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   const normalized = path.replace(/^\/+/, "").trim();
   if (normalized === "SKILL.md") {
     await getSkillOrThrow(skillId);

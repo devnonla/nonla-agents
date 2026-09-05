@@ -413,4 +413,14 @@ describe("Tools API", () => {
     const data = (await res.json()) as { message: string };
     expect(data.message).toContain("description");
   });
+
+  test("PUT /api/tools/:id — omitted compact placeholder is rejected", async () => {
+    const { EDIT_PAYLOAD_OMITTED } = await import("../common/ai/apply-exact-replace.js");
+    const res = await authRequest(app, token, "PUT", `/api/tools/${customToolId}`, {
+      draftCode: EDIT_PAYLOAD_OMITTED,
+    });
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { message: string };
+    expect(data.message).toContain("compacted edit placeholder");
+  });
 });

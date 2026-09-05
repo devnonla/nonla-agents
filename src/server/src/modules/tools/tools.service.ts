@@ -1,4 +1,5 @@
 import { and, eq, isNull, ne } from "drizzle-orm";
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { slugify } from "../../common/utils/slug.js";
 import { buildJsonSchemaFromCode, isAnnotationComment, parseMetaFromCode, syncAnnotationHeader } from "./common/code-annotations.js";
@@ -151,6 +152,9 @@ export async function createTool(
   },
 ) {
   const { isActive = true, folderId = null, sortOrder, ...rest } = body;
+  if (isOmittedSource(rest.codeContent)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   await assertToolNameAvailable(rest.name);
   const tool: NewAgentTool = {
     ...rest,
@@ -167,6 +171,9 @@ export async function createTool(
 
 export async function updateTool(id: string, body: Partial<NewAgentTool>) {
   if (id.startsWith("builtin:")) throw new Error("Cannot modify builtin tools");
+  if (isOmittedSource(body.codeContent) || isOmittedSource(body.draftCode)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
 
   const db = getDb();
   const existing = await qone(db.select().from(agentTools).where(eq(agentTools.id, id)));
@@ -301,6 +308,9 @@ export async function runToolWithSoftWait(opts: {
 
 /** Update draftCode for a tool and notify FE (used by edit_code tool). */
 export async function updateDraftCode(id: string, draftCode: string): Promise<void> {
+  if (isOmittedSource(draftCode)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   await qrun(getDb().update(agentTools).set({ draftCode }).where(eq(agentTools.id, id)));
   wsHub.emit("tools:updated", { id, draftCode });
 }

@@ -45,9 +45,9 @@ export function toolCallArgs(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
 }
 
-/** Cross-turn: redact ALL edit_code payloads (including latest). System prompt has the draft. */
+/** Cross-turn: redact edit args; keep the latest successful current_code snapshot. */
 export function compactGenerateCodeHistory(messages: CodingStreamRequest["messages"]): CodingStreamRequest["messages"] {
-  return redactEditHistoryPayloads(messages);
+  return redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true });
 }
 
 export function buildLangChainMessages(messages: CodingStreamRequest["messages"]): BaseMessage[] {

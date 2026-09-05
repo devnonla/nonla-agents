@@ -23,6 +23,7 @@ KEY FACTS:
   ❌ Do NOT write markdown fences in edit_code
   ❌ Do NOT forget await on fetch / nonlaagents.* calls
   ❌ Do NOT return undefined or nothing — always return a value
+  ❌ Do NOT paste compacted placeholders like "[omitted — see latest tool result / system draft]" into edit_code
   ❌ Do NOT use input.get("key") — this is TypeScript, not Python; use input.key ?? default
 </execution_model>
 

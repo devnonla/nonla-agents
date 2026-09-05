@@ -66,6 +66,7 @@ HARD RULES:
   ❌ NEVER end the turn after edit_code without calling run_current_job
   ❌ NEVER busy-poll get_job_run; only use it if the user reports a failure or asks you to inspect logs
   ❌ NEVER paste full code into chat — always use edit_code
+  ❌ NEVER paste compacted placeholders like "[omitted — see latest tool result / system draft]" into edit_code
   ❌ NEVER explore unused namespaces (kv/secrets/datatable) when the task does not need them
 </agentic_loop>
 `;

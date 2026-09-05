@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { OMITTED_WRITE_MESSAGE, isOmittedSource } from "../../common/ai/apply-exact-replace.js";
 import { type Job, type JobRun, type JobRunTrigger, type NewJob, type NewJobRun, getDb, jobRuns, jobs } from "../../common/db/client.js";
 import { type RawQuery, listQuery } from "../../common/db/list-query.util.js";
 import { qall, qone, qrun } from "../../common/db/query.js";
@@ -86,12 +87,14 @@ export async function createJob(body: {
 
   const timeoutMs = typeof body.timeoutMs === "number" && body.timeoutMs > 0 ? Math.floor(body.timeoutMs) : DEFAULT_TIMEOUT_MS;
   const now = new Date();
+  const code = typeof body.code === "string" ? body.code : DEFAULT_CODE;
+  if (isOmittedSource(code)) throw new BadRequestException(OMITTED_WRITE_MESSAGE);
 
   const entry: NewJob = {
     id: crypto.randomUUID(),
     name,
     description: body.description?.trim() || null,
-    code: typeof body.code === "string" ? body.code : DEFAULT_CODE,
+    code,
     cron,
     enabled,
     timeoutMs,
@@ -135,6 +138,7 @@ export async function updateJob(
     patch.description = body.description?.trim() || null;
   }
   if (typeof body.code === "string") {
+    if (isOmittedSource(body.code)) throw new BadRequestException(OMITTED_WRITE_MESSAGE);
     patch.code = body.code;
     patch.draftCode = body.code;
   }
@@ -426,6 +430,9 @@ export async function healOrphanedRuns(now: Date = new Date()) {
 }
 
 export async function updateDraftCode(id: string, draftCode: string): Promise<void> {
+  if (isOmittedSource(draftCode)) {
+    throw new BadRequestException(OMITTED_WRITE_MESSAGE);
+  }
   await qrun(getDb().update(jobs).set({ draftCode, updatedAt: new Date() }).where(eq(jobs.id, id)));
   wsHub.emit("jobs:updated", { id, draftCode });
 }

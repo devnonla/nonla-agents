@@ -169,9 +169,31 @@ export function createCompactEditMiddleware() {
   });
 }
 
-/** Cross-turn history: redact ALL edit payloads (including latest). */
-export function redactEditHistoryPayloads<T extends { role: string; toolName?: string; toolInput?: unknown; toolOutput?: string }>(messages: T[], omitted = EDIT_PAYLOAD_OMITTED): T[] {
-  return messages.map((m) => {
+function latestKeepOutputIndexes(messages: Array<{ role: string; toolName?: string; toolOutput?: string }>): Set<number> {
+  const byName = new Map<string, number[]>();
+  messages.forEach((m, i) => {
+    if (m.role !== "tool-call" || !m.toolName || !CODING_EDIT_TOOL_NAMES.has(m.toolName)) return;
+    const list = byName.get(m.toolName) ?? [];
+    list.push(i);
+    byName.set(m.toolName, list);
+  });
+  const keep = new Set<number>();
+  for (const indexes of byName.values()) {
+    const lastOk = [...indexes].reverse().find((i) => parseToolResult(messages[i]?.toolOutput).ok === true);
+    keep.add(lastOk ?? indexes[indexes.length - 1]!);
+  }
+  return keep;
+}
+
+/**
+ * Cross-turn history: redact edit args always.
+ * Keeps the newest successful snapshot per tool by default so the model is not
+ * left with only `[omitted…]` and then writes that string into a file.
+ * Pass `keepLatestOutput: false` to redact every snapshot.
+ */
+export function redactEditHistoryPayloads<T extends { role: string; toolName?: string; toolInput?: unknown; toolOutput?: string }>(messages: T[], omitted = EDIT_PAYLOAD_OMITTED, opts?: { keepLatestOutput?: boolean }): T[] {
+  const keepOutput = opts?.keepLatestOutput === false ? new Set<number>() : latestKeepOutputIndexes(messages);
+  return messages.map((m, i) => {
     if (m.role !== "tool-call" || !m.toolName || !CODING_EDIT_TOOL_NAMES.has(m.toolName)) return m;
     const input = isRecord(m.toolInput) ? { ...m.toolInput } : {};
     let inputChanged = false;
@@ -182,7 +204,7 @@ export function redactEditHistoryPayloads<T extends { role: string; toolName?: s
       }
     }
     let toolOutput = m.toolOutput;
-    if (typeof toolOutput === "string" && toolOutput.length > 0) {
+    if (typeof toolOutput === "string" && toolOutput.length > 0 && !keepOutput.has(i)) {
       toolOutput = redactToolResultContent(toolOutput);
     }
     if (!inputChanged && toolOutput === m.toolOutput) return m;

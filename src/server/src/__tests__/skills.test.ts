@@ -178,6 +178,16 @@ AI draft only — not published yet.
     expect(data.draftContent).toContain("AI draft only");
   });
 
+  test("PUT /api/skills/:id — omitted compact placeholder is rejected", async () => {
+    const { EDIT_PAYLOAD_OMITTED } = await import("../common/ai/apply-exact-replace.js");
+    const res = await authRequest(app, token, "PUT", `/api/skills/${skillId}`, {
+      draftContent: EDIT_PAYLOAD_OMITTED,
+    });
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { message: string };
+    expect(data.message).toContain("compacted edit placeholder");
+  });
+
   test("PUT /api/skills/:id — Accept draft publishes content", async () => {
     const draftBody = `---
 name: code-review

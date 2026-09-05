@@ -4,7 +4,7 @@
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { type EditHunk, applyEdits, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
+import { type EditHunk, OMITTED_EDIT_TOOL_ERROR, applyEdits, editPayloadIsOmitted, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
 import { getDraftCode, updateDraftCode } from "../../tools.service.js";
 
 const editHunkSchema = z.object({
@@ -61,6 +61,10 @@ export function makeEditCodeTool(toolId: string) {
             return JSON.stringify({ ok: false, error: applied.error, hint: applied.hint });
           }
           next = applied.content;
+        }
+
+        if (editPayloadIsOmitted(next, edits)) {
+          return JSON.stringify(OMITTED_EDIT_TOOL_ERROR);
         }
 
         await updateDraftCode(toolId, next);

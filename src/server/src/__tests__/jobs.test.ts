@@ -235,6 +235,14 @@ await nonlaagents.step("kv check", async () => {
     await authRequest(app, token, "DELETE", `/api/jobs/${slow.id}`);
   });
 
+  test("PUT /api/jobs/:id — omitted compact placeholder is rejected", async () => {
+    const { EDIT_PAYLOAD_OMITTED } = await import("../common/ai/apply-exact-replace.js");
+    const res = await authRequest(app, token, "PUT", `/api/jobs/${jobId}`, { code: EDIT_PAYLOAD_OMITTED });
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { message: string };
+    expect(data.message).toContain("compacted edit placeholder");
+  });
+
   test("DELETE /api/jobs/:id", async () => {
     const res = await authRequest(app, token, "DELETE", `/api/jobs/${jobId}`);
     expect(res.status).toBe(200);

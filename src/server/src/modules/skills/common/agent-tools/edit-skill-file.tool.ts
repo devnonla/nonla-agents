@@ -1,6 +1,6 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { type EditHunk, applyEdits, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
+import { type EditHunk, OMITTED_EDIT_TOOL_ERROR, applyEdits, editPayloadIsOmitted, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
 import { deleteReference, getReferenceByName, getSkill, getWorkingContent, listReferences, readSkillPath, writeSkillDraftPath } from "../../skills.service.js";
 
 const editHunkSchema = z.object({
@@ -105,6 +105,10 @@ export function makeEditSkillFileTool(skillId: string) {
             return JSON.stringify({ ok: false, error: applied.error, hint: applied.hint });
           }
           next = applied.content;
+        }
+
+        if (editPayloadIsOmitted(next, edits)) {
+          return JSON.stringify(OMITTED_EDIT_TOOL_ERROR);
         }
 
         const written = await writeSkillDraftPath(skillId, path, next);
@@ -247,6 +251,7 @@ ${workingSkillMd}
 
 <rules>
 - Always edit via edit_skill_file — never paste full files as chat-only text.
+- Never paste compacted placeholders like "[omitted — see latest tool result / system draft]" into files.
 - Delete references only via delete_skill_file — never claim a file is gone without calling it.
 - Never invent reference paths; use listed paths or create a new kebab-case name deliberately.
 - Be concise in chat replies; put durable content into the skill files.
