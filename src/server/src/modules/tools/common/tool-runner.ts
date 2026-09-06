@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
-import { builtinModules } from "node:module";
-import { SANDBOX_TSCONFIG, ensureWritableDir, rewriteSandboxTs, sandboxChildEnv, wrapForSandbox } from "../../../common/sandbox/index.js";
+import { SANDBOX_TSCONFIG, detectPackages, ensureWritableDir, isPkgInstalled, rewriteSandboxTs, sandboxChildEnv, wrapForSandbox } from "../../../common/sandbox/index.js";
 import { bgTaskRegistry } from "./bg-task-registry.js";
 import { startNonlaagentsProxy } from "./nonlaagents-proxy.js";
 import { writeToolsNonlaagentsPackage } from "./nonlaagents-ts.js";
@@ -18,8 +17,6 @@ export const CUSTOM_TOOL_HARD_TIMEOUT_MS = 10 * 60_000;
 const DEFAULT_MAX_CONCURRENT = 16;
 const KILL_GRACE_MS = 2_000;
 const PENDING_LOG_MAX_CHARS = 256 * 1024;
-
-const NODE_BUILTINS = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
 
 const installedCache = new Map<string, Set<string>>();
 const installLocks = new Map<string, Promise<unknown>>();
@@ -220,6 +217,20 @@ type SpawnHandle = {
   kill: () => void;
 };
 
+async function awaitSpawnDone(done: SpawnHandle["done"], extraMs: number): Promise<{ success: boolean; stdout: string; stderr: string } | "unreaped"> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      done,
+      new Promise<"unreaped">((resolve) => {
+        timer = setTimeout(() => resolve("unreaped"), extraMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function writeToolInputJson(sandboxDir: string, inputJson: string): Promise<string> {
   const inputPath = `${sandboxDir}/input_${crypto.randomUUID()}.json`;
   await Bun.write(inputPath, inputJson);
@@ -343,56 +354,6 @@ async function spawnCmd(cmd: string, args: string[], cwd: string, env: Record<st
       killTimer = setTimeout(() => killProc("SIGKILL"), KILL_GRACE_MS);
     },
   };
-}
-
-function packageNameFromSpecifier(spec: string): string | null {
-  const trimmed = spec.trim();
-  if (!trimmed || trimmed.startsWith(".") || trimmed.startsWith("/") || trimmed.startsWith("node:") || trimmed.startsWith("bun:")) return null;
-  if (trimmed === "nonlaagents" || trimmed === "@nonla-agents/runtime") return null;
-  if (trimmed.startsWith("@")) {
-    const [scope, name] = trimmed.split("/");
-    if (!scope || !name) return null;
-    return `${scope}/${name}`;
-  }
-  const base = trimmed.split("/")[0] ?? "";
-  if (!base || NODE_BUILTINS.has(base)) return null;
-  return base;
-}
-
-function detectPackages(code: string): string[] {
-  const pkgs = new Set<string>();
-  const bunOverrides = new Set<string>();
-
-  for (const line of code.split("\n")) {
-    const t = line.trim();
-
-    const standalone = t.match(/^\/\/\s*bun:\s*(.+)/i);
-    if (standalone) {
-      for (const p of standalone[1].split(/[\s,]+/).filter(Boolean)) bunOverrides.add(p);
-      continue;
-    }
-
-    const inline = t.match(/\/\/\s*bun:\s*(.+)/i);
-    if (inline) {
-      for (const p of inline[1].split(/[\s,]+/).filter(Boolean)) bunOverrides.add(p);
-    }
-
-    const codePart = t.replace(/\/\/.*$/, "").trim();
-    for (const match of codePart.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g)) {
-      const name = packageNameFromSpecifier(match[1] ?? "");
-      if (name) pkgs.add(name);
-    }
-  }
-
-  if (bunOverrides.size > 0) {
-    for (const p of pkgs) bunOverrides.add(p);
-    return [...bunOverrides];
-  }
-  return [...pkgs];
-}
-
-function isPkgInstalled(sandboxDir: string, pkg: string): boolean {
-  return existsSync(`${sandboxDir}/node_modules/${pkg}/package.json`);
 }
 
 function stripFences(raw: string): string {
@@ -565,38 +526,55 @@ function toolRunEnv(prepared: PreparedRun, inputPath: string): Record<string, st
   });
 }
 
-export async function executeTool(toolId: string, code: string, inputJson: string, dataDir: string, timeoutMs?: number): Promise<string> {
+export async function executeTool(toolId: string, code: string, inputJson: string, dataDir: string, timeoutMs?: number, abortSignal?: AbortSignal): Promise<string> {
   await acquireSlot();
   const wallMs = resolveTimeoutMs(timeoutMs);
   let prepared: PreparedRun | undefined;
   let inputPath: string | undefined;
   let handle: SpawnHandle | undefined;
+  let wallTimer: ReturnType<typeof setTimeout> | undefined;
+  let aborted = false;
+  const onAbort = () => {
+    aborted = true;
+    handle?.kill();
+  };
   try {
     const prep = await prepareToolRun(toolId, code, dataDir);
     if ("errorJson" in prep) return prep.errorJson;
     prepared = prep;
+    if (abortSignal?.aborted) return JSON.stringify({ ok: false, error: "cancelled" });
 
     inputPath = await writeToolInputJson(prepared.sandboxDir, inputJson);
     handle = await spawnCmd(process.execPath, [prepared.runPath], prepared.sandboxDir, toolRunEnv(prepared, inputPath));
 
+    abortSignal?.addEventListener("abort", onAbort, { once: true });
+    if (abortSignal?.aborted) {
+      onAbort();
+      await awaitSpawnDone(handle.done, KILL_GRACE_MS + 1_000);
+      return JSON.stringify({ ok: false, error: "cancelled" });
+    }
+
     let timedOut = false;
-    const timer = setTimeout(() => {
+    wallTimer = setTimeout(() => {
       timedOut = true;
       handle?.kill();
     }, wallMs);
-    try {
-      const result = await handle.done;
-      if (timedOut) {
-        return JSON.stringify({ ok: false, error: `Tool timed out after ${wallMs}ms` });
-      }
-      return formatRunResult(result);
-    } finally {
-      clearTimeout(timer);
+
+    const result = await awaitSpawnDone(handle.done, wallMs + KILL_GRACE_MS + 1_000);
+    if (aborted || abortSignal?.aborted) {
+      return JSON.stringify({ ok: false, error: "cancelled" });
     }
+    if (timedOut || result === "unreaped") {
+      if (result === "unreaped") handle.kill();
+      return JSON.stringify({ ok: false, error: `Tool timed out after ${wallMs}ms` });
+    }
+    return formatRunResult(result);
   } catch (err) {
     handle?.kill();
     throw err;
   } finally {
+    abortSignal?.removeEventListener("abort", onAbort);
+    if (wallTimer) clearTimeout(wallTimer);
     if (prepared) await cleanupPrepared(prepared, inputPath);
     releaseSlot();
   }
