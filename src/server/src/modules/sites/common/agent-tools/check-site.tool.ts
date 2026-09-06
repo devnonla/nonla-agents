@@ -32,7 +32,7 @@ function classifyError(message: string): { stage: string; hint: string } {
   if (m.includes("bundle") || m.includes("build") || m.includes("cannot find module") || m.includes("resolve")) {
     return {
       stage: "bundle",
-      hint: "Client bundle failed — fix app.tsx / imports or package.json, then check_site once more (max 2 retries). If still failing, stop and explain.",
+      hint: "Client bundle failed — fix app.tsx / imports (packages auto-install from import specifiers), then check_site once more (max 2 retries). If still failing, stop and explain.",
     };
   }
   if (m.includes("handle(") || m.includes("backend.ts") || m.includes("load()") || m.includes("data.ts") || m.includes("loader")) {

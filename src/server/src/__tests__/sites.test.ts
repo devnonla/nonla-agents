@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import type { Hono } from "hono";
 import { tmpDir } from "../common/utils/data-dir.js";
 import { authRequest, createTestApp, setupAdmin } from "./test-helpers.js";
@@ -502,6 +502,38 @@ export default function App() {
     expect(site.slug).toBe("cong-cu-tin-tuc");
     await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
   });
+
+  test("PUT app.tsx auto-installs npm imports without editing package.json", async () => {
+    const createRes = await authRequest(app, token, "POST", "/api/sites", {
+      name: "Auto Deps",
+      slug: "auto-deps",
+    });
+    expect(createRes.status).toBe(201);
+    const site = (await createRes.json()) as { id: string };
+
+    const appSource = `import { useState } from "react";
+import { nanoid } from "nanoid";
+import { loadSiteData } from "./site-api.js";
+export default function App() {
+  const [id] = useState(() => nanoid(6));
+  return <div className="hero">{id}</div>;
+}
+`;
+    const putRes = await authRequest(app, token, "PUT", `/api/sites/${site.id}/files/app.tsx`, {
+      content: appSource,
+      tree: "draft",
+    });
+    expect(putRes.status).toBe(200);
+    const putBody = (await putRes.json()) as { depsInstalled: boolean };
+    expect(putBody.depsInstalled).toBe(true);
+
+    const draftDir = `${dataDir}/sites/${site.id}/draft`;
+    expect(existsSync(`${draftDir}/node_modules/nanoid/package.json`)).toBe(true);
+    const pkg = JSON.parse(readFileSync(`${draftDir}/package.json`, "utf8")) as { dependencies?: Record<string, string> };
+    expect(pkg.dependencies?.nanoid).toBeTruthy();
+
+    await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
+  }, 90_000);
 });
 
 describe("normalizeSiteFormActions + rewriteRequestToSitePath", () => {

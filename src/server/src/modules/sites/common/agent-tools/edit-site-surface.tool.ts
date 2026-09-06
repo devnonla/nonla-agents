@@ -1,5 +1,5 @@
 /**
- * Site surface edit tools — edit_ui / edit_styles / edit_backend / edit_deps.
+ * Site surface edit tools — edit_ui / edit_styles / edit_backend.
  */
 
 import { tool } from "@langchain/core/tools";
@@ -32,7 +32,7 @@ const editSiteSchema = z
   });
 
 export type SiteEditSurface = {
-  name: "edit_ui" | "edit_styles" | "edit_backend" | "edit_deps";
+  name: "edit_ui" | "edit_styles" | "edit_backend";
   file: SiteSourceFile;
   description: string;
 };
@@ -52,11 +52,6 @@ export const SITE_EDIT_SURFACES: SiteEditSurface[] = [
     name: "edit_backend",
     file: "backend.ts",
     description: 'Edit the site backend handle() API (GET data / POST action). mode="replace" with edits[] or mode="full" with complete content. Call read_site_files first if you have not read the backend this turn.',
-  },
-  {
-    name: "edit_deps",
-    file: "package.json",
-    description: 'Edit site package.json dependencies (auto bun install). mode="replace" with edits[] or mode="full" with complete JSON.',
   },
 ];
 
@@ -106,7 +101,9 @@ export function makeEditSiteSurfaceTool(siteId: string, surface: SiteEditSurface
           content: written,
           draftDirty: result.draftDirty,
           depsInstalled: result.depsInstalled,
-          next: result.depsInstalled ? "Dependencies installed. Finish any related edits, then call check_site at most once. On ok, stop and reply." : "Draft updated. Trust this content snapshot for further edits this turn. Finish related edits first, then check_site at most once — do not verify after every edit.",
+          next: result.depsInstalled
+            ? "Dependencies auto-installed from imports. Finish any related edits, then call check_site at most once. On ok, stop and reply."
+            : "Draft updated. Trust this content snapshot for further edits this turn. Finish related edits first, then check_site at most once — do not verify after every edit.",
         });
       } catch (err) {
         return JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) });

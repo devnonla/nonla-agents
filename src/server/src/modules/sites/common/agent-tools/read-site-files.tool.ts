@@ -18,7 +18,7 @@ export function makeReadSiteFilesTool(siteId: string) {
     },
     {
       name: "read_site_files",
-      description: 'Read site source files (app.tsx, styles.css, backend.ts, package.json). Call this before editing a file you have not read this turn. tree defaults to "draft".',
+      description: 'Read site source files (app.tsx, styles.css, backend.ts). Call this before editing a file you have not read this turn. tree defaults to "draft". npm packages auto-install from imports — do not edit package.json.',
       schema: z.object({
         tree: z.enum(["draft", "prod"]).optional(),
         file: z.enum(SITE_SOURCE_FILES as unknown as [string, ...string[]]).optional(),

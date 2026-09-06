@@ -11,7 +11,7 @@ import { wsHub } from "../../common/ws/wsHub.js";
 import { resolveSiteSelection } from "./common/resolve-selection.js";
 import { buildSiteBundle, buildSiteShellHtml, buildSiteUnlockHtml, invalidateSiteCaches as invalidateBundleCaches } from "./sites-bundle.js";
 import { invalidateSiteDataModules, runSiteActionModule, runSiteLoad } from "./sites-data-runtime.js";
-import { installSiteDeps } from "./sites-deps.js";
+import { ensureSitePackages, installSiteDeps } from "./sites-deps.js";
 import { SITE_SOURCE_FILES, type SiteSourceFile, type SiteTree, discardDraft, ensureReactSiteSources, isAllowedSourceFile, isDraftDirty, promoteDraftToProd, readAllSourceFiles, readSourceFile, removeSiteDir, writeScaffold, writeSourceFile } from "./sites-fs.js";
 import { readSiteThumbnailPng, writeSiteThumbnailPng } from "./sites-thumbnail.js";
 
@@ -137,6 +137,22 @@ function toSiteResponse<T extends SiteRow>(row: T) {
     ...rest,
     hasPublicPassword: !!(publicPassword && publicPassword.length > 0),
   };
+}
+
+async function touchSite(id: string, tree: SiteTree) {
+  const db = getDb();
+  const patch: Partial<typeof sites.$inferInsert> = { updatedAt: new Date() };
+  if (tree === "draft") patch.draftUpdatedAt = new Date();
+  const [row] = await qall(db.update(sites).set(patch).where(eq(sites.id, id)).returning());
+  const safe = toSiteResponse(row);
+  wsHub.emit("sites:updated", safe);
+  return safe;
+}
+
+async function requireSitePackages(id: string, tree: SiteTree) {
+  const result = await ensureSitePackages(id, tree);
+  if (!result.ok) throw new BadRequestException(result.error);
+  return result;
 }
 
 async function verifyStoredPublicPassword(stored: string, password: string): Promise<boolean> {
@@ -291,13 +307,14 @@ export async function updateSiteFile(id: string, file: string, content: string, 
     return { ok: true, file, tree, draftDirty: isDraftDirty(id), site, depsInstalled: true as const };
   }
 
-  const db = getDb();
-  const patch: Partial<typeof sites.$inferInsert> = { updatedAt: new Date() };
-  if (tree === "draft") patch.draftUpdatedAt = new Date();
-  const [row] = await qall(db.update(sites).set(patch).where(eq(sites.id, id)).returning());
-  const safe = toSiteResponse(row);
-  wsHub.emit("sites:updated", safe);
-  return { ok: true, file, tree, draftDirty: isDraftDirty(id), site: safe, depsInstalled: false as const };
+  let depsInstalled = false;
+  if (file === "app.tsx" || file === "backend.ts") {
+    const ensured = await requireSitePackages(id, tree);
+    depsInstalled = ensured.added.length > 0;
+  }
+
+  const safe = await touchSite(id, tree);
+  return { ok: true, file, tree, draftDirty: isDraftDirty(id), site: safe, depsInstalled };
 }
 
 export async function installDeps(id: string, tree: SiteTree = "draft") {
@@ -355,33 +372,35 @@ export async function approveSite(id: string, file?: string) {
   invalidateSiteCaches(id);
 
   const needsInstall = !files || files.includes("package.json");
-  if (!needsInstall) {
+  if (needsInstall) {
     const db = getDb();
-    const [row] = await qall(db.update(sites).set({ updatedAt: new Date() }).where(eq(sites.id, id)).returning());
-    const safe = toSiteResponse(row);
-    wsHub.emit("sites:updated", safe);
-    return safe;
+    await qrun(db.update(sites).set({ depsStatus: "installing", depsError: null, updatedAt: new Date() }).where(eq(sites.id, id)));
+
+    const result = await installSiteDeps(id, "prod");
+    await qrun(
+      db
+        .update(sites)
+        .set({
+          depsStatus: result.ok ? "ready" : "error",
+          depsError: result.ok ? null : result.error,
+          updatedAt: new Date(),
+        })
+        .where(eq(sites.id, id)),
+    );
+    if (!result.ok) {
+      const [row] = await qall(db.select().from(sites).where(eq(sites.id, id)));
+      const safe = toSiteResponse(row);
+      wsHub.emit("sites:updated", safe);
+      throw new BadRequestException(`Approved but prod install failed: ${result.error}`);
+    }
   }
 
+  await requireSitePackages(id, "prod");
+
   const db = getDb();
-  await qrun(db.update(sites).set({ depsStatus: "installing", depsError: null, updatedAt: new Date() }).where(eq(sites.id, id)));
-
-  const result = await installSiteDeps(id, "prod");
-  const [row] = await qall(
-    db
-      .update(sites)
-      .set({
-        depsStatus: result.ok ? "ready" : "error",
-        depsError: result.ok ? null : result.error,
-        updatedAt: new Date(),
-      })
-      .where(eq(sites.id, id))
-      .returning(),
-  );
-
+  const [row] = await qall(db.update(sites).set({ updatedAt: new Date() }).where(eq(sites.id, id)).returning());
   const safe = toSiteResponse(row);
   wsHub.emit("sites:updated", safe);
-  if (!result.ok) throw new BadRequestException(`Approved but prod install failed: ${result.error}`);
   return safe;
 }
 
@@ -411,6 +430,7 @@ export async function saveSiteThumbnailPng(id: string, png: Buffer) {
 export async function previewSite(id: string, query?: Record<string, string>, tree: SiteTree = "draft") {
   const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
+  await requireSitePackages(id, tree);
   const pageUrl = new URL(sitePublicPath(site.slug), "http://site.local");
   if (query) {
     for (const [k, v] of Object.entries(query)) pageUrl.searchParams.set(k, v);
@@ -429,6 +449,7 @@ export async function previewSite(id: string, query?: Record<string, string>, tr
 export async function runDraftAction(id: string, request: Request) {
   const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
+  await requireSitePackages(id, "draft");
   return runSiteActionModule(id, "draft", { request });
 }
 
@@ -443,6 +464,7 @@ export async function loadPublicSiteData(slug: string, request: Request, access?
   const allowed = await hasSitePublicAccess(site, access);
   if (!allowed) throw new UnauthorizedException("Password required");
   ensureReactSiteSources(site.id, site.slug);
+  await requireSitePackages(site.id, "prod");
   const query = Object.fromEntries(new URL(request.url).searchParams.entries());
   return runSiteLoad(site.id, "prod", { request, query });
 }
@@ -450,6 +472,7 @@ export async function loadPublicSiteData(slug: string, request: Request, access?
 export async function loadDraftSiteData(id: string, request: Request) {
   const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
+  await requireSitePackages(id, "draft");
   const query = Object.fromEntries(new URL(request.url).searchParams.entries());
   return runSiteLoad(id, "draft", { request, query });
 }
@@ -458,6 +481,7 @@ export async function loadDraftSiteData(id: string, request: Request) {
 export async function renderDraftLiveHtml(id: string, _request?: Request) {
   const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
+  await requireSitePackages(id, "draft");
   await buildSiteBundle(id, "draft");
   return buildSiteShellHtml({
     title: `${site.name} (draft)`,
@@ -470,6 +494,7 @@ export async function renderDraftLiveHtml(id: string, _request?: Request) {
 export async function getDraftLiveAsset(id: string, file: "app.js" | "styles.css") {
   const site = await getSiteOrThrow(id);
   ensureReactSiteSources(id, site.slug);
+  await requireSitePackages(id, "draft");
   const bundle = await buildSiteBundle(id, "draft");
   if (file === "app.js") return { body: bundle.appJs, contentType: "text/javascript; charset=utf-8" };
   return { body: bundle.css, contentType: "text/css; charset=utf-8" };
@@ -491,6 +516,7 @@ export async function renderPublicSiteDocument(slug: string, request: Request, a
       requiresPassword: true,
     };
   }
+  await requireSitePackages(site.id, "prod");
   await buildSiteBundle(site.id, "prod");
   return {
     kind: "app" as const,
@@ -511,6 +537,7 @@ export async function getPublicSiteAsset(slug: string, file: "app.js" | "styles.
   const allowed = await hasSitePublicAccess(site, access);
   if (!allowed) throw new UnauthorizedException("Password required");
   ensureReactSiteSources(site.id, site.slug);
+  await requireSitePackages(site.id, "prod");
   const bundle = await buildSiteBundle(site.id, "prod");
   if (file === "app.js") return { body: bundle.appJs, contentType: "text/javascript; charset=utf-8" };
   return { body: bundle.css, contentType: "text/css; charset=utf-8" };
