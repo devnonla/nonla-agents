@@ -47,15 +47,16 @@ Postgres defaults: user / password / database = `nonla`. Override with `POSTGRES
 | ----------------- | --------- | ----------- |
 | `PORT`            | `8429`    | HTTP port |
 | `HOST`            | `0.0.0.0` | Bind address |
-| `DATA_DIR`        | `/data`   | Persistent data (SQLite file, screenshots, sites, sandboxes) |
+| `DATA_DIR`        | `/data`   | Persistent data (SQLite file, sites, sandboxes) |
 | `DATABASE_URL`    | _(unset)_ | Unset → SQLite at `{DATA_DIR}/data.db`. Set `postgres://…` or `postgresql://…` for PostgreSQL |
 | `PUBLIC_BASE_URL` | _(auto)_  | Public origin behind a reverse proxy (e.g. `https://agents.example.com`) |
+| `LIGHTPANDA_BIN`  | _(auto)_  | Optional path to Lightpanda for `web_fetch`. Else: `PATH`, then auto-download to `{DATA_DIR}/bin/lightpanda`. Docker image ships `/usr/local/bin/lightpanda` |
 
 ## Features
 
 - **Agents** — Personas, tools, skills, avatars, teams; board drag-and-drop; agent-to-agent calls
 - **Models** — OpenAI, Anthropic, Google Gemini, OpenRouter, and more via LangChain
-- **Tools** — Custom TypeScript/Bun tools in folders; OS sandbox; builtin browser, fetch, KV, secrets, datatables
+- **Tools** — Custom TypeScript/Bun tools in folders; OS sandbox; builtin Web Fetch, KV, secrets, datatables
 - **Skills & memory** — Shared markdown skills (`read_skill`); per-agent knowledge graph
 - **Instruct** — Full-page system prompt editor with AI draft review
 - **MCP** — Remote MCP servers (SSE / Streamable HTTP); sync catalogs and attach tools; My MCP to expose workspace tools
@@ -75,12 +76,13 @@ Postgres defaults: user / password / database = `nonla`. Override with `POSTGRES
 ```
 <data-dir>/
 ├── data.db                 # SQLite when DATABASE_URL is unset
-├── browser-screenshots/    # Builtin browser tool PNGs
 ├── agent.pid               # Daemon PID
 └── agent.log               # Daemon logs
 ```
 
-With PostgreSQL, `DATA_DIR` is still used for screenshots, site files, and sandboxes.
+With PostgreSQL, `DATA_DIR` is still used for site files and sandboxes.
+
+The published Docker image includes Lightpanda for `web_fetch`. From source, the first fetch downloads the nightly binary to `{DATA_DIR}/bin/lightpanda`. Override with `LIGHTPANDA_BIN`.
 
 ## Develop from source
 
@@ -123,7 +125,7 @@ docker run -d -p 8429:8429 -v nonla-agents-data:/data \
 | API | [Hono](https://hono.dev/) |
 | UI | React 19, Vite, Tailwind CSS, NonlaUI |
 | Database | SQLite (`bun:sqlite`) or PostgreSQL via `DATABASE_URL` — Drizzle ORM |
-| Agents | LangChain / LangGraph |
+| Agents | LangChain (`createAgent`, built on LangGraph) |
 | State | Redux Toolkit |
 
 ## Contributing
