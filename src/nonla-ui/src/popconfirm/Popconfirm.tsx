@@ -32,7 +32,7 @@ function WarningIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="mt-0.5 shrink-0">
       <circle cx="8" cy="8" r="8" fill="var(--warn)" />
-      <path d="M8 4.4V8.6M8 10.7V11.4" stroke="#121212" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M8 4.4V8.6M8 10.7V11.4" stroke="var(--nonla-bg)" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }

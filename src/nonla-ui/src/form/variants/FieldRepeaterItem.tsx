@@ -37,7 +37,7 @@ export function FieldRepeaterItem({ index, remove, namePrefix, childItems, contr
         <button
           type="button"
           aria-label="Remove item"
-          className="inline-flex size-5 items-center justify-center rounded border-0 bg-muted text-muted-foreground cursor-pointer hover:bg-destructive hover:text-white"
+          className="inline-flex size-5 items-center justify-center rounded border-0 bg-muted text-muted-foreground cursor-pointer hover:bg-destructive hover:text-[var(--nonla-solid-fg)]"
           onClick={() => remove(index)}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>

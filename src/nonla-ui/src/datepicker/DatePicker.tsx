@@ -132,9 +132,9 @@ const TriggerChrome = forwardRef<
       type="button"
       disabled={disabled}
       className={cn(
-        "group/datepicker inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg,#212121)] text-left text-foreground",
+        "group/datepicker inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg)] text-left text-foreground",
         controlFieldTransition,
-        "focus:bg-[var(--control-bg-hover,#2a2a2a)] data-[state=open]:bg-[var(--control-bg-hover,#2a2a2a)]",
+        "focus:bg-[var(--control-bg-hover)] data-[state=open]:bg-[var(--control-bg-hover)]",
         "focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
         controlStatusClass(status),
         className,
@@ -460,7 +460,7 @@ function TimeField({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "h-8 w-12 rounded-md border border-solid border-input bg-[var(--control-bg,#212121)] px-1.5 text-center text-sm text-foreground",
+        "h-8 w-12 rounded-md border border-solid border-input bg-[var(--control-bg)] px-1.5 text-center text-sm text-foreground",
         "focus-visible:outline-none disabled:opacity-40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
       )}
     />

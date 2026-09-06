@@ -1,7 +1,7 @@
 import * as SwitchPrimitive from "@radix-ui/react-switch";
-import { type ComponentPropsWithoutRef, type CSSProperties, forwardRef } from "react";
+import { type CSSProperties, type ComponentPropsWithoutRef, forwardRef } from "react";
 import { cn } from "../lib/cn";
-import { type ControlSize, getSizeTokens, normalizeSize } from "../lib/sizes";
+import { type ControlSize, controlRadiusVar, normalizeSize } from "../lib/sizes";
 
 export type SwitchVariant = "default" | "square";
 
@@ -17,17 +17,13 @@ export type SwitchProps = Omit<ComponentPropsWithoutRef<typeof SwitchPrimitive.R
 /** Switch track heights — shorter than Button/Input (antd-like). */
 const SWITCH_TRACK_H = { small: 16, default: 22, large: 28 } as const;
 
-export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(function Switch(
-  { className, checked, defaultChecked, onChange, size, variant = "default", disabled, style, ...rest },
-  ref,
-) {
-  const tok = getSizeTokens(size);
+export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(function Switch({ className, checked, defaultChecked, onChange, size, variant = "default", disabled, style, ...rest }, ref) {
   const trackH = SWITCH_TRACK_H[normalizeSize(size)];
   const trackW = Math.round(trackH * 1.8);
   const thumb = trackH - 4;
   const travel = trackW - thumb - 3;
   const square = variant === "square";
-  const squareRadius = Math.max(3, Math.round(tok.radius * 0.55));
+  const squareRadius = `max(3px, calc(${controlRadiusVar(size)} * 0.55))`;
 
   return (
     <SwitchPrimitive.Root
@@ -47,15 +43,12 @@ export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(function Switch
       {...rest}
     >
       <SwitchPrimitive.Thumb
-        className={cn(
-          "pointer-events-none block bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=unchecked]:translate-x-0.5 data-[state=checked]:translate-x-[var(--nonla-switch-travel)]",
-          square ? undefined : "rounded-full",
-        )}
+        className={cn("pointer-events-none block bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=unchecked]:translate-x-0.5 data-[state=checked]:translate-x-[var(--nonla-switch-travel)]", square ? undefined : "rounded-full")}
         style={
           {
             width: thumb,
             height: thumb,
-            borderRadius: square ? Math.max(1, squareRadius - 1) : undefined,
+            borderRadius: square ? `max(1px, calc(${squareRadius} - 1px))` : undefined,
             ["--nonla-switch-travel" as string]: `${travel}px`,
           } as CSSProperties
         }

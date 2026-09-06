@@ -1,31 +1,61 @@
+@import "highlight.js/styles/github-dark.css";
+
 /**
- * NonlaUI theme
+ * NonlaUI theme — single source of color.
  *
- * Edit --nonla-* knobs (or the exact surface hexes) — shadcn aliases follow.
+ * Override `--nonla-*` knobs in the consuming app (CSS or `<App theme>`).
+ * Components read only these tokens — never edit Button/Tag/… to retheme.
  */
 
 :root,
 .dark,
 .nonla-ui {
-  /* ── Knobs ───────────────────────────────────────────────────────────── */
-  --nonla-bg: #121212; /* colorBgBase / colorBgLayout */
-  --nonla-fg: #d4d4d4; /* colorText */
-  --nonla-brand: #dd7627; /* colorPrimary */
-  --nonla-brand-soft: #ffa333; /* colorPrimaryHover */
-  --nonla-danger: #ef4444; /* colorError */
-  --nonla-success: #0ac864; /* colorSuccess */
-  --nonla-warn: #f1b467; /* colorWarning */
-  --nonla-link: #599ce7; /* colorInfo */
+  /* ── Knobs (override these) ──────────────────────────────────────────── */
+  --nonla-bg: #171717;
+  --nonla-fg: #d4d4d4;
+  --nonla-fg-muted: #8a8a8a;
+  --nonla-fg-tertiary: #9a9a9a;
+  --nonla-fg-quaternary: #6e6e6e;
+  --nonla-brand: #dd7626;
+  /* Soft = lighter brand (oklab mix toward white). Override only for a one-off. */
+  --nonla-brand-soft: color-mix(in oklab, var(--nonla-brand) 72%, white);
+  --nonla-solid-fg: #ffffff;
+  --nonla-danger: #fc413d;
+  --nonla-success: #00af57;
+  --nonla-warn: #ffbe00;
+  --nonla-link: var(--nonla-brand);
   --nonla-radius: 8px;
+  --nonla-height: 32px;
+  --nonla-height-sm: 24px;
+  --nonla-height-lg: 40px;
 
-  /* Surfaces — exact hex (not color-mix) */
-  --nonla-ink: #e8e8e8; /* light emphasis; CTA stays on --brand */
-  --nonla-surface: #191919; /* colorBgContainer / card / modal */
-  --nonla-elevated: #1e1e1e; /* colorBgElevated / popover */
-  --nonla-chip: #212121; /* control / secondary / muted */
-  --nonla-chip-hover: #2a2a2a; /* control hover / segmented track */
+  --nonla-ink: #e8e8e8;
+  --nonla-surface: #191919;
+  --nonla-elevated: #1e1e1e;
+  --nonla-chip: #212121;
+  --nonla-chip-hover: #2a2a2a;
+  --nonla-border: #666666;
+  --nonla-input: #8a8a8a;
+  --nonla-composer: #3c3c3c;
 
-  /* ── Shadcn standard map ─────────────────────────────────────────────── */
+  /* Preset accents — Button color="blue" / Tag color="purple" / … */
+  --nonla-blue: #1677ff;
+  --nonla-purple: #722ed1;
+  --nonla-cyan: #13c2c2;
+  --nonla-green: #0ac864;
+  --nonla-magenta: #eb2f96;
+  --nonla-pink: #eb2f96;
+  --nonla-red: #ef4444;
+  --nonla-orange: #fa8c16;
+  --nonla-yellow: #fadb14;
+  --nonla-volcano: #fa541c;
+  --nonla-geekblue: #2f54eb;
+  --nonla-lime: #a0d911;
+  --nonla-gold: #faad14;
+
+  /* ── Derived map (do not set unless you need a one-off exception) ───── */
+  --nonla-radius-sm: max(0px, calc(var(--nonla-radius) - 2px));
+  --nonla-radius-lg: calc(var(--nonla-radius) + 2px);
   --radius: var(--nonla-radius);
   --background: var(--nonla-bg);
   --foreground: var(--nonla-fg);
@@ -39,30 +69,29 @@
   --secondary: var(--nonla-chip);
   --secondary-foreground: var(--nonla-fg);
   --muted: var(--nonla-chip);
-  --muted-foreground: #8a8a8a; /* colorTextSecondary */
+  --muted-foreground: var(--nonla-fg-muted);
   --accent: color-mix(in oklab, var(--nonla-brand) 14%, transparent);
   --accent-foreground: var(--nonla-brand-soft);
   --destructive: var(--nonla-danger);
-  --destructive-foreground: #fafafa;
-  --border: rgba(102, 102, 102, 0.12); /* colorBorderSecondary */
-  --input: rgba(102, 102, 102, 0.2); /* outlined control edge */
+  --destructive-foreground: var(--nonla-solid-fg);
+  --border: color-mix(in srgb, var(--nonla-border) 12%, transparent);
+  --input: color-mix(in srgb, var(--nonla-input) 20%, transparent);
   --ring: color-mix(in oklab, var(--nonla-fg) 45%, transparent);
 
-  /* ── Nonla aliases ───────────────────────────────────────────────────── */
   --brand: var(--nonla-brand);
   --brand-soft: var(--nonla-brand-soft);
   --brand-text: var(--nonla-brand);
   --link: var(--nonla-link);
   --success: var(--nonla-success);
   --warn: var(--nonla-warn);
-  --tertiary-foreground: #9a9a9a; /* colorTextTertiary */
-  --quaternary-foreground: #6e6e6e; /* colorTextQuaternary */
-  --border-subtle: rgba(102, 102, 102, 0.08);
+  --tertiary-foreground: var(--nonla-fg-tertiary);
+  --quaternary-foreground: var(--nonla-fg-quaternary);
+  --border-subtle: color-mix(in srgb, var(--nonla-border) 8%, transparent);
   --control-bg: var(--nonla-chip);
   --control-bg-hover: var(--nonla-chip-hover);
-  --elevated-shadow: 0 0 0 1px rgba(102, 102, 102, 0.32), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --elevated-shadow: 0 0 0 1px color-mix(in srgb, var(--nonla-border) 32%, transparent), 0 8px 24px rgba(0, 0, 0, 0.45);
   --popper-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --popper-border: rgba(102, 102, 102, 0.32);
+  --popper-border: color-mix(in srgb, var(--nonla-border) 32%, transparent);
   --mask: rgba(0, 0, 0, 0.55);
 
   /* Motion — shadcn-like ease-out-expo */
@@ -72,18 +101,54 @@
   --nonla-dur: 200ms;
   --nonla-dur-slow: 300ms;
 
-  /* Chat type — compact default (agent sidebars / panels) */
+  /* Chat type — one scale for full-page chat and side panels */
   --chat-body-size: 14px;
   --chat-body-leading: 24px;
+  --chat-h1-size: 16px;
+  --chat-h2-size: 16px;
+  --chat-h3-size: 14px;
+  --chat-h4-size: 14px;
+  --chat-p-mb: 12px;
+  --chat-h-mt: 16px;
+  --chat-h-mb: 8px;
   --chat-composer-size: 14px;
   --chat-composer-leading: 22px;
+  --chat-code-size: 12.5px;
+  --chat-inline-code-size: 13px;
 }
 
-/* Full-page chat reading measure */
-.nonla-chat-size-lg,
-.chat-size-lg {
-  --chat-body-size: 16px;
-  --chat-body-leading: 28px;
+/* Tailwind v4 — scan this package + expose semantic color utilities. */
+@source "./**/*.tsx";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-link: var(--link);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-quaternary-foreground: var(--quaternary-foreground);
 }
 
 @keyframes nonla-chat-shimmer {
@@ -207,12 +272,12 @@
   width: 100%;
   height: 100%;
   border-radius: 999px;
-  background: #2e2e2e;
+  background: var(--nonla-chip-hover);
   transition: background 120ms linear;
 }
 
 .nonla-spin-matrix-cell.is-on {
-  background: #f0f0f0;
+  background: var(--nonla-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -576,36 +641,27 @@
   animation: nonla-pop-out 100ms var(--nonla-ease-in);
 }
 
-/* ── CodeBlock (sugar-high) ─────────────────────────────────────────────── */
-.nonla-codeblock {
-  --sh-class: #599ce7;
-  --sh-identifier: #c8c8c8;
-  --sh-sign: #8a8a8a;
-  --sh-property: #7eb8ff;
-  --sh-entity: #3ecf8e;
-  --sh-jsxliterals: #b0b0b0;
-  --sh-string: #0ac864;
-  --sh-keyword: #f87171;
-  --sh-comment: #6e6e6e;
-  --sh-break: var(--sh-sign);
-}
-
 .nonla-codeblock-pre code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   color: var(--foreground);
 }
 
-.nonla-codeblock-pre .sh__line {
+.nonla-codeblock-pre .hljs-line {
   display: inline-block;
-  width: 100%;
+  min-width: 100%;
   min-height: 1.65em;
+}
+.nonla-codeblock-pre:not(.whitespace-pre-wrap) .hljs-line {
+  width: max-content;
+}
+.nonla-codeblock-pre.whitespace-pre-wrap .hljs-line {
+  width: 100%;
 }
 
 .nonla-codeblock-lines code {
   counter-reset: nonla-code-line;
 }
 
-.nonla-codeblock-lines .sh__line::before {
+.nonla-codeblock-lines .hljs-line::before {
   counter-increment: nonla-code-line;
   content: counter(nonla-code-line);
   display: inline-block;

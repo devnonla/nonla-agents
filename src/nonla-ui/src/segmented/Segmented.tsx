@@ -1,10 +1,8 @@
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
-import { type ControlSize, getSizeTokens, normalizeSize } from "../lib/sizes";
+import { type ControlSize, controlHeightVar, controlRadiusVar, getSizeTokens, normalizeSize } from "../lib/sizes";
 
-export type SegmentedOption<V extends string | number = string | number> =
-  | V
-  | { label: ReactNode; value: V; disabled?: boolean; icon?: ReactNode };
+export type SegmentedOption<V extends string | number = string | number> = V | { label: ReactNode; value: V; disabled?: boolean; icon?: ReactNode };
 
 export type SegmentedProps<V extends string | number = string | number> = {
   options: SegmentedOption<V>[];
@@ -26,16 +24,11 @@ export function Segmented<V extends string | number = string | number>({ options
   const items = options.map((o) => norm(o));
   const current = value ?? defaultValue ?? items[0]?.value;
   const tok = getSizeTokens(size);
-  const trackHeight = Math.max(tok.height - 4, 22);
   const itemPadX = Math.max(tok.paddingInline - 4, 6);
+  const radius = controlRadiusVar(size);
 
   return (
-    <div
-      className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-secondary p-0.5", block && "flex w-full", className)}
-      role="tablist"
-      style={{ borderRadius: tok.radius }}
-      data-size={normalizeSize(size)}
-    >
+    <div className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-secondary p-0.5", block && "flex w-full", className)} role="tablist" style={{ borderRadius: radius }} data-size={normalizeSize(size)}>
       {items.map((item) => {
         const active = item.value === current;
         return (
@@ -48,14 +41,14 @@ export function Segmented<V extends string | number = string | number>({ options
             className={cn(
               "inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-0 transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
               block ? "min-w-0 flex-1" : "shrink-0",
-              active ? "bg-[var(--control-bg-hover,#2a2a2a)] text-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:bg-white/4 hover:text-foreground",
+              active ? "bg-[var(--control-bg-hover)] text-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:bg-white/4 hover:text-foreground",
             )}
             style={{
-              height: trackHeight,
+              height: `max(22px, calc(${controlHeightVar(size)} - 4px))`,
               paddingLeft: itemPadX,
               paddingRight: itemPadX,
               fontSize: tok.fontSize,
-              borderRadius: Math.max(tok.radius - 2, 4),
+              borderRadius: `max(4px, calc(${radius} - 2px))`,
             }}
             onClick={() => onChange?.(item.value)}
           >

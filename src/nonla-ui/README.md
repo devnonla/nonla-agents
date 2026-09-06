@@ -49,21 +49,40 @@ Aliases: `xs` → small, `middle` / `medium` → default.
 
 # Theme (colors)
 
-Edit **few knobs** in [`src/styles.css`](src/styles.css):
+All color lives in **`--nonla-*` knobs** (`src/styles.css`). Components never hardcode palette hex.
+
+**Other apps** — import the CSS, then override knobs. Do not fork Button/Tag/….
 
 ```css
---nonla-bg: #121212;
---nonla-fg: #d4d4d4;
---nonla-brand: #dd7627;
---nonla-danger: #ef4444;
---nonla-success: #0ac864;
---nonla-warn: #f1b467;
---nonla-link: #599ce7;
---nonla-radius: 8px;
+@import "tailwindcss";
+@import "@nonla-agents/ui/styles.css";
+
+:root {
+  --nonla-brand: #3b82f6;
+  --nonla-bg: #0b0f19;
+}
 ```
 
-Those map into **shadcn-standard** tokens (`--background`, `--primary`, `--destructive`, …) plus Nonla aliases (`--brand`, `--success`, …).
+`--nonla-brand-soft` follows brand (`color-mix(in oklab, var(--nonla-brand) 72%, white)`). Override it only if you need a one-off.
 
-- You: only touch `--nonla-*`.
+Or at runtime:
+
+```tsx
+<App
+  theme={{
+    colors: { brand: "#3b82f6", bg: "#0b0f19", border: "#666666", borderInput: "#8a8a8a" },
+  }}
+>
+  …
+</App>
+```
+
+Flat knobs still work (`brand`, `colorBorder`, `colorBorderInput`, …). `applyNonlaTheme({ brand: "#3b82f6" })` does the same on `:root`.
+
+Core knobs: `--nonla-bg`, `--nonla-fg`, `--nonla-brand`, `--nonla-danger`, `--nonla-success`, `--nonla-warn`, `--nonla-link`, `--nonla-radius` (small = −2px, large = +2px), `--nonla-height` / `--nonla-height-sm` / `--nonla-height-lg`, plus surfaces (`--nonla-surface`, `--nonla-chip`, …) and preset accents (`--nonla-blue`, `--nonla-purple`, …).
+
+Those map into shadcn-standard tokens (`--background`, `--destructive`, …) plus Nonla aliases (`--brand`, `--success`, …).
+
+- You: only touch `--nonla-*` (CSS or `theme` / `applyNonlaTheme`).
 - Shadcn consumers: can still override `--background` / `--primary` / etc.
 - Nonla CTA = `--brand` (from `--nonla-brand`). `--primary` = light ink (app DESIGN), not the amber button.

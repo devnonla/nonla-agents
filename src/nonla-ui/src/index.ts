@@ -6,6 +6,8 @@ export type { ButtonProps, ButtonGroupProps, ButtonType, ButtonSize, ButtonColor
 
 export { Input, TextArea, InputNumber } from "./input/Input";
 export type { InputProps, TextAreaProps, InputNumberProps, InputSize, TextAreaRef, PasswordProps } from "./input/Input";
+export { SearchInput } from "./input/SearchInput";
+export type { SearchInputProps } from "./input/SearchInput";
 /** antd `InputRef` compatibility — native input element. */
 export type InputRef = HTMLInputElement;
 
@@ -17,6 +19,9 @@ export type { SwitchProps, SwitchVariant } from "./switch/Switch";
 
 export { Checkbox } from "./checkbox/Checkbox";
 export type { CheckboxProps } from "./checkbox/Checkbox";
+
+export { ColorPicker } from "./colorpicker/ColorPicker";
+export type { ColorPickerProps } from "./colorpicker/ColorPicker";
 
 export { Tooltip } from "./tooltip/Tooltip";
 export type { TooltipProps, TooltipPlacement } from "./tooltip/Tooltip";
@@ -104,7 +109,7 @@ export type { TimePickerProps, TimeValue } from "./timepicker/TimePicker";
 export { Calendar } from "./calendar/Calendar";
 export type { CalendarProps } from "./calendar/Calendar";
 
-export { CodeBlock, CodeBlockCopyButton, CodeBlockHeader, CodeBlockContent } from "./codeblock/CodeBlock";
+export { CodeBlock, CodeBlockCopyButton } from "./codeblock/CodeBlock";
 export type { CodeBlockProps, CodeBlockCopyButtonProps } from "./codeblock/CodeBlock";
 
 export {
@@ -115,6 +120,13 @@ export {
   ChatToolCall,
   ChatInput,
   ChatWelcome,
+  ChatSpinner,
+  ChatMarkdown,
+  createChatMarkdownComponents,
+  chatMarkdownComponents,
+  chatMarkdownClass,
+  chatBodyClass,
+  MermaidBlock,
   formatToolName,
   prettyJson,
 } from "./chat";
@@ -126,12 +138,15 @@ export type {
   ChatToolCallProps,
   ChatInputProps,
   ChatWelcomeProps,
+  ChatMarkdownProps,
+  ChatMarkdownStreamState,
+  MermaidBlockProps,
 } from "./chat";
 
 export { cn } from "./lib/cn";
-export { CONTROL_SIZES, normalizeSize, getSizeTokens, controlStatusClass } from "./lib/sizes";
+export { CONTROL_SIZES, normalizeSize, getSizeTokens, controlHeightVar, controlRadiusVar, controlStatusClass } from "./lib/sizes";
 export type { ControlSize, CanonicalSize, ControlSizeTokens } from "./lib/sizes";
 export { placementToRadix } from "./lib/placement";
 export type { PopperPlacement } from "./lib/placement";
-export { NONLA_THEME_KNOBS } from "./theme";
-export type { NonlaThemeKnob } from "./theme";
+export { NONLA_THEME_KNOBS, NONLA_THEME_KEYS, applyNonlaTheme } from "./theme";
+export type { NonlaThemeKnob, NonlaThemeKnobName, NonlaThemeColorName, NonlaThemeColors, NonlaThemeConfig } from "./theme";

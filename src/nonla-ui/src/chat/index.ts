@@ -19,4 +19,12 @@ export type { ChatInputProps } from "./ChatInput";
 export { ChatWelcome } from "./ChatWelcome";
 export type { ChatWelcomeProps } from "./ChatWelcome";
 
+export { ChatSpinner } from "./ChatSpinner";
+
+export { ChatMarkdown, createChatMarkdownComponents, chatMarkdownComponents, chatMarkdownClass, chatBodyClass } from "./ChatMarkdown";
+export type { ChatMarkdownProps, ChatMarkdownStreamState } from "./ChatMarkdown";
+
+export { MermaidBlock } from "./MermaidBlock";
+export type { MermaidBlockProps } from "./MermaidBlock";
+
 export { formatToolName, prettyJson } from "./utils";

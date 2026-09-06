@@ -210,9 +210,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           aria-haspopup="listbox"
           aria-expanded={open}
           className={cn(
-            "group/select inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg,#212121)] text-left text-foreground",
+            "group/select inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg)] text-left text-foreground",
             controlFieldTransition,
-            "focus:bg-[var(--control-bg-hover,#2a2a2a)] data-[state=open]:bg-[var(--control-bg-hover,#2a2a2a)]",
+            "focus:bg-[var(--control-bg-hover)] data-[state=open]:bg-[var(--control-bg-hover)]",
             "focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
             controlStatusClass(status),
             className,

@@ -33,9 +33,9 @@ export const Checkbox = forwardRef<HTMLButtonElement, CheckboxProps>(function Ch
         disabled={disabled}
         onCheckedChange={(v) => onChange?.(v === true)}
         className={cn(
-          "size-4 shrink-0 rounded-[4px] border border-input bg-[var(--control-bg,#212121)] transition-colors duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          "focus-visible:outline-none data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-white",
-          "data-[state=indeterminate]:bg-brand data-[state=indeterminate]:border-brand data-[state=indeterminate]:text-white",
+          "size-4 shrink-0 rounded-[4px] border border-input bg-[var(--control-bg)] transition-colors duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "focus-visible:outline-none data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-[var(--nonla-solid-fg)]",
+          "data-[state=indeterminate]:bg-brand data-[state=indeterminate]:border-brand data-[state=indeterminate]:text-[var(--nonla-solid-fg)]",
           className,
         )}
         {...rest}

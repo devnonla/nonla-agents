@@ -51,9 +51,9 @@ function CalendarDayButton({ className, day, modifiers, ...props }: DayButtonPro
       className={cn(
         "flex aspect-square size-full min-w-8 flex-col items-center justify-center gap-1 rounded-md text-sm font-normal leading-none",
         "transition-colors hover:bg-white/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
-        "data-[selected-single=true]:bg-brand data-[selected-single=true]:text-white data-[selected-single=true]:hover:bg-brand",
-        "data-[range-start=true]:bg-brand data-[range-start=true]:text-white data-[range-start=true]:hover:bg-brand data-[range-start=true]:rounded-md",
-        "data-[range-end=true]:bg-brand data-[range-end=true]:text-white data-[range-end=true]:hover:bg-brand data-[range-end=true]:rounded-md",
+        "data-[selected-single=true]:bg-brand data-[selected-single=true]:text-[var(--nonla-solid-fg)] data-[selected-single=true]:hover:bg-brand",
+        "data-[range-start=true]:bg-brand data-[range-start=true]:text-[var(--nonla-solid-fg)] data-[range-start=true]:hover:bg-brand data-[range-start=true]:rounded-md",
+        "data-[range-end=true]:bg-brand data-[range-end=true]:text-[var(--nonla-solid-fg)] data-[range-end=true]:hover:bg-brand data-[range-end=true]:rounded-md",
         "data-[range-middle=true]:bg-brand/20 data-[range-middle=true]:text-foreground data-[range-middle=true]:rounded-none",
         defaultClassNames.day_button,
         className,

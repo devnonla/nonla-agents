@@ -579,10 +579,10 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(function
           ref={fieldRef}
           onPointerDown={() => openPicker()}
           className={cn(
-            "group/timepicker inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg,#212121)] text-foreground",
+            "group/timepicker inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg)] text-foreground",
             controlFieldTransition,
-            "focus-within:bg-[var(--control-bg-hover,#2a2a2a)]",
-            open && "bg-[var(--control-bg-hover,#2a2a2a)]",
+            "focus-within:bg-[var(--control-bg-hover)]",
+            open && "bg-[var(--control-bg-hover)]",
             controlStatusClass(status),
             disabled && "cursor-not-allowed opacity-45",
             className,

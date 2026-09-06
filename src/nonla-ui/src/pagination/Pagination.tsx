@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
-import { type ControlSize, getSizeTokens, normalizeSize } from "../lib/sizes";
+import { type ControlSize, controlHeightVar, normalizeSize } from "../lib/sizes";
 
 export type PaginationItemType = "page" | "prev" | "next" | "jump-prev" | "jump-next";
 
@@ -50,32 +50,17 @@ function ItemBtn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={cn(
-        "inline-flex min-w-7 cursor-pointer items-center justify-center rounded-md px-1.5 text-sm transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-40",
-        active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-white/6 hover:text-foreground",
-        className,
-      )}
+      className={cn("inline-flex min-w-7 cursor-pointer items-center justify-center rounded-md px-1.5 text-sm transition-colors", "disabled:cursor-not-allowed disabled:opacity-40", active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-white/6 hover:text-foreground", className)}
     >
       {children}
     </button>
   );
 }
 
-export function Pagination({
-  current = 1,
-  pageSize = 10,
-  total = 0,
-  onChange,
-  className,
-  disabled,
-  size,
-  itemRender,
-}: PaginationProps) {
+export function Pagination({ current = 1, pageSize = 10, total = 0, onChange, className, disabled, size, itemRender }: PaginationProps) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const tok = getSizeTokens(size);
   const compact = normalizeSize(size) === "small";
-  const h = compact ? tok.height : 28;
+  const h = compact ? controlHeightVar(size) : 28;
 
   const wrap = (page: number, type: PaginationItemType, node: ReactNode) => (itemRender ? itemRender(page, type, node) : node);
 

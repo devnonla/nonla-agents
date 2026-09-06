@@ -17,15 +17,15 @@ function LogoMark() {
         <path d="M778 96 C836 241 892 377 948 507" />
         <path d="M786 96 C911 260 1081 421 1254 563" />
       </g>
-      <g fill="#121212">
+      <g fill="var(--nonla-bg)">
         <ellipse cx="607.5" cy="705" rx="44.5" ry="68" />
         <ellipse cx="921.5" cy="705" rx="44.5" ry="68" />
       </g>
-      <g fill="#ffffff">
+      <g fill="var(--nonla-solid-fg)">
         <ellipse cx="618" cy="678" rx="13" ry="19" />
         <ellipse cx="932" cy="678" rx="13" ry="19" />
       </g>
-      <path fill="none" stroke="#121212" strokeWidth="24" strokeLinecap="round" d="M696 802 C733 846 801 846 837 802" />
+      <path fill="none" stroke="var(--nonla-bg)" strokeWidth="24" strokeLinecap="round" d="M696 802 C733 846 801 846 837 802" />
     </svg>
   );
 }

@@ -1,19 +1,6 @@
-import {
-  type CSSProperties,
-  type InputHTMLAttributes,
-  type KeyboardEvent,
-  type ReactNode,
-  type TextareaHTMLAttributes,
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type TextareaHTMLAttributes, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../lib/cn";
-import { type ControlSize, controlFieldStyle, controlFieldTransition, controlStatusClass, getSizeTokens } from "../lib/sizes";
+import { type ControlSize, controlFieldStyle, controlFieldTransition, controlHeightVar, controlRadiusVar, controlStatusClass, getSizeTokens, normalizeSize } from "../lib/sizes";
 
 export type InputSize = ControlSize;
 
@@ -28,8 +15,7 @@ export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "p
   onPressEnter?: (e: KeyboardEvent<HTMLInputElement>) => void;
 };
 
-const fieldBase =
-  "w-full border border-solid border-input bg-[var(--control-bg,#212121)] text-foreground placeholder:text-quaternary-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 focus:bg-[var(--control-bg-hover,#2a2a2a)]";
+const fieldBase = "w-full border border-solid border-input bg-[var(--control-bg)] text-foreground placeholder:text-quaternary-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 focus:bg-[var(--control-bg-hover)]";
 
 function variantClass(variant: InputProps["variant"]) {
   if (variant === "borderless") return "border-transparent bg-transparent hover:bg-transparent shadow-none";
@@ -37,10 +23,7 @@ function variantClass(variant: InputProps["variant"]) {
   return "";
 }
 
-const InputRoot = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, size, status, prefix, suffix, allowClear, variant = "outlined", disabled, value, onChange, onPressEnter, onKeyDown, style, ...rest },
-  ref,
-) {
+const InputRoot = forwardRef<HTMLInputElement, InputProps>(function Input({ className, size, status, prefix, suffix, allowClear, variant = "outlined", disabled, value, onChange, onPressEnter, onKeyDown, style, ...rest }, ref) {
   const fieldStyle = controlFieldStyle(size);
   const showClear = allowClear && !disabled && value != null && String(value).length > 0;
   const wrapped = Boolean(prefix || suffix || showClear);
@@ -67,15 +50,7 @@ const InputRoot = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   return (
     <div
-      className={cn(
-        "inline-flex w-full items-center gap-2 border border-solid border-input bg-[var(--control-bg,#212121)]",
-        controlFieldTransition,
-        controlStatusClass(status),
-        variantClass(variant),
-        "focus-within:outline-none focus-within:bg-[var(--control-bg-hover,#2a2a2a)]",
-        disabled && "opacity-45 cursor-not-allowed",
-        className,
-      )}
+      className={cn("inline-flex w-full items-center gap-2 border border-solid border-input bg-[var(--control-bg)]", controlFieldTransition, controlStatusClass(status), variantClass(variant), "focus-within:outline-none focus-within:bg-[var(--control-bg-hover)]", disabled && "opacity-45 cursor-not-allowed", className)}
       style={fieldStyle}
     >
       {prefix ? <span className="shrink-0 text-muted-foreground inline-flex items-center">{prefix}</span> : null}
@@ -102,10 +77,7 @@ export type TextAreaRef = HTMLTextAreaElement & {
   resizableTextArea?: { textArea: HTMLTextAreaElement };
 };
 
-const TextArea = forwardRef<TextAreaRef, TextAreaProps>(function TextArea(
-  { className, status, variant = "outlined", autoSize, rows, style, size, onChange, value, ...rest },
-  ref,
-) {
+const TextArea = forwardRef<TextAreaRef, TextAreaProps>(function TextArea({ className, status, variant = "outlined", autoSize, rows, style, size, onChange, value, ...rest }, ref) {
   const tok = getSizeTokens(size);
   const innerRef = useRef<HTMLTextAreaElement | null>(null);
   const minRows = typeof autoSize === "object" ? (autoSize.minRows ?? 1) : autoSize ? 1 : undefined;
@@ -145,12 +117,12 @@ const TextArea = forwardRef<TextAreaRef, TextAreaProps>(function TextArea(
       className={cn(fieldBase, "py-2", autoSize ? "resize-none" : "resize-y", controlStatusClass(status), variantClass(variant), className)}
       style={
         {
-          minHeight: autoSize ? (minRows ?? 1) * tok.lineHeight + padY : tok.height,
+          minHeight: autoSize ? (minRows ?? 1) * tok.lineHeight + padY : controlHeightVar(size),
           fontSize: tok.fontSize,
           lineHeight: `${tok.lineHeight}px`,
           paddingLeft: tok.paddingInline,
           paddingRight: tok.paddingInline,
-          borderRadius: tok.radius,
+          borderRadius: controlRadiusVar(size),
           ...style,
           ...(maxRows && !autoSize ? { maxHeight: maxRows * tok.lineHeight + padY } : null),
         } satisfies CSSProperties
@@ -191,40 +163,12 @@ function roundTo(n: number, precision?: number) {
 function HandlerChevron({ dir }: { dir: "up" | "down" }) {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden className="opacity-70">
-      {dir === "up" ? (
-        <path d="M2.5 6.25L5 3.75L7.5 6.25" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      ) : (
-        <path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      )}
+      {dir === "up" ? <path d="M2.5 6.25L5 3.75L7.5 6.25" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /> : <path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />}
     </svg>
   );
 }
 
-const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function InputNumber(
-  {
-    value,
-    defaultValue,
-    onChange,
-    min,
-    max,
-    step = 1,
-    controls = true,
-    precision,
-    parser,
-    formatter,
-    disabled,
-    size,
-    status,
-    className,
-    style,
-    placeholder,
-    onBlur,
-    onFocus,
-    onKeyDown,
-    ...rest
-  },
-  ref,
-) {
+const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function InputNumber({ value, defaultValue, onChange, min, max, step = 1, controls = true, precision, parser, formatter, disabled, size, status, className, style, placeholder, onBlur, onFocus, onKeyDown, ...rest }, ref) {
   const controlled = value !== undefined;
   const [inner, setInner] = useState<number | null>(defaultValue ?? null);
   const numeric = controlled ? (value ?? null) : inner;
@@ -271,7 +215,7 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
 
   const atMin = numeric != null && min != null && numeric <= min;
   const atMax = numeric != null && max != null && numeric >= max;
-  const handlerW = tok.height <= 24 ? 18 : 22;
+  const handlerW = normalizeSize(size) === "small" ? 18 : 22;
 
   const setRefs = (node: HTMLInputElement | null) => {
     inputRef.current = node;
@@ -292,14 +236,7 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
 
   return (
     <div
-      className={cn(
-        "group relative inline-flex w-full items-stretch border border-solid border-input bg-[var(--control-bg,#212121)]",
-        controlFieldTransition,
-        "focus-within:bg-[var(--control-bg-hover,#2a2a2a)]",
-        controlStatusClass(status),
-        disabled && "opacity-45 cursor-not-allowed",
-        className,
-      )}
+      className={cn("group relative inline-flex w-full items-stretch border border-solid border-input bg-[var(--control-bg)]", controlFieldTransition, "focus-within:bg-[var(--control-bg-hover)]", controlStatusClass(status), disabled && "opacity-45 cursor-not-allowed", className)}
       style={{ height: fieldStyle.height, borderRadius: fieldStyle.borderRadius, ...style }}
     >
       <input
@@ -352,23 +289,15 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
 
       {controls && !disabled ? (
         <div
-          className={cn(
-            "absolute top-0 right-0 bottom-0 flex flex-col overflow-hidden border-l border-border/80",
-            "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
-          )}
-          style={{ width: handlerW, borderTopRightRadius: tok.radius - 1, borderBottomRightRadius: tok.radius - 1 }}
+          className={cn("absolute top-0 right-0 bottom-0 flex flex-col overflow-hidden border-l border-border/80", "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100")}
+          style={{ width: handlerW, borderTopRightRadius: `calc(${controlRadiusVar(size)} - 1px)`, borderBottomRightRadius: `calc(${controlRadiusVar(size)} - 1px)` }}
         >
           <button
             type="button"
             tabIndex={-1}
             aria-label="Increase"
             disabled={atMax}
-            className={cn(
-              "flex flex-1 items-center justify-center text-muted-foreground",
-              "hover:bg-white/8 hover:text-foreground active:bg-white/12",
-              "disabled:opacity-30 disabled:pointer-events-none",
-              "border-b border-border/60",
-            )}
+            className={cn("flex flex-1 items-center justify-center text-muted-foreground", "hover:bg-white/8 hover:text-foreground active:bg-white/12", "disabled:opacity-30 disabled:pointer-events-none", "border-b border-border/60")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => stepBy(1)}
           >
@@ -379,11 +308,7 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
             tabIndex={-1}
             aria-label="Decrease"
             disabled={atMin}
-            className={cn(
-              "flex flex-1 items-center justify-center text-muted-foreground",
-              "hover:bg-white/8 hover:text-foreground active:bg-white/12",
-              "disabled:opacity-30 disabled:pointer-events-none",
-            )}
+            className={cn("flex flex-1 items-center justify-center text-muted-foreground", "hover:bg-white/8 hover:text-foreground active:bg-white/12", "disabled:opacity-30 disabled:pointer-events-none")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => stepBy(-1)}
           >
@@ -409,10 +334,7 @@ function EyeIcon({ off }: { off?: boolean }) {
   );
 }
 
-const Password = forwardRef<HTMLInputElement, PasswordProps>(function Password(
-  { visibilityToggle = true, suffix, ...props },
-  ref,
-) {
+const Password = forwardRef<HTMLInputElement, PasswordProps>(function Password({ visibilityToggle = true, suffix, ...props }, ref) {
   const toggle = visibilityToggle;
   const enabled = toggle !== false;
   const controlled = typeof toggle === "object" && toggle.visible !== undefined;
@@ -425,18 +347,18 @@ const Password = forwardRef<HTMLInputElement, PasswordProps>(function Password(
   };
 
   const eye = enabled ? (
-    <button
-      type="button"
-      tabIndex={-1}
-      aria-label={visible ? "Hide password" : "Show password"}
-      className="inline-flex items-center text-muted-foreground hover:text-foreground"
-      onClick={() => setVisible(!visible)}
-    >
+    <button type="button" tabIndex={-1} aria-label={visible ? "Hide password" : "Show password"} className="inline-flex items-center text-muted-foreground hover:text-foreground" onClick={() => setVisible(!visible)}>
       <EyeIcon off={!visible} />
     </button>
   ) : null;
 
-  const mergedSuffix = suffix || eye ? <>{suffix}{eye}</> : undefined;
+  const mergedSuffix =
+    suffix || eye ? (
+      <>
+        {suffix}
+        {eye}
+      </>
+    ) : undefined;
 
   return <InputRoot ref={ref} type={visible ? "text" : "password"} suffix={mergedSuffix} {...props} />;
 });

@@ -47,9 +47,9 @@ export function FieldRepeater({ name, control, childItems }: Props) {
         <button
           type="button"
           onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-sm border-0 bg-transparent py-0.5 pl-0.5 pr-2 text-xs text-foreground transition-colors hover:bg-brand hover:text-white"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-sm border-0 bg-transparent py-0.5 pl-0.5 pr-2 text-xs text-foreground transition-colors hover:bg-brand hover:text-[var(--nonla-solid-fg)]"
         >
-          <span className="inline-flex size-4 items-center justify-center rounded-[3px] bg-brand text-white">
+          <span className="inline-flex size-4 items-center justify-center rounded-[3px] bg-brand text-[var(--nonla-solid-fg)]">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 2.5V9.5M2.5 6H9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
