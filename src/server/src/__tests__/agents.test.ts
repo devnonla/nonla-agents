@@ -235,12 +235,12 @@ describe("Agents API", () => {
 
   test("POST /api/agents/:id/tool-assignments — add builtin tool", async () => {
     const res = await authRequest(app, token, "POST", `/api/agents/${agentId}/tool-assignments`, {
-      toolId: "builtin:browser",
+      toolId: "builtin:web_fetch",
     });
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as Record<string, unknown>;
-    expect(data.toolId).toBe("builtin:browser");
+    expect(data.toolId).toBe("builtin:web_fetch");
   });
 
   test("GET /api/agents/:id/tool-assignments — has assigned tool", async () => {
@@ -249,7 +249,7 @@ describe("Agents API", () => {
 
     const data = (await res.json()) as Record<string, unknown>[];
     expect(data.length).toBe(1);
-    expect(data[0].toolId).toBe("builtin:browser");
+    expect(data[0].toolId).toBe("builtin:web_fetch");
     expect(data[0]).toHaveProperty("tool");
   });
 
@@ -270,7 +270,7 @@ describe("Agents API", () => {
 
   test("PUT /api/agents/:id/tool-assignments — replace all", async () => {
     const res = await authRequest(app, token, "PUT", `/api/agents/${agentId}/tool-assignments`, {
-      items: [{ toolId: "builtin:get_current_time" }, { toolId: "builtin:browser" }],
+      items: [{ toolId: "builtin:get_current_time" }, { toolId: "builtin:web_fetch" }],
     });
 
     expect(res.status).toBe(200);

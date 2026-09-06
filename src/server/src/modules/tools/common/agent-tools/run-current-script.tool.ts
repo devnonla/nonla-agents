@@ -9,11 +9,11 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { runDraftCode } from "../../tools.service.js";
 
-export function makeRunCurrentScriptTool(toolId: string) {
+export function makeRunCurrentScriptTool(toolId: string, abortSignal?: AbortSignal) {
   return tool(
     async ({ testInput }) => {
       const inputJson = JSON.stringify(testInput ?? {});
-      const resultStr = await runDraftCode(toolId, inputJson);
+      const resultStr = await runDraftCode(toolId, inputJson, abortSignal);
 
       if (!resultStr) {
         return JSON.stringify({ success: false, error: "No draft code available. Use edit_code first." });

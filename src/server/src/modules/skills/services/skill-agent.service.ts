@@ -3,8 +3,8 @@ import type { BaseMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { SSEStreamingApi } from "hono/streaming";
 import { createAgent } from "langchain";
-import { browserTool } from "../../../common/ai/agent-tools/browser.tool.js";
-import { fetchUrlTool } from "../../../common/ai/agent-tools/fetch-url.tool.js";
+import { makeRunJsTool } from "../../../common/ai/agent-tools/run-js.tool.js";
+import { webFetchTool } from "../../../common/ai/agent-tools/web-fetch.tool.js";
 import { createCompactEditMiddleware, redactEditHistoryPayloads } from "../../../common/ai/compact-edit-middleware.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
@@ -109,7 +109,7 @@ export async function streamSkillAgent(skillId: string, body: SkillStreamRequest
     const { providerId, modelId, messages } = body;
     const model = await getChatModel(providerId, modelId);
 
-    const tools: StructuredToolInterface[] = [makeReadSkillFileTool(skillId), makeEditSkillFileTool(skillId), makeDeleteSkillFileTool(skillId), browserTool, fetchUrlTool];
+    const tools: StructuredToolInterface[] = [makeReadSkillFileTool(skillId), makeEditSkillFileTool(skillId), makeDeleteSkillFileTool(skillId), webFetchTool, makeRunJsTool({ abortSignal })];
 
     const agent = createAgent({
       model,

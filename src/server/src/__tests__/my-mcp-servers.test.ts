@@ -102,7 +102,7 @@ describe("My MCP servers API", () => {
   test("POST /api/my-mcp-servers — rejects builtin tools", async () => {
     const res = await authRequest(app, token, "POST", "/api/my-mcp-servers", {
       name: "bad",
-      toolIds: ["builtin:browser"],
+      toolIds: ["builtin:web_fetch"],
     });
     expect(res.status).toBe(400);
   });

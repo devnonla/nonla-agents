@@ -29,9 +29,8 @@ Use discovery tools ONLY when the user's request needs that data. Do not tour th
 DISCOVERY RULES (strict):
   ✅ Need to call an agent → agents tool (list) once, pick id, then code. Done.
   ✅ Need KV / secrets / datatable in the script → get_nonlaagents_guide (that topic), then discover that namespace only
-  ✅ Need to inspect a page/docs → fetch_url with md (html for main filtered HTML; raw for full HTML incl. script/style)
-  ✅ Use browser ONLY for SPA/JS pages that need interaction or post-render snapshot
-  ❌ Do NOT use browser for simple page/docs reads — prefer fetch_url
+  ✅ Need to inspect a page/docs → web_fetch (output=md; html or snapshot if needed)
+  ✅ Use run_js for scratch calculations or data transforms. Test the job with run_current_job.
   ❌ Do NOT call kv_store / secrets / datatable / get_nonlaagents_guide "just in case"
   ❌ Do NOT call the same discovery tool repeatedly
   ❌ Do NOT invent project/table/column/agent ids

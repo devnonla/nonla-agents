@@ -5,7 +5,7 @@
  * - generateAgent(): non-streaming, returns text (for call_agent, task runner)
  * - streamAgent(): streaming via AsyncIterable of AgentStreamEvent
  *
- * LangGraph JS version — uses createAgent from langchain
+ * Uses createAgent from langchain.
  *
  * Tool resolution:
  *   1. agent_tool_assignments (builtin:*, mcp:*, or custom tool UUID)
@@ -94,7 +94,7 @@ function enrichToolCallInput(toolName: string, args: unknown): unknown {
   return { ...base, agent_id: agentId };
 }
 
-/** Convert MessageParam[] to BaseMessage[] for LangGraph */
+/** Convert MessageParam[] to BaseMessage[] for LangChain */
 function toBaseMessages(messages: MessageParam[]): BaseMessage[] {
   return messages.map((m) => {
     if (m.role === "user") return new HumanMessage(m.content);

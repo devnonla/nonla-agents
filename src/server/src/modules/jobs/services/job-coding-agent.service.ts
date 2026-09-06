@@ -7,9 +7,9 @@ import type { BaseMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { SSEStreamingApi } from "hono/streaming";
 import { createAgent } from "langchain";
-import { browserTool } from "../../../common/ai/agent-tools/browser.tool.js";
-import { fetchUrlTool } from "../../../common/ai/agent-tools/fetch-url.tool.js";
 import { makeNonlaagentsGuideTool } from "../../../common/ai/agent-tools/nonlaagents-guide.tool.js";
+import { makeRunJsTool } from "../../../common/ai/agent-tools/run-js.tool.js";
+import { webFetchTool } from "../../../common/ai/agent-tools/web-fetch.tool.js";
 import { createCompactEditMiddleware, redactEditHistoryPayloads } from "../../../common/ai/compact-edit-middleware.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
@@ -133,8 +133,8 @@ export async function streamJobCodingAgent(jobId: string, body: JobCodingStreamR
     makeRunCurrentJobTool(jobId),
     makeGetJobRunTool(jobId),
     makeNonlaagentsGuideTool("jobs"),
-    browserTool,
-    fetchUrlTool,
+    webFetchTool,
+    makeRunJsTool({ abortSignal }),
     makeKvStoreTool(["list"]),
     makeSecretsTool(["list"]),
     makeDatatableTool(["list_projects", "get_schema"]),

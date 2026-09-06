@@ -228,14 +228,14 @@ ${workingSkillMd}
   • read_skill_file — read working content of SKILL.md or a reference (draft if present, else published). Call this before editing any reference, and whenever replace fails.
   • edit_skill_file — write a draft of SKILL.md or references/*.md (prefer mode=replace with unique hunks; mode=full for new files / large rewrites). Changes land as a draft; the user Accepts in the editor to publish.
   • delete_skill_file — permanently delete a references/{kebab-name}.md file (cannot delete SKILL.md). Then unlink that path from SKILL.md if mentioned.
-  • fetch_url — prefer for simple page/docs reads (output_mode=md).
-  • browser — only for SPA/JS pages that need interaction or a post-render snapshot.
+  • web_fetch — GET JS-rendered page content (output=md by default; html or snapshot if needed).
+  • run_js — scratch JavaScript for calculation, parsing, or transforming data (not saved).
 </tools>
 
 <workflow>
 1. Clarify the goal briefly if needed, then act with tools.
 2. Before editing a reference: read_skill_file on that exact path.
-3. Research only when the user asks or facts are missing: fetch_url (md) first; browser only if fetch is insufficient. Summarize findings into the skill — never dump raw page text.
+3. Research only when the user asks or facts are missing: web_fetch (md). Summarize findings into the skill — never dump raw page text.
 4. Edit via edit_skill_file. Prefer small replace hunks with unique old_string. If replace fails: read_skill_file again, then retry with a better unique hunk or mode=full.
 5. To remove a reference: delete_skill_file on that exact path, then edit_skill_file on SKILL.md to drop any links to it.
 6. After edits, briefly tell the user what changed and that they must Accept to publish (deletes apply immediately).

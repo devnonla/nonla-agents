@@ -6,39 +6,31 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun --format esm --external cloakbrowser --external playwright-core --external typescript && bun build src/modules/sites/sites-backend-worker.ts --outfile dist/sites-backend-worker.js --target bun --format esm",
+    "build": "bun build src/index.ts --outdir dist --target bun --format esm --external typescript && bun build src/modules/sites/sites-backend-worker.ts --outfile dist/sites-backend-worker.js --target bun --format esm",
     "start": "bun src/index.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.3.27",
     "@langchain/core": "^1.2.1",
     "@langchain/google-genai": "^2.1.28",
-    "@langchain/langgraph": "^1.2.9",
     "@langchain/openai": "^1.4.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@mozilla/readability": "^0.6.0",
     "@resvg/resvg-js": "^2.6.2",
-    "cloakbrowser": "^0.4.10",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.7.7",
     "jose": "^6.2.3",
     "langchain": "^1.5.2",
-    "linkedom": "^0.18.13",
-    "playwright-core": "^1.61.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "turndown": "^7.2.4",
     "typescript": "~5.8.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/mozilla-readability": "^0.2.1",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@types/turndown": "^5.0.6",
     "bun-types": "^1.4.0",
     "drizzle-kit": "^0.31.9"
   }

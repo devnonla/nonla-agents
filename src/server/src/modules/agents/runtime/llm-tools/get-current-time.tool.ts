@@ -1,7 +1,7 @@
 /**
  * get-current-time.tool.ts — Builtin tool: returns current date/time in configured timezone
  *
- * LangGraph JS version — uses @langchain/core/tools
+ * Builtin tool via @langchain/core/tools.
  */
 
 import { tool } from "@langchain/core/tools";

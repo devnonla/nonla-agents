@@ -3,7 +3,7 @@
  *
  * Handles the business logic for the prompt assistant:
  *   - Resolves AI model
- *   - Builds tools (generate_prompt, browser, fetch_url, datatable discovery)
+ *   - Builds tools (generate_prompt, web_fetch, datatable discovery)
  *   - Creates a ReAct agent and streams SSE events
  *   - generate_prompt writes a systemPromptDraft and emits agents:updated via WS
  */
@@ -13,8 +13,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { SSEStreamingApi } from "hono/streaming";
 import { createAgent } from "langchain";
-import { browserTool } from "../../../common/ai/agent-tools/browser.tool.js";
-import { fetchUrlTool } from "../../../common/ai/agent-tools/fetch-url.tool.js";
+import { webFetchTool } from "../../../common/ai/agent-tools/web-fetch.tool.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
 import { agents as agentsTable, getDb } from "../../../common/db/client.js";
@@ -54,8 +53,7 @@ This app renders **Mermaid 11.14**. When a diagram helps the agent, put a \`\`\`
 
 Your tools:
 - \`generate_prompt\` — write a system prompt draft (not live until the user Approves)
-- \`fetch_url\` — HTTP fetch (prefer over browser). output_mode: md (main page content — default), html (main filtered HTML), raw (full HTML incl. script/style)
-- \`browser\` — stealth headless Chromium. Only for SPA / JS pages that need interaction — not for simple docs reads
+- \`web_fetch\` — GET JS-rendered page content. output: md (default Markdown), html, snapshot.
 - \`datatable\` — read-only discovery. list_projects (\`id\` + \`name\`); get_schema with \`project\` (id preferred)`;
 
 interface PromptAgentContext {
@@ -281,7 +279,7 @@ export async function streamPromptAgent(agentId: string, body: PromptStreamReque
 
   // 3. Build tools — generate_prompt writes a draft (not published) + emits WS
   // datatable is discovery-only so the prompt writer can reference real projects/tables/columns
-  const tools: StructuredToolInterface[] = [makeGeneratePromptTool(agentId), browserTool, fetchUrlTool, makeDatatableTool(["list_projects", "get_schema"])];
+  const tools: StructuredToolInterface[] = [makeGeneratePromptTool(agentId), webFetchTool, makeDatatableTool(["list_projects", "get_schema"])];
 
   // 4. Create agent
   const agent = createAgent({

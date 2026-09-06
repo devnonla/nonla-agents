@@ -188,6 +188,28 @@ describe("background tool soft-wait", () => {
     expect(parsed.error ?? "").toContain("timed out");
   }, 60_000);
 
+  test("abortSignal cancels a sleeping tool", async () => {
+    dataDir = `${tmpDir()}/nonla-agents-bg-${crypto.randomUUID()}`;
+    const abort = new AbortController();
+    const pending = executeTool(
+      "tool-abort",
+      `export default async function main() {
+  await Bun.sleep(30_000);
+  return { done: true };
+}`,
+      "{}",
+      dataDir,
+      30_000,
+      abort.signal,
+    );
+    setTimeout(() => abort.abort(), 80);
+    const started = Date.now();
+    const parsed = JSON.parse(await pending) as { ok: boolean; error?: string };
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error ?? "").toContain("cancelled");
+    expect(Date.now() - started).toBeLessThan(8_000);
+  }, 60_000);
+
   test("reuses hashed user module and stable run.ts across runs", async () => {
     dataDir = `${tmpDir()}/nonla-agents-bg-${crypto.randomUUID()}`;
     const code = `export default async function main(input: Record<string, unknown>) {

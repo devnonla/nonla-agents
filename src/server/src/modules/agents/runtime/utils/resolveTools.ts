@@ -19,11 +19,11 @@ import { qall, qone } from "../../../../common/db/query.js";
 import { BUILTIN_DATATABLE_TOOL_ID, isDatatableProjectToolName, parseDatatableProjectAssignmentId, parseDatatableProjectToolTargetId } from "../../../datatables/datatable-tool-id.js";
 import { getProject } from "../../../datatables/datatables.service.js";
 import { callMcpTool } from "../../../mcp-servers/mcp-client.js";
-import { buildMcpLangGraphName, parseMcpToolId } from "../../../mcp-servers/mcp-tool-id.js";
+import { buildMcpToolName, parseMcpToolId } from "../../../mcp-servers/mcp-tool-id.js";
 import { runToolWithSoftWait } from "../../../tools/tools.service.js";
 
-import { browserTool } from "../../../../common/ai/agent-tools/browser.tool.js";
-import { fetchUrlTool } from "../../../../common/ai/agent-tools/fetch-url.tool.js";
+import { makeRunJsTool } from "../../../../common/ai/agent-tools/run-js.tool.js";
+import { webFetchTool } from "../../../../common/ai/agent-tools/web-fetch.tool.js";
 import { makeBackgroundTasksTool } from "../llm-tools/background-tasks.tool.js";
 import { type CallAgentTarget, isCallAgentToolName, makeCallAgentTools, parseCallAgentToolTargetId } from "../llm-tools/call-agent.tool.js";
 import { datatableTool, makeDatatableProjectTool } from "../llm-tools/datatable.tool.js";
@@ -34,10 +34,11 @@ import { makeReadSkillTool } from "../llm-tools/read-skill.tool.js";
 
 import { CUSTOM_TOOL_SOFT_WAIT_MS } from "../../../tools/common/tool-runner.js";
 
+const WEB_FETCH_NAMES = new Set(["web_fetch", "fetch_url", "browser"]);
+
 const STATIC_BUILTINS: Record<string, StructuredToolInterface> = {
   get_current_time: getCurrentTimeTool,
-  browser: browserTool,
-  fetch_url: fetchUrlTool,
+  web_fetch: webFetchTool,
   kv_store: kvStoreTool,
 };
 
@@ -59,9 +60,11 @@ export async function getToolLabel(toolName: string): Promise<string> {
 
   const KNOWN_LABELS: Record<string, string> = {
     get_current_time: "Get Current Time",
-    browser: "Browser",
-    fetch_url: "Fetch URL",
+    web_fetch: "Web Fetch",
+    fetch_url: "Web Fetch",
+    browser: "Web Fetch",
     kv_store: "KV Store",
+    run_js: "Run JS",
     datatable: "Datatable",
     call_agent: "Call Agent",
     memory: "Memory",
@@ -81,7 +84,7 @@ export async function getToolLabel(toolName: string): Promise<string> {
     for (const server of servers) {
       const catalog = (server.tools ?? []) as McpCatalogTool[];
       for (const t of catalog) {
-        if (buildMcpLangGraphName(server.name, t.name) === toolName) {
+        if (buildMcpToolName(server.name, t.name) === toolName) {
           return `${server.name} → ${t.name}`;
         }
       }
@@ -218,7 +221,7 @@ async function buildCustomTool(
 }
 
 async function buildMcpTool(opts: {
-  langGraphName: string;
+  name: string;
   description: string;
   parameters: object;
   serverId: string;
@@ -233,10 +236,10 @@ async function buildMcpTool(opts: {
         const db = getDb();
         const server = await qone(db.select().from(mcpServers).where(eq(mcpServers.id, opts.serverId)));
         if (!server) {
-          return JSON.stringify({ error: `MCP server not found for tool "${opts.langGraphName}"`, ok: false });
+          return JSON.stringify({ error: `MCP server not found for tool "${opts.name}"`, ok: false });
         }
         if (!server.isActive) {
-          return JSON.stringify({ error: `MCP server is inactive for tool "${opts.langGraphName}"`, ok: false });
+          return JSON.stringify({ error: `MCP server is inactive for tool "${opts.name}"`, ok: false });
         }
 
         const result = await callMcpTool(opts.serverId, server.url, (server.headers ?? {}) as Record<string, string>, opts.mcpToolName, (input ?? {}) as Record<string, unknown>, { abortSignal: opts.abortSignal });
@@ -245,7 +248,7 @@ async function buildMcpTool(opts: {
         return JSON.stringify({ error: err instanceof Error ? err.message : String(err), ok: false });
       }
     },
-    { name: opts.langGraphName, description: opts.description, schema },
+    { name: opts.name, description: opts.description, schema },
   );
 }
 
@@ -276,6 +279,20 @@ export async function resolveAgentTools(agentId: string, enabledToolIds: string[
         if (!hasDatatableProject) tools.push(datatableTool);
         continue;
       }
+      if (name === "run_js") {
+        tools.push(
+          makeRunJsTool({
+            agentId,
+            conversationId: options.conversationId ?? null,
+            abortSignal: options.abortSignal,
+          }),
+        );
+        continue;
+      }
+      if (WEB_FETCH_NAMES.has(name)) {
+        if (!tools.some((t) => t.name === "web_fetch")) tools.push(webFetchTool);
+        continue;
+      }
       if (name in STATIC_BUILTINS) {
         tools.push(STATIC_BUILTINS[name]);
       }
@@ -299,7 +316,7 @@ export async function resolveAgentTools(agentId: string, enabledToolIds: string[
 
       tools.push(
         await buildMcpTool({
-          langGraphName: buildMcpLangGraphName(server.name, def.name),
+          name: buildMcpToolName(server.name, def.name),
           description: def.description || `MCP tool from ${server.name}`,
           parameters: def.inputSchema,
           serverId: server.id,

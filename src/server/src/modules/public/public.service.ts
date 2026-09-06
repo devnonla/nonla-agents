@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { type McpCatalogTool, agentConversations, agentMessages, agentToolAssignments, agentTools, agents, getDb, llmProviders, mcpServers } from "../../common/db/client.js";
 import { qall, qone, qrun } from "../../common/db/query.js";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
-import { buildMcpLangGraphName, parseMcpToolId } from "../mcp-servers/mcp-tool-id.js";
+import { buildMcpToolName, parseMcpToolId } from "../mcp-servers/mcp-tool-id.js";
 import { getBuiltinTool } from "../tools/tools.service.js";
 
 // ── Public access token helpers ───────────────────────────────────────────────
@@ -50,7 +50,7 @@ export async function listPublicAgentTools(agentId: string): Promise<PublicAgent
       const catalog = (server?.tools ?? []) as McpCatalogTool[];
       const def = catalog.find((d) => d.name === mcp.toolName);
       result.push({
-        name: buildMcpLangGraphName(server?.name ?? "mcp", mcp.toolName),
+        name: buildMcpToolName(server?.name ?? "mcp", mcp.toolName),
         label: `${server?.name ?? "mcp"} → ${def?.name ?? mcp.toolName}`,
         icon: null,
       });

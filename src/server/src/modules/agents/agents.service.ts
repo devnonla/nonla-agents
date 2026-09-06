@@ -6,7 +6,7 @@ import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { wsHub } from "../../common/ws/wsHub.js";
 import { BUILTIN_DATATABLE_TOOL_ID, datatableProjectToolName, parseDatatableProjectAssignmentId } from "../datatables/datatable-tool-id.js";
 import { getProject } from "../datatables/datatables.service.js";
-import { buildMcpLangGraphName, parseMcpToolId } from "../mcp-servers/mcp-tool-id.js";
+import { buildMcpToolName, parseMcpToolId } from "../mcp-servers/mcp-tool-id.js";
 import { getBuiltinTool } from "../tools/tools.service.js";
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ export async function listAssignments(agentId: string): Promise<AssignmentWithTo
         toolId: r.toolId,
         createdAt: r.createdAt,
         tool: {
-          name: buildMcpLangGraphName(server?.name ?? "mcp", mcp.toolName),
+          name: buildMcpToolName(server?.name ?? "mcp", mcp.toolName),
           label: `${server?.name ?? "mcp"} → ${def?.name ?? mcp.toolName}`,
           description: def?.description ?? "",
         },

@@ -130,7 +130,7 @@ async function runChatBackground(input: BackgroundRunInput): Promise<{ text: str
     runRegistry.emit(conversationId, event, runId);
   };
 
-  // Stall watchdog — if LangGraph/tools stop emitting, unblock SSE + free status
+  // Stall watchdog — if the agent/tools stop emitting, unblock SSE + free status
   const stallTimer = setInterval(() => {
     if (!stillCurrent()) return;
     const last = runRegistry.lastEventAt(conversationId);

@@ -18,8 +18,8 @@ export function parseMcpToolId(toolId: string): { serverId: string; toolName: st
   return { serverId: rest.slice(0, idx), toolName: rest.slice(idx + 1) };
 }
 
-/** LangGraph-safe tool name: {server}_{tool} */
-export function buildMcpLangGraphName(serverName: string, toolName: string): string {
+/** LLM-safe tool name: {server}_{tool} */
+export function buildMcpToolName(serverName: string, toolName: string): string {
   const prefix = toSnakeCase(serverName);
   const suffix = toSnakeCase(toolName);
   return `${prefix}_${suffix}`;

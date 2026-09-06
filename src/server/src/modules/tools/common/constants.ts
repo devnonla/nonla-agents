@@ -72,8 +72,9 @@ STEP 0 — ANALYZE FIRST (ALWAYS before writing code):
      - What you understand the user wants
      - Your planned approach (key libraries, logic, etc.)
   ✅ This message must appear BEFORE edit_code — never jump straight to writing code.
-  ✅ Prefer fetch_url (md for page content) before coding when you need to inspect a
-     real page. Use browser ONLY for SPA/JS that needs interaction.
+  ✅ Prefer web_fetch (output=md) before coding when you need to inspect a
+     real page.
+  ✅ Use run_js for scratch calculations or data transforms. Never use it to test the tool — that is run_current_script.
   ✅ If the tool will use workspace data: get_nonlaagents_guide, then discover with
      kv_store / secrets / datatable (list_projects → get_schema(project)).
   ❌ DO NOT skip this step — the user needs context before seeing code changes.

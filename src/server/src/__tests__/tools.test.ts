@@ -24,15 +24,17 @@ describe("Tools API", () => {
     expect(res.status).toBe(200);
 
     const data = (await res.json()) as { items: Record<string, unknown>[]; total: number };
-    // Should have at least the builtin tools (get_current_time, browser)
+    // Should have at least the builtin tools (get_current_time, web_fetch)
     expect(data.items.length).toBeGreaterThanOrEqual(1);
 
     // Verify builtin tools are present
     const builtinIds = data.items.map((t) => t.id).filter((id) => (id as string).startsWith("builtin:"));
     expect(builtinIds.length).toBeGreaterThanOrEqual(1);
-    expect(builtinIds).toContain("builtin:browser");
-    expect(builtinIds).toContain("builtin:fetch_url");
+    expect(builtinIds).toContain("builtin:web_fetch");
+    expect(builtinIds).not.toContain("builtin:browser");
+    expect(builtinIds).not.toContain("builtin:fetch_url");
     expect(builtinIds).toContain("builtin:kv_store");
+    expect(builtinIds).toContain("builtin:run_js");
     expect(builtinIds).not.toContain("builtin:datatable");
     expect(builtinIds).not.toContain("builtin:secrets");
   });

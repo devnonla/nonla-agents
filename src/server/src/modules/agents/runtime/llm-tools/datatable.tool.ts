@@ -35,7 +35,7 @@ export type MakeDatatableToolOptions = {
   /** When set, all ops are scoped to this project; `project` arg is optional. */
   lockedProjectId?: string;
   lockedProjectName?: string;
-  /** LangGraph tool name (default: datatable). */
+  /** Tool name registered with the agent (default: datatable). */
   name?: string;
 };
 

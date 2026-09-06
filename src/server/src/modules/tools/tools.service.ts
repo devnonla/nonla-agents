@@ -10,8 +10,8 @@ interface ToolDefinition {
   description: string;
   parameters: object;
 }
-import { TOOL_DEF as BROWSER_DEF } from "../../common/ai/agent-tools/browser.tool.js";
-import { TOOL_DEF as FETCH_URL_DEF } from "../../common/ai/agent-tools/fetch-url.tool.js";
+import { TOOL_DEF as RUN_JS_DEF } from "../../common/ai/agent-tools/run-js.tool.js";
+import { TOOL_DEF as WEB_FETCH_DEF } from "../../common/ai/agent-tools/web-fetch.tool.js";
 import { TOOL_DEF as BACKGROUND_TASKS_DEF } from "../agents/runtime/llm-tools/background-tasks.tool.js";
 import { TOOL_DEF as DATATABLE_DEF } from "../agents/runtime/llm-tools/datatable.tool.js";
 import { TOOL_DEF as GET_TIME_DEF } from "../agents/runtime/llm-tools/get-current-time.tool.js";
@@ -21,8 +21,8 @@ import { TOOL_DEF as READ_SKILL_DEF } from "../agents/runtime/llm-tools/read-ski
 
 const ALL_TOOL_DEFS: ToolDefinition[] = [
   GET_TIME_DEF,
-  BROWSER_DEF,
-  FETCH_URL_DEF,
+  WEB_FETCH_DEF,
+  RUN_JS_DEF,
   KV_STORE_DEF,
   DATATABLE_DEF,
   MEMORY_DEF,
@@ -104,9 +104,15 @@ async function nextSortOrder(folderId: string | null): Promise<number> {
   return rows.reduce((max, row) => Math.max(max, row.sortOrder), -1) + 1;
 }
 
-/** Lookup a builtin tool by its virtual id (e.g. "builtin:browser") */
+/** Lookup a builtin tool by its virtual id (e.g. "builtin:web_fetch") */
+const BUILTIN_ID_ALIASES: Record<string, string> = {
+  "builtin:browser": "builtin:web_fetch",
+  "builtin:fetch_url": "builtin:web_fetch",
+};
+
 export function getBuiltinTool(id: string) {
-  return BUILTIN_TOOLS.find((t) => t.id === id) ?? null;
+  const resolved = BUILTIN_ID_ALIASES[id] ?? id;
+  return BUILTIN_TOOLS.find((t) => t.id === resolved) ?? null;
 }
 
 export async function listTools(query: RawQuery = {}) {
@@ -323,10 +329,10 @@ export async function getDraftCode(id: string): Promise<string | null> {
 }
 
 /** Run draftCode of a tool in the Bun sandbox (used by run_current_script tool). */
-export async function runDraftCode(id: string, inputJson = "{}") {
+export async function runDraftCode(id: string, inputJson = "{}", abortSignal?: AbortSignal) {
   const draftCode = await getDraftCode(id);
   if (!draftCode) return null;
-  const resultStr = await executeTool(id, draftCode, inputJson, getDataDir());
+  const resultStr = await executeTool(id, draftCode, inputJson, getDataDir(), undefined, abortSignal);
   return resultStr;
 }
 

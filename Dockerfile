@@ -50,7 +50,7 @@ RUN cd src/web && bun run build
 # Build server (Bun bundle) → src/server/dist/index.js + sites-backend-worker.js
 RUN cd src/server && bun run build
 
-# ── Stage 3: Runtime base (cache apt-get layer) ───────────────────────────
+# ── Stage 3: Runtime base (cache apt + Lightpanda) ────────────────────────
 FROM oven/bun:1.4-debian AS runtime-base
 
 # Install bubblewrap to sandbox custom tools and site backend.ts workers
@@ -60,7 +60,23 @@ FROM oven/bun:1.4-debian AS runtime-base
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       bubblewrap \
+      ca-certificates \
+      curl \
+      libcurl4 \
     && rm -rf /var/lib/apt/lists/*
+
+# Lightpanda: JS-capable fetch for web_fetch render=true (amd64 + arm64)
+ARG TARGETARCH
+RUN case "$TARGETARCH" in \
+      amd64) LP_ARCH=x86_64 ;; \
+      arm64) LP_ARCH=aarch64 ;; \
+      *) echo "unsupported TARGETARCH=$TARGETARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL -o /usr/local/bin/lightpanda \
+      "https://github.com/lightpanda-io/browser/releases/download/nightly/lightpanda-${LP_ARCH}-linux" && \
+    chmod +x /usr/local/bin/lightpanda && \
+    lightpanda version
+ENV LIGHTPANDA_BIN=/usr/local/bin/lightpanda
 
 # ── Stage 4: Production ───────────────────────────────────────────────────
 FROM runtime-base
@@ -68,7 +84,6 @@ FROM runtime-base
 WORKDIR /app
 
 # Copy package manifests and install production deps only
-# Workspace deps (cloakbrowser, playwright-core) land in src/server/node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/bun.lock ./
 COPY --from=builder /app/src/server/package.json ./src/server/
@@ -78,7 +93,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --production --frozen-lockfile
 
 # Server bundle under src/server/dist so Bun resolves --external packages
-# from src/server/node_modules (cloakbrowser is not hoisted to root)
+# from src/server/node_modules
 COPY --from=builder /app/src/server/dist ./src/server/dist
 
 # SQL migrations: bundled index.js resolves via import.meta.url → …/dist/migrations
@@ -89,13 +104,6 @@ COPY --from=builder /app/src/server/src/common/og-fonts ./src/server/dist/og-fon
 
 # Web UI: app.ts looks for join(__dirname, "../public") → src/server/public
 COPY --from=builder /app/src/web/dist ./src/server/public
-
-# CloakBrowser: Chromium system libs + pre-download stealth binary (builtin browser tool)
-ENV CLOAKBROWSER_CACHE_DIR=/root/.cloakbrowser
-RUN cd src/server && \
-    bunx --bun playwright-core install-deps chromium && \
-    bunx --bun cloakbrowser install && \
-    bun -e "import { launch } from 'cloakbrowser'; const b = await launch({ headless: true, humanize: true }); const p = await b.newPage(); await p.goto('about:blank'); await b.close(); console.log('cloakbrowser smoke ok');"
 
 # Create data directory
 RUN mkdir -p /data
