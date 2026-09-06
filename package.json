@@ -15,7 +15,9 @@
   },
   "packageManager": "bun@1.4.0",
   "workspaces": [
-    "src/*"
+    "src/server",
+    "src/web",
+    "src/nonla-ui"
   ],
   "scripts": {
     "dev:server": "bun --watch src/server/src/index.ts",

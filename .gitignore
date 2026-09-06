@@ -42,3 +42,6 @@ CLAUDE.md
 .cursor
 .claude
 .codegraph
+
+# Local NonlaUI playground (not shipped)
+src/nonla-ui-demo/
