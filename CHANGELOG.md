@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-06
+
+### Added
+
+- Builtin **Web Fetch** (`web_fetch`) — JS-rendered GET via Lightpanda (`md` / `html` / `snapshot`)
+- Builtin **Run JS** (`run_js`) — scratch JavaScript in the sandbox (not saved as a tool)
+- Sites auto-install npm packages from imports; no more `edit_deps` / hand-editing `package.json`
+- Chat rendering for markdown, Mermaid, and highlighted code (shared NonlaUI)
+- Redesigned sign-in split layout
+
+### Changed
+
+- Replaced builtin `browser` (CloakBrowser / Chromium) and `fetch_url` with `web_fetch`
+- Existing assignments `builtin:browser` and `builtin:fetch_url` alias to `web_fetch`
+- Docker image ships Lightpanda instead of CloakBrowser / Playwright Chromium
+- Chat tool bubbles no longer stay on “Running…” when a stream ends without a result
+
+### Fixed
+
+- Agent SSE flushes unresolved tool calls when the stream ends or is cancelled
+
+### Upgrade notes
+
+- Pull or rebuild the Docker image. No database migration.
+- Interactive browser (click / type / screenshot) is gone. `web_fetch` is GET-only with JS rendering.
+- Optional `LIGHTPANDA_BIN`. Docker image sets `/usr/local/bin/lightpanda`. From source, the first fetch downloads the nightly binary to `{DATA_DIR}/bin/lightpanda`.
+- `{DATA_DIR}/browser-screenshots/` is unused.
+
 ## [0.2.0] - 2026-09-05
 
 ### Added
@@ -71,6 +99,7 @@ First public release of **Nonla Agents** — self-hosted AI agents with a web UI
 - Dashboard, Docker image `devnonla/nonla-agents`, data in `/data` (Docker) or `~/.nonla-agents` (source)
 - Workspace SDK: `import nonlaagents` (`kv`, `secrets`, `datatable`, `agents`); env `NONLAAGENTS_URL` / `NONLAAGENTS_TOKEN`; header `X-Nonlaagents-Token`
 
-[Unreleased]: https://github.com/devnonla/nonla-agents/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/devnonla/nonla-agents/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/devnonla/nonla-agents/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/devnonla/nonla-agents/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devnonla/nonla-agents/releases/tag/v0.1.0
