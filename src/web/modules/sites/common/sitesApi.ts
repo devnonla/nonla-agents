@@ -14,7 +14,7 @@ export const sitesApi = {
 
   getFiles: (id: string, tree: "draft" | "prod" = "draft") => apiClient.get<SiteFilesResponse>(`/api/sites/${id}/files`, { tree }),
 
-  putFile: (id: string, file: string, content: string, tree: "draft" | "prod" = "draft") => apiClient.put<{ ok: boolean; draftDirty: boolean; site: Site }>(`/api/sites/${id}/files/${encodeURIComponent(file)}`, { content, tree }),
+  putFile: (id: string, file: string, content: string, tree: "draft" | "prod" = "draft") => apiClient.put<{ ok: boolean; draftDirty: boolean; site: Site; depsInstalled?: boolean }>(`/api/sites/${id}/files/${encodeURIComponent(file)}`, { content, tree }),
 
   install: (id: string, tree: "draft" | "prod" = "draft") => apiClient.post<Site>(`/api/sites/${id}/install`, { tree }),
 

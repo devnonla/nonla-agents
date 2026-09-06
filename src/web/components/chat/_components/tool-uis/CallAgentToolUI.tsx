@@ -1,3 +1,4 @@
+import { ChatSpinner, chatMarkdownClass, chatMarkdownComponents } from "@nonla-agents/ui";
 import { ChatRoundIcon } from "@solar-icons/react/dynamic/chat-round";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -9,8 +10,6 @@ import { cn } from "src/lib/utils";
 import { useAppSelector } from "src/store/store";
 import { parseCallAgentToolTargetId, prettyJson } from "../../common/utils";
 import { formatBgElapsed, parseBgTaskRef, useConversationBgTask, useConversationBgTasks } from "../../hooks/useConversationBgTasks";
-import { RunningSpinner } from "../RunningSpinner";
-import { markdownComponents, markdownRootClass } from "../markdown";
 import type { ToolUIProps } from "./types";
 
 type CallAgentParsed = {
@@ -213,7 +212,7 @@ export function CallAgentToolUI({ msg, assistantLabel = "Assistant", assistantCo
                   <div className="w-fit rounded-2xl rounded-tl-sm border border-border bg-muted/60 px-3 py-2 text-left">
                     <RenderIf condition={awaitingReply}>
                       <div className="flex items-center gap-1.5 py-0.5">
-                        <RunningSpinner />
+                        <ChatSpinner />
                         <span className="text-[11px] italic text-muted-foreground">Replying…</span>
                       </div>
                     </RenderIf>
@@ -225,8 +224,8 @@ export function CallAgentToolUI({ msg, assistantLabel = "Assistant", assistantCo
                     <RenderIf condition={!awaitingReply && !failed && !!parsed}>
                       {() => (
                         <ExpandableBody>
-                          <div className={cn(markdownRootClass, "text-[12px] leading-[1.55] text-foreground [&_h1]:text-[14px] [&_h2]:text-[13px] [&_h3]:text-[12px] [&_p]:text-[12px] [&_li]:text-[12px] [&_td]:text-[11px] [&_th]:text-[11px] [&_code]:text-[11px] [&_p]:m-0 [&_p]:mb-0 [&_p+p]:mt-2")}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          <div className={cn(chatMarkdownClass, "text-[12px] leading-[1.55] text-foreground [&_h1]:text-[14px] [&_h2]:text-[13px] [&_h3]:text-[12px] [&_p]:text-[12px] [&_li]:text-[12px] [&_td]:text-[11px] [&_th]:text-[11px] [&_code]:text-[11px] [&_p]:m-0 [&_p]:mb-0 [&_p+p]:mt-2")}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={chatMarkdownComponents}>
                               {parsed?.response ?? "(no response)"}
                             </ReactMarkdown>
                           </div>

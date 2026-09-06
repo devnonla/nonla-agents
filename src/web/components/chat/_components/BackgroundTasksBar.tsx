@@ -1,4 +1,4 @@
-import { Modal, Popconfirm } from "@nonla-agents/ui";
+import { ChatSpinner, Modal, Popconfirm } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { AltArrowRightIcon } from "@solar-icons/react/dynamic/alt-arrow-right";
 import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
@@ -7,7 +7,6 @@ import { cn } from "src/common/lib/cn";
 import RenderIf from "src/components/RenderIf";
 import { formatToolName } from "../common/utils";
 import { type ConversationBgTask, formatBgElapsed, useConversationBgTask, useConversationBgTasks } from "../hooks/useConversationBgTasks";
-import { RunningSpinner } from "./RunningSpinner";
 
 function TaskLogsModal({
   conversationId,
@@ -31,7 +30,7 @@ function TaskLogsModal({
 
   return (
     <Modal open={open} onCancel={onClose} footer={null} title={task ? formatToolName(task.toolName) : "Logs"} width={560}>
-      <pre ref={preRef} className="m-0 max-h-[50vh] overflow-auto rounded-md border border-border-subtle bg-black/25 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all text-tertiary-foreground">
+      <pre ref={preRef} className="m-0 max-h-[50vh] overflow-auto rounded-md border border-border-subtle bg-muted px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all text-foreground">
         {logs || "Waiting for output…"}
       </pre>
     </Modal>
@@ -53,7 +52,7 @@ function TaskRow({
 }) {
   return (
     <div className="flex items-center gap-2 px-2.5 py-1">
-      <RunningSpinner className="size-2.5" />
+      <ChatSpinner className="size-2.5" />
       <div className="min-w-0 flex-1 truncate text-[11px] text-foreground">{formatToolName(task.toolName)}</div>
       <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{formatBgElapsed(task.startedAt, now)}</span>
       <button type="button" onClick={onLogs} title="Logs" aria-label={`Logs ${formatToolName(task.toolName)}`} className="inline-flex size-5 shrink-0 items-center justify-center cursor-pointer rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">

@@ -5,15 +5,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useSearchParams } from "react-router-dom";
 import { apiClient } from "src/common/api";
 import { stopAgentChat, useAgentRunner } from "src/common/hooks/useAgent";
+import { useChatStreaming } from "src/common/hooks/useChatStreaming";
+import { useStreamResume } from "src/common/hooks/useStreamResume";
 import type { AgentMessage, AgentToolAssignment } from "src/common/types";
 import { BackgroundTasksBar } from "src/components/chat/_components/BackgroundTasksBar";
 import { InputArea } from "src/components/chat/_components/InputArea";
 import { MessageList } from "src/components/chat/_components/MessageList";
 import type { ChatToolItem } from "src/components/chat/_components/SelectTools";
-import { CHAT_SIZE_LG } from "src/components/chat/common/chatSize";
-
-import { useChatStreaming } from "src/common/hooks/useChatStreaming";
-import { useStreamResume } from "src/common/hooks/useStreamResume";
 import { useAutoScroll } from "src/components/chat/hooks/useAutoScroll";
 import { updateAgent } from "src/modules/agents/common/agentsSlice";
 import { createConversation, fetchConversations, markConversationDone, setActiveConversationId, updateConversation } from "src/modules/agents/common/chatSlice";
@@ -424,7 +422,7 @@ export function ChatPage() {
         </>
       )}
 
-      <div className={`@container relative flex flex-col flex-1 min-w-0 h-full bg-popover ${CHAT_SIZE_LG}`}>
+      <div className="@container relative flex flex-col flex-1 min-w-0 h-full bg-popover">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-48"
           style={{
@@ -458,6 +456,7 @@ export function ChatPage() {
               messagesEndRef={messagesEndRef}
               scrollContainerRef={scrollRef}
               pinToBottom={!isScrolledUp}
+              padEnd
             />
             {isScrolledUp && (
               <button

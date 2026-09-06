@@ -20,6 +20,8 @@ interface MessageListProps {
   scrollContainerRef?: Ref<HTMLDivElement | null>;
   /** When true, keep the scroller glued to bottom across message/stream updates. */
   pinToBottom?: boolean;
+  /** Extra space under the last message so it isn't flush with the composer. */
+  padEnd?: boolean;
   className?: string;
 }
 
@@ -99,7 +101,7 @@ export function groupMessages(messages: ChatAgentMessage[]): FlatRenderItem[] {
   return items;
 }
 
-export function MessageList({ messages, generating, activityStatus = "Working", assistantLabel = "Assistant", assistantColor, emptyStateContent, messagesEndRef, scrollContainerRef, pinToBottom = false, className = "" }: MessageListProps) {
+export function MessageList({ messages, generating, activityStatus = "Working", assistantLabel = "Assistant", assistantColor, emptyStateContent, messagesEndRef, scrollContainerRef, pinToBottom = false, padEnd = false, className = "" }: MessageListProps) {
   const hasMessages = messages.length > 0;
   const items = buildRenderItems(messages);
   const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
@@ -176,7 +178,7 @@ export function MessageList({ messages, generating, activityStatus = "Working", 
         </RenderIf>
 
         <RenderIf condition={hasMessages}>
-          <div data-chat-scroll-content className="pt-4 pb-4 flex flex-col">
+          <div data-chat-scroll-content className={`pt-4 flex flex-col ${padEnd ? "pb-75" : "pb-4"}`}>
             {items.map((item) =>
               item.msg.role === "tool-call" ? (
                 <ToolCallBubble key={item.msg.id} msg={item.msg} assistantLabel={assistantLabel} assistantColor={assistantColor} showAvatar={item.showAvatar} />

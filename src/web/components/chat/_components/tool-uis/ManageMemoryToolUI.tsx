@@ -1,3 +1,4 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { BookmarkIcon } from "@solar-icons/react/dynamic/bookmark";
 import { CpuIcon } from "@solar-icons/react/dynamic/cpu";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
@@ -7,7 +8,6 @@ import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-m
 import type { ReactNode } from "react";
 import RenderIf from "src/components/RenderIf";
 import { useAppSelector } from "src/store/store";
-import { RunningSpinner } from "../RunningSpinner";
 import type { ToolUIProps } from "./types";
 
 type MemoryAction = "upsert_node" | "update_node" | "forget_node" | "link" | "unlink" | "search" | "neighbors" | "list" | string;
@@ -97,7 +97,7 @@ function actionVerb(action: MemoryAction | undefined, running: boolean, failed: 
 
 function actionIcon(action: MemoryAction | undefined, failed: boolean, running: boolean): ReactNode {
   if (failed) return <DangerCircleIcon size={13} className="text-destructive shrink-0" />;
-  if (running) return <RunningSpinner />;
+  if (running) return <ChatSpinner />;
   switch (action) {
     case "upsert_node":
     case "update_node":

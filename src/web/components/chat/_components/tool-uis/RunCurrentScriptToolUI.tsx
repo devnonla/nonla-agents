@@ -1,9 +1,9 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import { PlayCircleIcon } from "@solar-icons/react/dynamic/play-circle";
 import RenderIf from "src/components/RenderIf";
 import { cn } from "src/lib/utils";
 import { prettyJson } from "../../common/utils";
-import { RunningSpinner } from "../RunningSpinner";
 import type { ToolUIProps } from "./types";
 
 type ScriptInput = { testInput?: unknown };
@@ -63,7 +63,7 @@ export function RunCurrentScriptToolUI({ msg, assistantLabel = "Assistant", assi
       <div className="px-4 pb-1">
         <div className={cn("mb-1 overflow-hidden rounded-lg border", failed ? "border-destructive/35" : "border-border-subtle")}>
           <div className="flex items-center gap-2 px-2.5 py-1.5">
-            {failed ? <DangerCircleIcon size={13} className="shrink-0 text-destructive" /> : running ? <RunningSpinner /> : <PlayCircleIcon size={13} className="shrink-0 text-muted-foreground" />}
+            {failed ? <DangerCircleIcon size={13} className="shrink-0 text-destructive" /> : running ? <ChatSpinner /> : <PlayCircleIcon size={13} className="shrink-0 text-muted-foreground" />}
             <span className="min-w-0 flex-1 truncate text-left text-[12px] font-medium text-muted-foreground">{verb}</span>
             <RenderIf condition={running}>
               <span className="text-[11px] italic text-muted-foreground">Running…</span>
@@ -82,7 +82,7 @@ export function RunCurrentScriptToolUI({ msg, assistantLabel = "Assistant", assi
             <span className="block px-3 pt-2 text-[10px] font-medium tracking-wide text-quaternary-foreground">Result</span>
             <RenderIf condition={running}>
               <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-muted-foreground">
-                <RunningSpinner />
+                <ChatSpinner />
                 <span className="italic">Running…</span>
               </div>
             </RenderIf>

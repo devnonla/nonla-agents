@@ -1,13 +1,9 @@
-import { useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { ChatAgentMessage, ChatMarkdown } from "@nonla-agents/ui";
 import { UserAvatar } from "src/components/UserAvatar";
-import type { ChatAgentMessage } from "../common/types";
-import { Thinking } from "./Thinking";
-import { type MarkdownStreamState, createMarkdownComponents, markdownRootClass } from "./markdown";
+import type { ChatAgentMessage as ChatAgentMessageData } from "../common/types";
 
 interface MessageAgentProps {
-  msg: ChatAgentMessage;
+  msg: ChatAgentMessageData;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
 }
@@ -41,26 +37,9 @@ export function MessageAgent({ msg }: MessageAgentProps) {
   const thinkingDuration = msg.meta?.thinkingDuration as number | undefined;
   const isThinkingDone = thinkingDuration != null;
 
-  const streamStateRef = useRef<MarkdownStreamState>({ content: msg.content, streaming: !!msg.streaming });
-  streamStateRef.current = { content: msg.content, streaming: !!msg.streaming };
-
-  const componentsRef = useRef<ReturnType<typeof createMarkdownComponents> | null>(null);
-  if (!componentsRef.current) {
-    componentsRef.current = createMarkdownComponents(() => streamStateRef.current);
-  }
-
   return (
-    <div className="mt-1 animate-fadeIn">
-      {thinking ? <Thinking thinking={thinking} duration={thinkingDuration ?? 0} streaming={!isThinkingDone} /> : null}
-      {msg.content ? (
-        <div className="min-w-0 px-4 pb-0.5">
-          <div className={markdownRootClass}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={componentsRef.current}>
-              {msg.content}
-            </ReactMarkdown>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <ChatAgentMessage thinking={thinking} thinkingDuration={thinkingDuration ?? 0} thinkingStreaming={!isThinkingDone} className="animate-fadeIn">
+      {msg.content ? <ChatMarkdown content={msg.content} streaming={!!msg.streaming} /> : null}
+    </ChatAgentMessage>
   );
 }

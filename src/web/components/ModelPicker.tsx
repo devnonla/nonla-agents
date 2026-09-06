@@ -170,8 +170,8 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
       className={cn(
         "flex h-field-md w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-base leading-5.5 outline-none",
         "border border-solid border-input bg-secondary text-foreground",
-        "transition-colors duration-150 hover:bg-[#2a2a2a]",
-        open && "bg-[#2a2a2a]",
+        "transition-colors duration-150 hover:bg-muted",
+        open && "bg-muted",
         disabled && "cursor-not-allowed border-input bg-muted text-muted-foreground hover:bg-muted",
       )}
     >

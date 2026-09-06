@@ -131,13 +131,16 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
       setSaving(true);
       try {
         let lastSite: Site | undefined;
+        let depsInstalled = false;
         for (const file of dirty) {
           const res = await sitesApi.putFile(siteId, file, current[file], "draft");
           lastSite = res.site;
+          depsInstalled = depsInstalled || Boolean(res.depsInstalled);
           setSaved((s) => (s ? { ...s, [file]: current[file] } : s));
         }
+        if (depsInstalled) await loadFiles();
         if (lastSite) onSiteUpdated(lastSite);
-        if (!opts?.quiet) message.success(dirty.includes("package.json") ? "Saved — dependencies installed" : "Saved");
+        if (!opts?.quiet) message.success(dirty.includes("package.json") || depsInstalled ? "Saved — dependencies installed" : "Saved");
       } catch (err: unknown) {
         if (!opts?.quiet) message.error(err instanceof Error ? err.message : "Save failed");
         throw err;
@@ -145,7 +148,7 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
         setSaving(false);
       }
     },
-    [siteId, onSiteUpdated],
+    [siteId, onSiteUpdated, loadFiles],
   );
 
   const handleSave = useCallback(() => {

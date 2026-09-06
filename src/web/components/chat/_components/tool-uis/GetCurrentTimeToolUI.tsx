@@ -1,8 +1,8 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import RenderIf from "src/components/RenderIf";
 import { useAppSelector } from "src/store/store";
-import { RunningSpinner } from "../RunningSpinner";
 import type { ToolUIProps } from "./types";
 
 type TimeResult = {
@@ -63,7 +63,7 @@ export function GetCurrentTimeToolUI({ msg, assistantLabel = "Assistant", assist
 
       <div className="px-4 pb-1">
         <div className="flex items-center gap-2 py-1">
-          {hasError ? <DangerCircleIcon size={13} className="text-destructive shrink-0" /> : running ? <RunningSpinner /> : <ClockCircleIcon size={13} className="text-muted-foreground shrink-0" />}
+          {hasError ? <DangerCircleIcon size={13} className="text-destructive shrink-0" /> : running ? <ChatSpinner /> : <ClockCircleIcon size={13} className="text-muted-foreground shrink-0" />}
           <span className="text-[12px] font-medium text-muted-foreground truncate tabular-nums">{hasError ? "Failed to get time" : running ? "Getting time…" : label}</span>
         </div>
       </div>

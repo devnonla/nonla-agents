@@ -1,8 +1,8 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import RenderIf from "src/components/RenderIf";
 import { useAppSelector } from "src/store/store";
-import { RunningSpinner } from "../RunningSpinner";
 import type { ToolUIProps } from "./types";
 
 type SchemaInput = { names?: string[] };
@@ -64,7 +64,7 @@ export function GetToolSchemaToolUI({ msg, assistantLabel = "Assistant", assista
 
       <div className="px-4 pb-1">
         <div className="flex items-center gap-2 py-1">
-          {hasError ? <DangerCircleIcon size={13} className="text-destructive shrink-0" /> : running ? <RunningSpinner /> : <CodeSquareIcon size={13} className="text-muted-foreground shrink-0" />}
+          {hasError ? <DangerCircleIcon size={13} className="text-destructive shrink-0" /> : running ? <ChatSpinner /> : <CodeSquareIcon size={13} className="text-muted-foreground shrink-0" />}
           <span className="text-[12px] font-medium text-muted-foreground truncate min-w-0">
             {verb}
             <RenderIf condition={!!namesLabel}>{() => <span className="text-tertiary-foreground font-mono"> · {namesLabel}</span>}</RenderIf>

@@ -16,7 +16,7 @@ export default function ProfilePage() {
   return (
     <PageShell>
       <div className="mb-2">
-        <h1 className="text-xl font-display font-semibold text-foreground">Profile Settings</h1>
+        <h1 className="text-xl font-semibold text-foreground">Profile Settings</h1>
       </div>
 
       <AvatarSection avatar={avatar} name={user.name || user.username} onAvatarChange={setAvatar} />

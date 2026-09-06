@@ -92,7 +92,7 @@ const PUBLISH_EDGE_COLOR = "var(--edge-call-agent)";
 
 // ─── Canvas Text Measurement ─────────────────────────────────────────────────
 
-function measureMaxTextWidth(texts: string[], font = '600 12px "Inter var", system-ui'): number {
+function measureMaxTextWidth(texts: string[], font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif'): number {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return 80;

@@ -159,7 +159,7 @@ export default function SetupPage() {
             <div className="mb-4">
               <AppLogo size={48} />
             </div>
-            <h1 className="font-display text-xl font-medium text-foreground mb-1">Initial Setup</h1>
+            <h1 className="text-xl font-medium text-foreground mb-1">Initial Setup</h1>
             <p className="text-sm text-muted-foreground text-center">Create your admin account and configure the system</p>
           </div>
 

@@ -88,7 +88,7 @@ function TimelineTrack({ children, className = "" }: { children?: ReactNode; cla
     <div className={`relative h-full min-h-[28px] border-l border-white/5 px-2.5 ${className}`}>
       <div className="pointer-events-none absolute inset-y-0 left-2.5 right-2.5">
         {[25, 50, 75].map((p) => (
-          <span key={p} className="absolute inset-y-0 w-px bg-white/4" style={{ left: `${p}%` }} />
+          <span key={p} className="absolute inset-y-0 w-px bg-foreground/8" style={{ left: `${p}%` }} />
         ))}
       </div>
       <div className="relative h-full w-full">{children}</div>

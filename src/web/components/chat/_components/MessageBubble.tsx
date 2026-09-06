@@ -1,7 +1,6 @@
+import { ChatError, ChatThinking, ChatUserMessage } from "@nonla-agents/ui";
 import type { ChatAgentMessage } from "../common/types";
 import { MessageAgent } from "./MessageAgent";
-import { MessageUser } from "./MessageUser";
-import { Thinking } from "./Thinking";
 import { ToolCallBubble } from "./ToolCallBubble";
 
 interface MessageBubbleProps {
@@ -18,25 +17,15 @@ export function MessageBubble({ msg, assistantLabel = "Assistant", assistantColo
   if (msg.role === "tool-result") return null;
 
   if (msg.role === "thinking") {
-    const thinking = msg.content;
     const duration = (msg.meta?.thinkingDuration as number) ?? 0;
-    return (
-      <div className="animate-fadeIn mt-1">
-        <Thinking thinking={thinking} duration={duration} />
-      </div>
-    );
+    return <ChatThinking thinking={msg.content} duration={duration} className="animate-fadeIn mt-1" />;
   }
 
   if (msg.role === "error") {
-    return (
-      <div className="px-4 py-1 animate-fadeIn">
-        <div className="text-xs px-3 py-2.5 rounded-md bg-accent border border-destructive/30 text-destructive leading-relaxed">{msg.content}</div>
-      </div>
-    );
+    return <ChatError className="animate-fadeIn">{msg.content}</ChatError>;
   }
 
-  if (msg.role === "user") return <MessageUser msg={msg} />;
+  if (msg.role === "user") return <ChatUserMessage content={msg.content} className="animate-fadeIn" />;
 
-  // assistant + custom roles
   return <MessageAgent msg={msg} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup} />;
 }

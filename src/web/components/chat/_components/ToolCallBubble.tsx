@@ -1,3 +1,4 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
@@ -9,7 +10,6 @@ import { useAppSelector } from "src/store/store";
 import type { ChatAgentMessage } from "../common/types";
 import { formatToolName, prettyJson } from "../common/utils";
 import { parseBgTaskRef } from "../hooks/useConversationBgTasks";
-import { RunningSpinner } from "./RunningSpinner";
 import { resolveToolUI } from "./tool-uis";
 import { BackgroundTaskToolUI } from "./tool-uis/BackgroundTaskToolUI";
 
@@ -72,7 +72,7 @@ function ToolCallCard({ msg }: { msg: ChatAgentMessage }) {
       <ToolStatusIcon hasError={hasError} open={open} toolIcon={toolIcon} interactive={expandable} />
       <span className={cn("min-w-0 flex-1 truncate text-left text-[12px] font-medium text-muted-foreground", expandable && "transition-colors group-hover:text-foreground")}>{label}</span>
       <RenderIf condition={running}>
-        <RunningSpinner />
+        <ChatSpinner />
       </RenderIf>
     </>
   );
@@ -94,7 +94,7 @@ function ToolCallCard({ msg }: { msg: ChatAgentMessage }) {
           </RenderIf>
           <RenderIf condition={running}>
             <div className="flex items-center gap-2 border-t border-border-subtle bg-muted/40 px-3 py-2 text-muted-foreground">
-              <RunningSpinner />
+              <ChatSpinner />
               <span className="italic">Running…</span>
             </div>
           </RenderIf>

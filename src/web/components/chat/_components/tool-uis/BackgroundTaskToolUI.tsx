@@ -1,3 +1,4 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
@@ -7,7 +8,6 @@ import RenderIf from "src/components/RenderIf";
 import { useAppSelector } from "src/store/store";
 import { formatToolName } from "../../common/utils";
 import { formatBgElapsed, parseBgTaskRef, useConversationBgTask, useConversationBgTasks } from "../../hooks/useConversationBgTasks";
-import { RunningSpinner } from "../RunningSpinner";
 import type { ToolUIProps } from "./types";
 
 function timestampMs(value: unknown): number {
@@ -92,7 +92,7 @@ export function BackgroundTaskToolUI({ msg, assistantLabel = "Assistant", assist
             <div className="w-0.5 shrink-0 self-stretch rounded-full bg-brand-soft" />
             <div className="min-w-0 flex-1 pl-2">
               <div className="flex items-center gap-2 py-1">
-                <RunningSpinner />
+                <ChatSpinner />
                 <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{label}</span>
                 <span className="shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wider text-brand-soft">Background</span>
                 <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{formatBgElapsed(listed?.startedAt && listed.startedAt > 0 ? listed.startedAt : timestampMs(msg.timestamp), now)}</span>

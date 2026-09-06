@@ -1,7 +1,6 @@
-import { Input, Select, Switch } from "@nonla-agents/ui";
+import { DatePicker, Input, Select, Switch } from "@nonla-agents/ui";
 import type { DatatableColumn } from "src/common/types";
 import { DATETIME_PICKER_FORMAT, fromPickerDate, toPickerDate } from "src/common/utils/date";
-import DatePicker from "src/components/DatePicker";
 import { NumberStepper } from "./NumberStepper";
 
 export function cellEditor(col: DatatableColumn, value: unknown, onChange: (v: unknown) => void, timeZone: string) {

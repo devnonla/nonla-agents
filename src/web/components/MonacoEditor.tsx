@@ -96,7 +96,12 @@ function prepareMonaco(monacoInstance: Monaco) {
   ensureScriptDts(monacoInstance);
 }
 
-const JOB_SCRIPT_DTS = `declare module "nonlaagents"{
+const JOB_SCRIPT_DTS = `declare module "@nonla-agents/runtime" {
+  const nonlaagents: any;
+  export default nonlaagents;
+}
+
+declare module "nonlaagents" {
   const nonlaagents: any;
   export default nonlaagents;
 }

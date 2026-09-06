@@ -10,7 +10,6 @@ import { useStreamResume } from "src/common/hooks/useStreamResume";
 import type { AgentMessage } from "src/common/types";
 import { InputArea } from "src/components/chat/_components/InputArea";
 import { MessageList } from "src/components/chat/_components/MessageList";
-import { CHAT_SIZE_LG } from "src/components/chat/common/chatSize";
 import { useAutoScroll } from "src/components/chat/hooks/useAutoScroll";
 import { ChatEmptyState, ChatSidebar, ErrorScreen, HIDDEN_TOOL_NAMES, LoadingScreen, PasswordGate, getFingerprint, toDisplayMsg } from "./components";
 import type { ConvMeta, PublicAgent } from "./components";
@@ -448,7 +447,7 @@ export default function PublicChatPage() {
         </>
       )}
 
-      <div className={`@container relative flex flex-col flex-1 min-w-0 h-full bg-popover ${CHAT_SIZE_LG}`}>
+      <div className="@container relative flex flex-col flex-1 min-w-0 h-full bg-popover">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-48"
           style={{
@@ -477,6 +476,7 @@ export default function PublicChatPage() {
             messagesEndRef={messagesEndRef}
             scrollContainerRef={scrollRef}
             pinToBottom={!isScrolledUp}
+            padEnd
           />
           {isScrolledUp && (
             <button

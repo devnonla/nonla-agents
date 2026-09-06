@@ -1,4 +1,4 @@
-import { Button, EFormItemType, Empty, Modal, Pagination, Popconfirm, SchemaForm, type TFormItemProps, Table, message } from "@nonla-agents/ui";
+import { Button, EFormItemType, Empty, Modal, Pagination, Popconfirm, SchemaForm, SearchInput, type TFormItemProps, Table, message } from "@nonla-agents/ui";
 import type { ColumnsType } from "@nonla-agents/ui";
 import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
@@ -8,7 +8,6 @@ import { useForm } from "react-hook-form";
 import type { SecretEntry } from "src/common/types";
 import { PageShell } from "src/components/PageShell";
 import RenderIf from "src/components/RenderIf";
-import { SearchInput } from "src/components/SearchInput";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 import { createSecret, deleteSecret, fetchSecrets, updateSecret, updateSecretsFilter } from "./common/secretsSlice";
 

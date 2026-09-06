@@ -1,10 +1,9 @@
-import { Dropdown } from "@nonla-agents/ui";
+import { DatePicker, Dropdown } from "@nonla-agents/ui";
 import type { MenuProps } from "@nonla-agents/ui";
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { DatatableColumn } from "src/common/types";
 import { DATETIME_PICKER_FORMAT, fromPickerDate, toPickerDate } from "src/common/utils/date";
-import DatePicker from "src/components/DatePicker";
 import { cellValuesEqual, draftToValue, valueToDraft } from "../common/cellValueUtils";
 import { formatCellValue } from "../common/columnUtils";
 import { NumberStepper } from "./NumberStepper";

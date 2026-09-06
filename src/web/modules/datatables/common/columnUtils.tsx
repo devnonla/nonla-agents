@@ -60,8 +60,8 @@ export function propertyTypeLabel(type: DatatableColumnType): string {
 export const COL_WIDTH_MIN = 64;
 export const COL_WIDTH_MAX = 720;
 
-const HEADER_FONT = '500 12px "Inter var", system-ui';
-const CELL_FONT = '400 14px "Inter var", system-ui';
+const HEADER_FONT = '500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+const CELL_FONT = '400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
 const CELL_FONT_MONO = '400 12px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
 /** Header chrome: px-2.5 + icon + gap + safety — name must never be clipped by fit. */

@@ -74,11 +74,11 @@ function SidebarNavLink({ item, end }: { item: NavItem; end?: boolean }) {
       to={item.to}
       end={end}
       title={item.label}
-      className={({ isActive }) => cn("group flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "font-normal text-sidebar-foreground hover:bg-muted")}
+      className={({ isActive }) => cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-muted font-medium text-brand" : "font-normal text-sidebar-foreground hover:bg-muted")}
     >
       {({ isActive }) => (
         <>
-          <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:size-4", isActive ? "text-sidebar-accent-foreground" : "text-tertiary-foreground group-hover:text-sidebar-foreground")}>{item.icon}</span>
+          <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:block [&_svg]:size-4", isActive ? "text-brand" : "text-tertiary-foreground")}>{item.icon}</span>
           <span className="truncate">{item.label}</span>
         </>
       )}
@@ -113,12 +113,8 @@ function SidebarNavButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn("group flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-base transition-colors duration-150 cursor-pointer", active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "font-normal text-sidebar-foreground hover:bg-muted")}
-    >
-      <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:size-4", active ? "text-sidebar-accent-foreground" : "text-tertiary-foreground group-hover:text-sidebar-foreground")}>{icon}</span>
+    <button type="button" onClick={onClick} className={cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-base transition-colors duration-150 cursor-pointer", active ? "bg-muted font-medium text-brand" : "font-normal text-sidebar-foreground hover:bg-muted")}>
+      <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:block [&_svg]:size-4", active ? "text-brand" : "text-tertiary-foreground")}>{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {trailing}
     </button>
@@ -216,7 +212,7 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="flex h-screen shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground" style={{ width: SIDEBAR_W }}>
+    <aside className="flex h-screen shrink-0 flex-col overflow-hidden bg-[#181818] border-r border-border text-sidebar-foreground" style={{ width: SIDEBAR_W }}>
       <div className="flex h-12 w-full min-w-0 shrink-0 items-center gap-2.5 px-4">
         <AppLogo size={36} className="shrink-0" />
         <span className="truncate text-base font-semibold tracking-tight text-sidebar-foreground">Nonla Agents</span>

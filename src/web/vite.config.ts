@@ -91,7 +91,7 @@ export default defineConfig({
     },
   },
   server: {
-    open: true,
+    open: false,
     proxy: {
       // Proxy API calls to the Hono server during dev
       "/api": {

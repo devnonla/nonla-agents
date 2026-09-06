@@ -11,7 +11,7 @@ export function summarizeCodingToolCall(m: ChatAgentMessage): string | null {
   if (name === "datatable") return "Looked up datatable";
   if (name === "kv_store") return "Looked up KV store";
   if (name === "secrets") return "Looked up secrets";
-  if (name === "browser") return "Used browser tool";
+  if (name === "web_fetch" || name === "fetch_url" || name === "browser") return "Fetched a URL";
   if (name === "agents") return "Looked up agents";
 
   return null;

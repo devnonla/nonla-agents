@@ -1,9 +1,9 @@
+import { ChatSpinner } from "@nonla-agents/ui";
 import { BookBookmarkIcon } from "@solar-icons/react/dynamic/book-bookmark";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
 import RenderIf from "src/components/RenderIf";
 import { useAppSelector } from "src/store/store";
-import { RunningSpinner } from "../RunningSpinner";
 import type { ToolUIProps } from "./types";
 
 type ReadSkillInput = { name?: string; reference?: string };
@@ -76,7 +76,7 @@ export function ReadSkillToolUI({ msg, assistantLabel = "Assistant", assistantCo
 
       <div className="px-4 pb-1">
         <div className="flex items-center gap-2 py-1">
-          {failed ? <DangerCircleIcon size={13} className="shrink-0 text-destructive" /> : running ? <RunningSpinner /> : reference ? <DocumentTextIcon size={13} className="shrink-0 text-muted-foreground" /> : <BookBookmarkIcon size={13} className="shrink-0 text-muted-foreground" />}
+          {failed ? <DangerCircleIcon size={13} className="shrink-0 text-destructive" /> : running ? <ChatSpinner /> : reference ? <DocumentTextIcon size={13} className="shrink-0 text-muted-foreground" /> : <BookBookmarkIcon size={13} className="shrink-0 text-muted-foreground" />}
           <span className="min-w-0 truncate text-[12px] font-medium text-muted-foreground">
             {verb}
             <RenderIf condition={!!targetLabel}>{() => <span className="font-mono text-tertiary-foreground"> · {targetLabel}</span>}</RenderIf>

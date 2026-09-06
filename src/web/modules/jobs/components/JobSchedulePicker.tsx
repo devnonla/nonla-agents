@@ -35,7 +35,7 @@ function DayChip({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className={["h-7 min-w-9 cursor-pointer rounded-md border px-2 text-xs font-medium transition-colors focus-visible:outline-none", selected ? "border-brand/50 bg-brand text-white" : "border-border bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"].join(" ")}
+      className={["h-7 min-w-9 cursor-pointer rounded-md border px-2 text-xs font-medium transition-colors focus-visible:outline-none", selected ? "border-brand/50 bg-brand text-brand-foreground" : "border-border bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"].join(" ")}
     >
       {label}
     </button>

@@ -80,6 +80,15 @@ function finalizeStreamingMessages(prev: ChatAgentMessage[]) {
     .filter((m) => !(m.role === "assistant" && !m.content.trim() && !m.meta?.thinking));
 }
 
+/** Mark tool bubbles that never received a result so the UI does not stay on "Running…". */
+export function failOpenToolCalls(prev: ChatAgentMessage[], error: string): ChatAgentMessage[] {
+  const output = JSON.stringify({ success: false, error });
+  return prev.map((m) => {
+    if (m.role !== "tool-call" || m.toolOutput != null || m.toolError) return m;
+    return { ...m, toolError: true, toolOutput: output };
+  });
+}
+
 function defaultToolCallLine(m: ChatAgentMessage): string | null {
   if (m.role !== "tool-call") return null;
   const label = m.toolLabel ?? formatToolName(m.toolName || "tool");
@@ -439,7 +448,7 @@ export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCa
             },
             onDone: () => {
               awaitingToolResult = false;
-              setMessages(applyTurnSummary);
+              setMessages((prev) => applyTurnSummary(failOpenToolCalls(prev, "Tool did not return a result")));
               setGenerating(false);
               thinkingRef.current = "";
               thinkingStartRef.current = 0;
@@ -447,20 +456,24 @@ export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCa
             onError: (error) => {
               awaitingToolResult = false;
               if (error === "Connection lost") {
-                setMessages(applyTurnSummary);
+                setMessages((prev) => applyTurnSummary(failOpenToolCalls(prev, "Connection lost")));
                 setGenerating(false);
                 thinkingRef.current = "";
                 thinkingStartRef.current = 0;
                 return;
               }
               setMessages((prev) => [
-                ...finalizeStreamingMessages(prev),
-                {
-                  id: nextId("err"),
-                  role: "error",
-                  content: error,
-                  timestamp: new Date(),
-                },
+                ...finalizeStreamingMessages(failOpenToolCalls(prev, error === "cancelled" ? "Cancelled" : error)),
+                ...(error === "cancelled"
+                  ? []
+                  : [
+                      {
+                        id: nextId("err"),
+                        role: "error" as const,
+                        content: error,
+                        timestamp: new Date(),
+                      },
+                    ]),
               ]);
               setGenerating(false);
               thinkingRef.current = "";
@@ -471,25 +484,25 @@ export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCa
         );
 
         if (result === "aborted") {
-          setMessages(finalizeStreamingMessages);
+          setMessages((prev) => finalizeStreamingMessages(failOpenToolCalls(prev, "Cancelled")));
           setGenerating(false);
           thinkingRef.current = "";
           thinkingStartRef.current = 0;
           return;
         }
 
-        setMessages(applyTurnSummary);
+        setMessages((prev) => applyTurnSummary(failOpenToolCalls(prev, "Tool did not return a result")));
         setGenerating(false);
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") {
-          setMessages(finalizeStreamingMessages);
+          setMessages((prev) => finalizeStreamingMessages(failOpenToolCalls(prev, "Cancelled")));
           setGenerating(false);
           thinkingRef.current = "";
           thinkingStartRef.current = 0;
           return;
         }
         setMessages((prev) => [
-          ...finalizeStreamingMessages(prev),
+          ...finalizeStreamingMessages(failOpenToolCalls(prev, err instanceof Error ? err.message : String(err))),
           {
             id: nextId("err"),
             role: "error",

@@ -318,7 +318,7 @@ export default function SiteEditorPage() {
 
   const onToolAction = (event: ToolActionEvent) => {
     if (event.type !== "tool-result") return;
-    if (event.toolName === "edit_ui" || event.toolName === "edit_styles" || event.toolName === "edit_backend" || event.toolName === "edit_deps") {
+    if (event.toolName === "edit_ui" || event.toolName === "edit_styles" || event.toolName === "edit_backend") {
       void reload();
       schedulePreviewReload();
       setFilesEpoch((n) => n + 1);

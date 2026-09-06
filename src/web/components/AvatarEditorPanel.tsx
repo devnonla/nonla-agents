@@ -1,8 +1,7 @@
-import { Button } from "@nonla-agents/ui";
+import { Button, ColorPicker } from "@nonla-agents/ui";
 import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Avatar from "react-nice-avatar";
-import { ColorPicker } from "src/components/ColorPicker";
 import { genConfig } from "src/components/UserAvatar";
 import { cn } from "src/lib/utils";
 
