@@ -29,6 +29,8 @@ export interface UseAssistantStreamingOptions {
   summarizeToolCall?: SummarizeToolCallFn;
   /** Domain policy: extra footer on UI-only turn summary (e.g. Approve hint) */
   turnSummaryHint?: TurnSummaryHintFn;
+  /** Live tool-chip label (e.g. Edit Styles from edit_site_files + file) */
+  labelToolCall?: (toolName: string, input: unknown) => string | null;
 }
 
 export function buildAiHistory(messages: ChatAgentMessage[]) {
@@ -137,7 +139,7 @@ function thinkingDurationSec(startedAt: number): number {
   return Math.round((Date.now() - startedAt) / 1000);
 }
 
-export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCall, turnSummaryHint }: UseAssistantStreamingOptions) {
+export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCall, turnSummaryHint, labelToolCall }: UseAssistantStreamingOptions) {
   const [messages, setMessages] = useState<ChatAgentMessage[]>([]);
   const [generating, setGenerating] = useState(false);
   const thinkingRef = useRef("");
@@ -149,6 +151,8 @@ export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCa
   summarizeToolCallRef.current = summarizeToolCall;
   const turnSummaryHintRef = useRef(turnSummaryHint);
   turnSummaryHintRef.current = turnSummaryHint;
+  const labelToolCallRef = useRef(labelToolCall);
+  labelToolCallRef.current = labelToolCall;
 
   useEffect(() => {
     return () => {
@@ -388,7 +392,8 @@ export function useAssistantStreaming({ streamUrl, onToolAction, summarizeToolCa
               setMessages((prev) => prev.map((m) => (m.id === targetId ? { ...m, meta: { ...m.meta, thinking } } : m)));
             },
             onToolCall: (event) => {
-              const tLabel = event.toolLabel ? (event.toolLabel.includes(" ") ? event.toolLabel : formatToolName(event.toolLabel)) : formatToolName(event.toolName);
+              const customLabel = event.input !== undefined ? labelToolCallRef.current?.(event.toolName, event.input) : null;
+              const tLabel = customLabel || (event.toolLabel ? (event.toolLabel.includes(" ") ? event.toolLabel : formatToolName(event.toolLabel)) : formatToolName(event.toolName));
 
               const alreadySeen = event.toolCallId ? seenToolCallIds.has(event.toolCallId) : false;
               if (event.toolCallId) seenToolCallIds.add(event.toolCallId);

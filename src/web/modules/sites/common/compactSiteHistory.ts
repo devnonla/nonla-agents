@@ -4,26 +4,52 @@ function toolInputRecord(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
 }
 
-const SITE_EDIT_LABELS: Record<string, string> = {
-  edit_ui: "Edited UI",
-  edit_styles: "Edited Styles",
-  edit_backend: "Edited Backend",
-  edit_deps: "Edited Dependencies",
-};
-
-const SITE_READ_LABELS: Record<string, string> = {
+const SITE_FILE_LABELS: Record<string, string> = {
   "app.tsx": "UI",
   "styles.css": "Styles",
   "backend.ts": "Backend",
   "package.json": "Dependencies",
 };
 
+const LEGACY_EDIT_LABELS: Record<string, string> = {
+  edit_ui: "UI",
+  edit_styles: "Styles",
+  edit_backend: "Backend",
+  edit_deps: "Dependencies",
+};
+
+function siteFileLabel(file: unknown): string | null {
+  return typeof file === "string" && file in SITE_FILE_LABELS ? SITE_FILE_LABELS[file] : null;
+}
+
+/** Live tool-chip label while the call is in flight / in the transcript. */
+export function liveSiteToolLabel(toolName: string, input: unknown): string | null {
+  const rec = toolInputRecord(input);
+  if (toolName === "edit_site_files") {
+    const surface = siteFileLabel(rec.file);
+    return surface ? `Edit ${surface}` : null;
+  }
+  if (toolName in LEGACY_EDIT_LABELS) return `Edit ${LEGACY_EDIT_LABELS[toolName]}`;
+  if (toolName === "read_site_files") {
+    const surface = siteFileLabel(rec.file);
+    if (surface) return `Read ${surface}`;
+    if (typeof rec.file === "string" && rec.file) return "Read site source";
+    const tree = typeof rec.tree === "string" ? rec.tree : "draft";
+    return `Read ${tree} site files`;
+  }
+  return null;
+}
+
 export function summarizeSiteToolCall(m: ChatAgentMessage): string | null {
   if (m.role !== "tool-call") return null;
   const name = m.toolName ?? "";
   const input = toolInputRecord(m.toolInput);
 
-  if (name in SITE_EDIT_LABELS) return SITE_EDIT_LABELS[name];
+  if (name === "edit_site_files") {
+    const surface = siteFileLabel(input.file);
+    return surface ? `Edited ${surface}` : "Edited site file";
+  }
+  if (name in LEGACY_EDIT_LABELS) return `Edited ${LEGACY_EDIT_LABELS[name]}`;
   if (name === "check_site") {
     let ok: boolean | undefined;
     if (typeof m.toolOutput === "string") {
@@ -39,9 +65,9 @@ export function summarizeSiteToolCall(m: ChatAgentMessage): string | null {
     return "Validated draft";
   }
   if (name === "read_site_files") {
-    const file = typeof input.file === "string" ? input.file : "";
-    if (file && SITE_READ_LABELS[file]) return `Read ${SITE_READ_LABELS[file]}`;
-    if (file) return "Read site source";
+    const surface = siteFileLabel(input.file);
+    if (surface) return `Read ${surface}`;
+    if (typeof input.file === "string" && input.file) return "Read site source";
     const tree = typeof input.tree === "string" ? input.tree : "draft";
     return `Read ${tree} site files`;
   }
@@ -55,6 +81,9 @@ export function summarizeSiteToolCall(m: ChatAgentMessage): string | null {
 }
 
 export function siteTurnSummaryHint(turn: ChatAgentMessage[]): string {
-  const hasEdit = turn.some((m) => m.role === "tool-call" && !!m.toolName && m.toolName in SITE_EDIT_LABELS);
+  const hasEdit = turn.some((m) => {
+    if (m.role !== "tool-call" || !m.toolName) return false;
+    return m.toolName === "edit_site_files" || m.toolName in LEGACY_EDIT_LABELS;
+  });
   return hasEdit ? "\n\nClick **Approve** to promote draft → production." : "";
 }
