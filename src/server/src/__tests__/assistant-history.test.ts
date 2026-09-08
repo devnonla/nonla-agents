@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import { EDIT_PAYLOAD_OMITTED, applyEdits, applyExactReplace, editPayloadIsOmitted, normalizeToLf } from "../common/ai/apply-exact-replace.js";
 import { compactEditMessagesInPlace, redactEditHistoryPayloads } from "../common/ai/compact-edit-middleware.js";
+import { buildSiteAgentSystemPrompt } from "../modules/sites/common/site-agent-prompt.js";
 import { buildLangChainMessages as buildSiteMessages, compactSiteWriteHistory, toolCallArgs as siteToolCallArgs } from "../modules/sites/services/site-agent.service.js";
 import { buildLangChainMessages as buildCodingMessages, toolCallArgs as codingToolCallArgs, compactGenerateCodeHistory } from "../modules/tools/services/coding-agent.service.js";
 
@@ -121,6 +122,78 @@ describe("compactSiteWriteHistory", () => {
     expect((edits[1] as { toolOutput: string }).toolOutput).toContain('"content":"v2"');
     expect(compacted.some((m) => m.role === "tool-call" && m.toolName === "check_site")).toBe(true);
   });
+
+  test("redacts read_site_files bodies (draft is re-injected each turn)", () => {
+    const messages = [
+      {
+        role: "tool-call" as const,
+        content: "",
+        toolName: "read_site_files",
+        toolCallId: "r1",
+        toolInput: { file: "app.tsx" },
+        toolOutput: JSON.stringify({ ok: true, tree: "draft", file: "app.tsx", content: "export default function App() {}" }),
+      },
+      {
+        role: "tool-call" as const,
+        content: "",
+        toolName: "read_site_files",
+        toolCallId: "r2",
+        toolInput: {},
+        toolOutput: JSON.stringify({ ok: true, tree: "draft", files: { "app.tsx": "A", "styles.css": "B", "backend.ts": "C" } }),
+      },
+      {
+        role: "tool-call" as const,
+        content: "",
+        toolName: "read_site_files",
+        toolCallId: "r3",
+        toolInput: { file: "app.tsx" },
+        toolOutput: JSON.stringify({ ok: false, error: "missing" }),
+      },
+    ];
+
+    const compacted = compactSiteWriteHistory(messages);
+    expect((compacted[0] as { toolOutput: string }).toolOutput).toContain("omitted");
+    expect((compacted[0] as { toolOutput: string }).toolOutput).not.toContain("export default");
+    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain("omitted");
+    expect((compacted[1] as { toolOutput: string }).toolOutput).not.toContain('"A"');
+    expect((compacted[2] as { toolOutput: string }).toolOutput).toContain("missing");
+    expect((compacted[2] as { toolOutput: string }).toolOutput).not.toContain("omitted");
+  });
+
+  test("keeps latest snapshot per file for edit_site_files", () => {
+    const messages = [
+      {
+        role: "tool-call" as const,
+        content: "",
+        toolName: "edit_site_files",
+        toolCallId: "u1",
+        toolInput: { file: "app.tsx", mode: "full", content: "ui-v1" },
+        toolOutput: JSON.stringify({ ok: true, file: "app.tsx", content: "ui-v1" }),
+      },
+      {
+        role: "tool-call" as const,
+        content: "",
+        toolName: "edit_site_files",
+        toolCallId: "s1",
+        toolInput: { file: "styles.css", mode: "full", content: "css-v1" },
+        toolOutput: JSON.stringify({ ok: true, file: "styles.css", content: "css-v1" }),
+      },
+      {
+        role: "tool-call" as const,
+        content: "",
+        toolName: "edit_site_files",
+        toolCallId: "u2",
+        toolInput: { file: "app.tsx", mode: "full", content: "ui-v2" },
+        toolOutput: JSON.stringify({ ok: true, file: "app.tsx", content: "ui-v2" }),
+      },
+    ];
+
+    const compacted = compactSiteWriteHistory(messages);
+    expect((compacted[0] as { toolOutput: string }).toolOutput).toContain("omitted");
+    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain("css-v1");
+    expect((compacted[1] as { toolOutput: string }).toolOutput).not.toContain("omitted");
+    expect((compacted[2] as { toolOutput: string }).toolOutput).toContain("ui-v2");
+  });
 });
 
 describe("compactGenerateCodeHistory", () => {
@@ -204,6 +277,31 @@ describe("compactEditMessagesInPlace mid-step", () => {
     expect(String((compacted[1] as ToolMessage).content)).not.toContain("omitted");
     expect(String((compacted[3] as ToolMessage).content)).toContain("not found");
     expect(String((compacted[3] as ToolMessage).content)).not.toContain("omitted");
+  });
+
+  test("keeps latest ok snapshot per file for edit_site_files", () => {
+    const messages = [
+      new AIMessage({
+        content: "",
+        tool_calls: [{ id: "u1", name: "edit_site_files", args: { file: "app.tsx", mode: "full", content: "ui-v1" }, type: "tool_call" }],
+      }),
+      new ToolMessage({ content: JSON.stringify({ ok: true, file: "app.tsx", content: "ui-v1" }), tool_call_id: "u1" }),
+      new AIMessage({
+        content: "",
+        tool_calls: [{ id: "s1", name: "edit_site_files", args: { file: "styles.css", mode: "full", content: "css-v1" }, type: "tool_call" }],
+      }),
+      new ToolMessage({ content: JSON.stringify({ ok: true, file: "styles.css", content: "css-v1" }), tool_call_id: "s1" }),
+      new AIMessage({
+        content: "",
+        tool_calls: [{ id: "u2", name: "edit_site_files", args: { file: "app.tsx", mode: "full", content: "ui-v2" }, type: "tool_call" }],
+      }),
+      new ToolMessage({ content: JSON.stringify({ ok: true, file: "app.tsx", content: "ui-v2" }), tool_call_id: "u2" }),
+    ];
+
+    const compacted = compactEditMessagesInPlace(messages);
+    expect(String((compacted[1] as ToolMessage).content)).toContain("omitted");
+    expect(String((compacted[3] as ToolMessage).content)).toContain("css-v1");
+    expect(String((compacted[5] as ToolMessage).content)).toContain("ui-v2");
   });
 });
 
@@ -312,5 +410,24 @@ describe("buildLangChainMessages", () => {
       },
     ]);
     expect((result[0] as AIMessage).tool_calls?.[0]?.args).toEqual({});
+  });
+});
+
+describe("buildSiteAgentSystemPrompt", () => {
+  test("embeds current draft files so the agent need not re-read", () => {
+    const prompt = buildSiteAgentSystemPrompt({
+      name: "Shop",
+      slug: "shop",
+      files: {
+        "app.tsx": "export default function App() { return <div>Hi</div> }",
+        "styles.css": "body { color: red }",
+        "backend.ts": "export async function handle() { return {} }",
+      },
+    });
+    expect(prompt).toContain("export default function App()");
+    expect(prompt).toContain("body { color: red }");
+    expect(prompt).toContain("export async function handle()");
+    expect(prompt).toContain("Do not call read_site_files for these");
+    expect(prompt).not.toContain("have not read this turn");
   });
 });
