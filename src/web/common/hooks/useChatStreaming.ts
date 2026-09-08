@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { AgentMessage } from "src/common/types";
 import type { ChatAgentMessage } from "src/components/chat/common/types";
-import { formatToolName, isCallAgentToolName } from "src/components/chat/common/utils";
+import { formatToolName } from "src/components/chat/common/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -263,7 +263,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
   /** True when the last committed live segment already had visible assistant text. */
   const lastCommittedHadContentRef = useRef(false);
   const awaitingToolResultRef = useRef(false);
-  const [activityStatus, setActivityStatus] = useState("Thinking...");
   const [streamError, setStreamError] = useState<string | null>(null);
 
   // Keep latest callbacks in refs so buildSSECallbacks stays stable across renders
@@ -311,7 +310,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
     lastCommittedAssistantIdRef.current = null;
     lastCommittedHadContentRef.current = false;
     awaitingToolResultRef.current = false;
-    setActivityStatus("Thinking...");
     setStreamError(null);
   }, [resetLiveOverlay]);
 
@@ -368,7 +366,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
               };
               return [...prev.slice(0, insertAt), row, ...prev.slice(insertAt)];
             });
-            setActivityStatus("Writing...");
             return;
           }
           if (lastCommittedHadContentRef.current) {
@@ -389,7 +386,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
           streamingContentRef.current += chunk;
           setStreamingContent(streamingContentRef.current);
         }
-        setActivityStatus("Writing...");
       },
       onThinking: (chunk) => {
         setStreamError(null);
@@ -404,13 +400,11 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
           setThinkingDuration(undefined);
           thinkingContentRef.current = chunk;
           setThinkingContent(chunk);
-          setActivityStatus("Thinking...");
           return;
         }
         if (!thinkingStartRef.current) thinkingStartRef.current = Date.now();
         thinkingContentRef.current += chunk;
         setThinkingContent(thinkingContentRef.current);
-        setActivityStatus("Thinking...");
       },
       onToolCall: ({ toolCallId, toolName, toolLabel, toolIcon, input }) => {
         setStreamError(null);
@@ -438,18 +432,10 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
             return upsertOptimisticTool(withSegment, { toolCallId, toolName, toolLabel, toolIcon, input }, convId);
           });
         }
-
-        if (isCallAgentToolName(toolName)) {
-          const agentName = toolLabel?.replace(/^Call\s+/i, "") ?? "agent";
-          setActivityStatus(`Talking to ${agentName}...`);
-        } else {
-          setActivityStatus(`Running ${toolLabel ?? formatToolName(toolName)}...`);
-        }
       },
       onToolResult: ({ toolCallId, toolName, result }) => {
         awaitingToolResultRef.current = false;
         setMessages((prev) => patchOptimisticToolResult(prev, { toolCallId, toolName, result }));
-        setActivityStatus("Waiting for model...");
       },
       onDone: async () => {
         const live = takeLiveSnapshot();
@@ -460,7 +446,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
         lastCommittedAssistantIdRef.current = null;
         lastCommittedHadContentRef.current = false;
         awaitingToolResultRef.current = false;
-        setActivityStatus("Thinking...");
         setStreamError(null);
         await onDoneRef.current?.(convId);
       },
@@ -473,7 +458,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
         lastCommittedAssistantIdRef.current = null;
         lastCommittedHadContentRef.current = false;
         awaitingToolResultRef.current = false;
-        setActivityStatus("Thinking...");
         setStreamError(null);
 
         // Quiet paths — do NOT mark done (server status may be failed/running).
@@ -529,7 +513,6 @@ export function useChatStreaming({ toDisplayMsg, messageFilter, fetchMessages, o
     setMessages,
     streamingContent,
     thinkingContent,
-    activityStatus,
     streamError,
     clearStreamingState,
     buildSSECallbacks,

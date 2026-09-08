@@ -129,7 +129,7 @@ function NodeChip({ node }: { node: MemoryNode }) {
   );
 }
 
-export function UserMemoryToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true }: ToolUIProps) {
+export function UserMemoryToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true, generating = false }: ToolUIProps) {
   const hasOutput = msg.toolOutput != null;
   const hasError = Boolean(msg.toolError);
   const input = parseJson<MemoryInput>(msg.toolInput) ?? {};
@@ -138,7 +138,7 @@ export function UserMemoryToolUI({ msg, assistantLabel = "Assistant", assistantC
   const activeConvId = useAppSelector((s) => s.chat.activeConversationId);
   const conversations = useAppSelector((s) => s.chat.conversations);
   const isConvRunning = conversations.find((c) => c.id === activeConvId)?.status === "running";
-  const running = !hasOutput && !hasError && !!isConvRunning;
+  const running = !hasOutput && !hasError && (generating || !!isConvRunning);
   const callerColor = assistantColor ?? "var(--primary)";
   const action = input.action;
 

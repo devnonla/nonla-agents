@@ -36,7 +36,7 @@ function refNames(list?: SkillRef[]): string[] {
   return list.map((r) => (typeof r.name === "string" ? r.name.trim() : "")).filter(Boolean);
 }
 
-export function ReadSkillToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true }: ToolUIProps) {
+export function ReadSkillToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true, generating = false }: ToolUIProps) {
   const hasOutput = msg.toolOutput != null;
   const hasError = Boolean(msg.toolError);
   const input = parseJson<ReadSkillInput>(msg.toolInput) ?? {};
@@ -45,7 +45,7 @@ export function ReadSkillToolUI({ msg, assistantLabel = "Assistant", assistantCo
   const activeConvId = useAppSelector((s) => s.chat.activeConversationId);
   const conversations = useAppSelector((s) => s.chat.conversations);
   const isConvRunning = conversations.find((c) => c.id === activeConvId)?.status === "running";
-  const running = !hasOutput && !hasError && !!isConvRunning;
+  const running = !hasOutput && !hasError && (generating || !!isConvRunning);
   const callerColor = assistantColor ?? "var(--primary)";
 
   const skillName = (output?.skill || input.name || "").trim();

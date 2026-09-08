@@ -5,4 +5,5 @@ export type ToolUIProps = {
   assistantLabel?: string;
   assistantColor?: string | null;
   showAvatar?: boolean;
+  generating?: boolean;
 };

@@ -1,4 +1,4 @@
-import type { ReactNode, Ref, RefObject } from "react";
+import type { ReactNode, Ref } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppLogo } from "src/components/AppLogo"; // used in empty state
 import { MessageBubble } from "./MessageBubble";
@@ -6,17 +6,16 @@ import { ToolCallBubble } from "./ToolCallBubble";
 
 import RenderIf from "src/components/RenderIf";
 import type { ChatAgentMessage } from "../common/types";
-import { isCallAgentToolName } from "../common/utils";
+import { activityStatusFromMessages, isCallAgentToolName } from "../common/utils";
 
 interface MessageListProps {
   messages: ChatAgentMessage[];
   generating: boolean;
-  /** Contextual activity status text (e.g. 'Running Browser...') */
+  /** Override footer status (e.g. 'Processing...'). Default is derived from messages. */
   activityStatus?: string;
   assistantLabel?: string;
   assistantColor?: string | null;
   emptyStateContent?: ReactNode;
-  messagesEndRef: RefObject<HTMLDivElement | null>;
   scrollContainerRef?: Ref<HTMLDivElement | null>;
   /** When true, keep the scroller glued to bottom across message/stream updates. */
   pinToBottom?: boolean;
@@ -101,10 +100,11 @@ export function groupMessages(messages: ChatAgentMessage[]): FlatRenderItem[] {
   return items;
 }
 
-export function MessageList({ messages, generating, activityStatus = "Working", assistantLabel = "Assistant", assistantColor, emptyStateContent, messagesEndRef, scrollContainerRef, pinToBottom = false, padEnd = false, className = "" }: MessageListProps) {
+export function MessageList({ messages, generating, activityStatus: activityStatusOverride, assistantLabel = "Assistant", assistantColor, emptyStateContent, scrollContainerRef, pinToBottom = false, padEnd = false, className = "" }: MessageListProps) {
   const hasMessages = messages.length > 0;
   const items = buildRenderItems(messages);
   const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+  const activityStatus = activityStatusOverride ?? activityStatusFromMessages(messages);
   const lastIsAgent = lastMsg ? isAgentRole(lastMsg.role) : false;
   const hasActiveThinking = lastMsg?.role === "assistant" && Boolean(lastMsg.meta?.thinking) && lastMsg.meta?.thinkingDuration == null;
   const isLiveText = activityStatus === "Writing..." || (lastMsg?.role === "assistant" && Boolean(lastMsg.streaming) && Boolean(lastMsg.content));
@@ -121,7 +121,8 @@ export function MessageList({ messages, generating, activityStatus = "Working", 
     return () => window.clearTimeout(id);
   }, [generating, isLiveText, contentFingerprint]);
 
-  const showFooter = generating && !hasActiveThinking && (!isLiveText || streamIdle);
+  const lastToolPending = lastMsg?.role === "tool-call" && lastMsg.toolOutput == null && !lastMsg.toolError;
+  const showFooter = generating && !hasActiveThinking && !lastToolPending && (!isLiveText || streamIdle);
 
   const localScrollRef = useRef<HTMLDivElement | null>(null);
   const setScrollRef = useCallback(
@@ -181,7 +182,7 @@ export function MessageList({ messages, generating, activityStatus = "Working", 
           <div data-chat-scroll-content className={`pt-4 flex flex-col ${padEnd ? "pb-75" : "pb-4"}`}>
             {items.map((item) =>
               item.msg.role === "tool-call" ? (
-                <ToolCallBubble key={item.msg.id} msg={item.msg} assistantLabel={assistantLabel} assistantColor={assistantColor} showAvatar={item.showAvatar} />
+                <ToolCallBubble key={item.msg.id} msg={item.msg} assistantLabel={assistantLabel} assistantColor={assistantColor} showAvatar={item.showAvatar} generating={generating} />
               ) : (
                 <MessageBubble key={item.msg.id} msg={item.msg} assistantLabel={assistantLabel} assistantColor={assistantColor} isFirstInGroup={item.isFirstInGroup} isLastInGroup={item.isLastInGroup} isFirstInAgentChain={item.showAvatar} />
               ),
@@ -204,8 +205,6 @@ export function MessageList({ messages, generating, activityStatus = "Working", 
                 </div>
               </div>
             </RenderIf>
-
-            <div ref={messagesEndRef} />
           </div>
         </RenderIf>
       </div>

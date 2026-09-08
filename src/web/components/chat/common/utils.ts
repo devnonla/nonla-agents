@@ -1,3 +1,5 @@
+import type { ChatAgentMessage } from "./types";
+
 // ── ChatAgent internal helpers ────────────────────────────────────────────────
 
 let _id = 0;
@@ -51,6 +53,24 @@ export function formatToolName(name: string): string {
       // Title Case each word
       .replace(/\b\w/g, (c) => c.toUpperCase())
   );
+}
+
+/** Footer label while generating — same copy for chat + every agent panel. */
+export function activityStatusFromMessages(messages: ChatAgentMessage[]): string {
+  const last = messages[messages.length - 1];
+  if (!last) return "Thinking...";
+
+  if (last.role === "tool-call") {
+    if (last.toolOutput != null || last.toolError) return "Waiting for model...";
+    if (isCallAgentToolName(last.toolName)) {
+      const agentName = last.toolLabel?.replace(/^Call\s+/i, "") ?? "agent";
+      return `Talking to ${agentName}...`;
+    }
+    return `Running ${last.toolLabel ?? formatToolName(last.toolName ?? "tool")}...`;
+  }
+
+  if (last.role === "assistant" && last.streaming && last.content) return "Writing...";
+  return "Thinking...";
 }
 
 /**

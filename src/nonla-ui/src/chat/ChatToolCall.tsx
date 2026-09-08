@@ -56,8 +56,7 @@ export function ChatToolCall({ toolName = "Tool", label, toolInput, toolOutput, 
           </span>
         ) : null}
       </span>
-      <span className={cn("min-w-0 flex-1 truncate text-left text-[12px] font-medium text-muted-foreground", expandable && "transition-colors group-hover:text-foreground")}>{displayLabel}</span>
-      {running ? <ChatSpinner /> : null}
+      <span className={cn("min-w-0 flex-1 truncate text-left text-[12px] font-medium", running ? "nonla-chat-shimmer" : "text-muted-foreground", expandable && !running && "transition-colors group-hover:text-foreground")}>{displayLabel}</span>
     </>
   );
 

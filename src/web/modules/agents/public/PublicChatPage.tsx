@@ -43,7 +43,6 @@ export default function PublicChatPage() {
 
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const { scrollRef, scrollToBottom } = useAutoScroll({ onScrolledUpChange: setIsScrolledUp });
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const resizing = useRef(false);
   const resizeStartX = useRef(0);
   const resizeStartW = useRef(0);
@@ -154,7 +153,7 @@ export default function PublicChatPage() {
     [unmarkProcessing, agentId],
   );
 
-  const { setMessages, streamingContent, thinkingContent, activityStatus, clearStreamingState, buildSSECallbacks, loadMessages, liveMessages } = useChatStreaming({
+  const { setMessages, streamingContent, thinkingContent, clearStreamingState, buildSSECallbacks, loadMessages, liveMessages } = useChatStreaming({
     toDisplayMsg,
     messageFilter,
     fetchMessages,
@@ -179,7 +178,7 @@ export default function PublicChatPage() {
   useLayoutEffect(() => {
     if (isScrolledUp) return;
     scrollToBottom();
-  }, [liveMessages.length, streamingContent, thinkingContent, activityStatus, isScrolledUp, scrollToBottom]);
+  }, [liveMessages.length, streamingContent, thinkingContent, isScrolledUp, scrollToBottom]);
 
   useEffect(() => {
     if (!id) return;
@@ -467,17 +466,7 @@ export default function PublicChatPage() {
         )}
 
         <div className={["relative flex-1 min-h-0 flex flex-col", !sidebarOpen ? "@max-[900px]:pt-10" : ""].join(" ")}>
-          <MessageList
-            messages={liveMessages}
-            generating={running}
-            activityStatus={activityStatus}
-            assistantLabel={agent.name}
-            emptyStateContent={<ChatEmptyState agent={agent} onStarter={(text) => void handleSend(text)} disabled={running} />}
-            messagesEndRef={messagesEndRef}
-            scrollContainerRef={scrollRef}
-            pinToBottom={!isScrolledUp}
-            padEnd
-          />
+          <MessageList messages={liveMessages} generating={running} assistantLabel={agent.name} emptyStateContent={<ChatEmptyState agent={agent} onStarter={(text) => void handleSend(text)} disabled={running} />} scrollContainerRef={scrollRef} pinToBottom={!isScrolledUp} padEnd />
           {isScrolledUp && (
             <button
               type="button"

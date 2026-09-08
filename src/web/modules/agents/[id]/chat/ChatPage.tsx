@@ -173,7 +173,7 @@ export function ChatPage() {
 
   // ── Streaming hook (local messages, no Redux) ───────────────────────────────
 
-  const { setMessages, streamingContent, thinkingContent, activityStatus, clearStreamingState, buildSSECallbacks, loadMessages, liveMessages } = useChatStreaming({
+  const { setMessages, streamingContent, thinkingContent, clearStreamingState, buildSSECallbacks, loadMessages, liveMessages } = useChatStreaming({
     toDisplayMsg,
     fetchMessages,
     onConversationDone: handleConversationDone,
@@ -204,7 +204,6 @@ export function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [isResizing, setIsResizing] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { scrollRef, scrollToBottom } = useAutoScroll({ onScrolledUpChange: setIsScrolledUp });
   const prevAgentIdRef = useRef<string | null>(null);
   const resizing = useRef(false);
@@ -260,7 +259,7 @@ export function ChatPage() {
   useLayoutEffect(() => {
     if (isScrolledUp) return;
     scrollToBottom();
-  }, [liveMessages.length, streamingContent, thinkingContent, activityStatus, isScrolledUp, scrollToBottom]);
+  }, [liveMessages.length, streamingContent, thinkingContent, isScrolledUp, scrollToBottom]);
 
   // Load conversations when agent changes
   useEffect(() => {
@@ -450,10 +449,9 @@ export function ChatPage() {
             <MessageList
               messages={liveMessages}
               generating={showGenerating}
-              activityStatus={isServerRunning && !running ? "Processing..." : activityStatus}
+              activityStatus={isServerRunning && !running ? "Processing..." : undefined}
               assistantLabel={agent.name}
               emptyStateContent={<ChatEmptyState agent={agent} onStarter={(text) => void handleSend(text)} disabled={showGenerating} />}
-              messagesEndRef={messagesEndRef}
               scrollContainerRef={scrollRef}
               pinToBottom={!isScrolledUp}
               padEnd

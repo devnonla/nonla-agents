@@ -40,14 +40,14 @@ function formatLabel(iso: string | undefined, timezone: string | undefined, fall
   return fallback ?? timezone ?? "—";
 }
 
-export function GetCurrentTimeToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true }: ToolUIProps) {
+export function GetCurrentTimeToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true, generating = false }: ToolUIProps) {
   const hasOutput = msg.toolOutput != null;
   const hasError = Boolean(msg.toolError);
   const output = parseOutput(msg.toolOutput);
   const activeConvId = useAppSelector((s) => s.chat.activeConversationId);
   const conversations = useAppSelector((s) => s.chat.conversations);
   const isConvRunning = conversations.find((c) => c.id === activeConvId)?.status === "running";
-  const running = !hasOutput && !hasError && !!isConvRunning;
+  const running = !hasOutput && !hasError && (generating || !!isConvRunning);
   const callerColor = assistantColor ?? "var(--primary)";
   const label = formatLabel(output?.iso, output?.timezone, output?.time);
 

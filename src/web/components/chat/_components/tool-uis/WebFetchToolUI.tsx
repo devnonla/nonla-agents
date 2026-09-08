@@ -36,7 +36,7 @@ function inputUrl(input: unknown): string {
   return nav?.url || "";
 }
 
-export function WebFetchToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true }: ToolUIProps) {
+export function WebFetchToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true, generating = false }: ToolUIProps) {
   const hasOutput = msg.toolOutput != null;
   const hasError = Boolean(msg.toolError);
   const output = parseJson<FetchOutput>(msg.toolOutput);
@@ -44,7 +44,7 @@ export function WebFetchToolUI({ msg, assistantLabel = "Assistant", assistantCol
   const activeConvId = useAppSelector((s) => s.chat.activeConversationId);
   const conversations = useAppSelector((s) => s.chat.conversations);
   const isConvRunning = conversations.find((c) => c.id === activeConvId)?.status === "running";
-  const running = !hasOutput && !hasError && !!isConvRunning;
+  const running = !hasOutput && !hasError && (generating || !!isConvRunning);
   const url = output?.url || inputUrl(msg.toolInput) || "—";
   const callerColor = assistantColor ?? "var(--primary)";
   const body = failed ? (output?.error ?? msg.toolError ?? "Tool execution failed") : output?.text?.trim() || "";

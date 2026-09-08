@@ -21,7 +21,7 @@ function parseJson<T>(raw: unknown): T | null {
   return null;
 }
 
-export function GetToolSchemaToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true }: ToolUIProps) {
+export function GetToolSchemaToolUI({ msg, assistantLabel = "Assistant", assistantColor, showAvatar = true, generating = false }: ToolUIProps) {
   const hasOutput = msg.toolOutput != null;
   const hasError = Boolean(msg.toolError);
   const input = parseJson<SchemaInput>(msg.toolInput) ?? {};
@@ -29,7 +29,7 @@ export function GetToolSchemaToolUI({ msg, assistantLabel = "Assistant", assista
   const activeConvId = useAppSelector((s) => s.chat.activeConversationId);
   const conversations = useAppSelector((s) => s.chat.conversations);
   const isConvRunning = conversations.find((c) => c.id === activeConvId)?.status === "running";
-  const running = !hasOutput && !hasError && !!isConvRunning;
+  const running = !hasOutput && !hasError && (generating || !!isConvRunning);
   const callerColor = assistantColor ?? "var(--primary)";
 
   const requested = (input.names ?? []).filter((n) => typeof n === "string" && n.trim());

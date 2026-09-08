@@ -51,7 +51,7 @@ function ToolStatusIcon({
   );
 }
 
-function ToolCallCard({ msg }: { msg: ChatAgentMessage }) {
+function ToolCallCard({ msg, generating = false }: { msg: ChatAgentMessage; generating?: boolean }) {
   const hasOutput = msg.toolOutput != null;
   const hasInput = hasMeaningfulInput(msg.toolInput);
   const hasError = Boolean(msg.toolError);
@@ -61,7 +61,7 @@ function ToolCallCard({ msg }: { msg: ChatAgentMessage }) {
   const conversations = useAppSelector((s) => s.chat.conversations);
   const tools = useAppSelector((s) => s.tools.items) as { name: string; icon?: string | null }[];
   const isConvRunning = conversations.find((c) => c.id === activeConvId)?.status === "running";
-  const running = isPending && !!isConvRunning;
+  const running = isPending && (generating || !!isConvRunning);
   const expandable = hasInput || hasOutput || hasError || running;
 
   const label = msg.toolLabel ?? formatToolName(msg.toolName ?? "Tool");
@@ -70,10 +70,7 @@ function ToolCallCard({ msg }: { msg: ChatAgentMessage }) {
   const header = (
     <>
       <ToolStatusIcon hasError={hasError} open={open} toolIcon={toolIcon} interactive={expandable} />
-      <span className={cn("min-w-0 flex-1 truncate text-left text-[12px] font-medium text-muted-foreground", expandable && "transition-colors group-hover:text-foreground")}>{label}</span>
-      <RenderIf condition={running}>
-        <ChatSpinner />
-      </RenderIf>
+      <span className={cn("min-w-0 flex-1 truncate text-left text-[12px] font-medium", running ? "nonla-chat-shimmer" : "text-muted-foreground", expandable && !running && "transition-colors group-hover:text-foreground")}>{label}</span>
     </>
   );
 
@@ -112,11 +109,13 @@ export function ToolCallGroup({
   assistantLabel = "Assistant",
   assistantColor,
   showAvatar = true,
+  generating = false,
 }: {
   messages: ChatAgentMessage[];
   assistantLabel?: string;
   assistantColor?: string | null;
   showAvatar?: boolean;
+  generating?: boolean;
 }) {
   const color = assistantColor ?? "var(--primary)";
   return (
@@ -131,7 +130,7 @@ export function ToolCallGroup({
       <div className="px-4 pb-0.5">
         <div className="flex flex-col">
           {messages.map((m) => (
-            <ToolCallCard key={m.id} msg={m} />
+            <ToolCallCard key={m.id} msg={m} generating={generating} />
           ))}
         </div>
       </div>
@@ -144,15 +143,17 @@ export function ToolCallBubble({
   assistantLabel = "Assistant",
   assistantColor,
   showAvatar = true,
+  generating = false,
 }: {
   msg: ChatAgentMessage;
   assistantLabel?: string;
   assistantColor?: string | null;
   showAvatar?: boolean;
+  generating?: boolean;
 }) {
   const CustomUI = resolveToolUI(msg.toolName);
   if (CustomUI) {
-    return <CustomUI msg={msg} assistantLabel={assistantLabel} assistantColor={assistantColor} showAvatar={showAvatar} />;
+    return <CustomUI msg={msg} assistantLabel={assistantLabel} assistantColor={assistantColor} showAvatar={showAvatar} generating={generating} />;
   }
   if (parseBgTaskRef(msg.toolOutput)) {
     return <BackgroundTaskToolUI msg={msg} assistantLabel={assistantLabel} assistantColor={assistantColor} showAvatar={showAvatar} />;
@@ -169,7 +170,7 @@ export function ToolCallBubble({
         </div>
       )}
       <div className="px-4 pb-0.5">
-        <ToolCallCard msg={msg} />
+        <ToolCallCard msg={msg} generating={generating} />
       </div>
     </div>
   );
