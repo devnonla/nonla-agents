@@ -157,17 +157,33 @@ describe("MCP Servers API", () => {
     expect(res.status).toBe(400);
   });
 
-  test("POST /api/mcp-servers — reject private URL", async () => {
+  test("POST /api/mcp-servers — allow localhost URL", async () => {
     const res = await authRequest(app, token, "POST", "/api/mcp-servers", {
       name: "local",
       url: "http://localhost:3000/mcp",
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { id: string; url: string };
+    expect(data.url).toBe("http://localhost:3000/mcp");
+    await authRequest(app, token, "DELETE", `/api/mcp-servers/${data.id}`);
   });
 
-  test("PUT /api/mcp-servers/:id — reject private URL", async () => {
+  test("PUT /api/mcp-servers/:id — allow private URL", async () => {
     const res = await authRequest(app, token, "PUT", `/api/mcp-servers/${serverId}`, {
       url: "http://127.0.0.1:8080/mcp",
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { url: string };
+    expect(data.url).toBe("http://127.0.0.1:8080/mcp");
+    await authRequest(app, token, "PUT", `/api/mcp-servers/${serverId}`, {
+      url: "https://example.com/mcp",
+    });
+  });
+
+  test("POST /api/mcp-servers — reject non-http URL", async () => {
+    const res = await authRequest(app, token, "POST", "/api/mcp-servers", {
+      name: "stdio",
+      url: "stdio://mcp",
     });
     expect(res.status).toBe(400);
   });

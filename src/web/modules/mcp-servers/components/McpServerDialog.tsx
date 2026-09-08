@@ -101,7 +101,7 @@ export function McpServerDialog({
           required: "URL is required",
           validate: (value) => (typeof value === "string" && value.trim() ? true : "URL is required"),
         },
-        options: { placeholder: "https://example.com/mcp" },
+        options: { placeholder: "http://localhost:3000/mcp" },
       },
       {
         type: EFormItemType.Custom,
@@ -136,7 +136,7 @@ export function McpServerDialog({
 
   return (
     <Modal open title={isEdit ? "Edit MCP server" : "Add MCP server"} onCancel={onClose} onOk={() => void onSubmit()} okText={isEdit ? "Save" : "Add"} confirmLoading={saving} destroyOnHidden width={520}>
-      <p className="mb-3 text-sm text-muted-foreground">Connect a remote MCP endpoint over HTTP. Optional headers are used for auth.</p>
+      <p className="mb-3 text-sm text-muted-foreground">Connect an MCP endpoint over HTTP — local or remote. Optional headers are used for auth.</p>
       <form onSubmit={onSubmit}>
         <SchemaForm form={form} items={items} />
         {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
