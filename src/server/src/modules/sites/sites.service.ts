@@ -295,17 +295,15 @@ export async function updateSiteFile(id: string, file: string, content: string, 
     throw new BadRequestException("Cannot write production files directly; edit draft and approve");
   }
   if (!isAllowedSourceFile(file)) throw new BadRequestException(`Invalid file: ${file}`);
+  if (file === "package.json") {
+    throw new BadRequestException("package.json is auto-maintained from imports — do not edit it");
+  }
   if (typeof content !== "string") throw new BadRequestException("content must be a string");
   if (isOmittedSource(content)) {
     throw new BadRequestException(OMITTED_WRITE_MESSAGE);
   }
   writeSourceFile(id, tree, file as SiteSourceFile, content);
   invalidateSiteCaches(id);
-
-  if (file === "package.json") {
-    const site = await installDeps(id, tree);
-    return { ok: true, file, tree, draftDirty: isDraftDirty(id), site, depsInstalled: true as const };
-  }
 
   let depsInstalled = false;
   if (file === "app.tsx" || file === "backend.ts") {
@@ -360,9 +358,18 @@ function parseOptionalSourceFiles(file?: string): SiteSourceFile[] | undefined {
   return [file];
 }
 
+/** package.json is auto-maintained — promote it with UI/backend so prod deps match approved source. */
+function withAutoPackageJson(files?: SiteSourceFile[]): SiteSourceFile[] | undefined {
+  if (!files) return undefined;
+  if ((files.includes("app.tsx") || files.includes("backend.ts")) && !files.includes("package.json")) {
+    return [...files, "package.json"];
+  }
+  return files;
+}
+
 export async function approveSite(id: string, file?: string) {
   await getSiteOrThrow(id);
-  const files = parseOptionalSourceFiles(file);
+  const files = withAutoPackageJson(parseOptionalSourceFiles(file));
   for (const f of files ?? SITE_SOURCE_FILES) {
     if (isOmittedSource(readSourceFile(id, "draft", f))) {
       throw new BadRequestException(`${f} ${OMITTED_WRITE_MESSAGE}`);

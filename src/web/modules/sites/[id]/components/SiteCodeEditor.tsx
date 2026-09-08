@@ -1,5 +1,4 @@
 import { Button, message } from "@nonla-agents/ui";
-import { BoxMinimalisticIcon } from "@solar-icons/react/dynamic/box-minimalistic";
 import { CodeFileIcon } from "@solar-icons/react/dynamic/code-file";
 import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
 import { PaletteIcon } from "@solar-icons/react/dynamic/palette";
@@ -13,13 +12,13 @@ import type { Monaco } from "src/components/MonacoEditor";
 import { MonacoEditor } from "src/components/MonacoEditor";
 import { sitesApi } from "../../common/sitesApi";
 
-const SOURCE_FILES: SiteSourceFile[] = ["app.tsx", "styles.css", "backend.ts", "package.json"];
+const EDITOR_FILES = ["app.tsx", "styles.css", "backend.ts"] as const satisfies readonly SiteSourceFile[];
+type EditorFile = (typeof EDITOR_FILES)[number];
 
-const FILE_META: Record<SiteSourceFile, { language: string; icon: typeof CodeFileIcon }> = {
+const FILE_META: Record<EditorFile, { language: string; icon: typeof CodeFileIcon }> = {
   "app.tsx": { language: "typescript", icon: CodeFileIcon },
   "styles.css": { language: "css", icon: PaletteIcon },
   "backend.ts": { language: "typescript", icon: ProgrammingIcon },
-  "package.json": { language: "json", icon: BoxMinimalisticIcon },
 };
 
 export type SiteCodeEditorHandle = {
@@ -38,8 +37,8 @@ interface SiteCodeEditorProps {
   } | null;
 }
 
-function syncInactiveSiteModels(monacoInstance: Monaco, files: Record<SiteSourceFile, string>, active: SiteSourceFile) {
-  for (const file of SOURCE_FILES) {
+function syncInactiveSiteModels(monacoInstance: Monaco, files: Record<SiteSourceFile, string>, active: EditorFile) {
+  for (const file of EDITOR_FILES) {
     const uri = monacoInstance.Uri.parse(`file:///${file}`);
     const existing = monacoInstance.editor.getModel(uri);
     if (!existing) {
@@ -52,7 +51,7 @@ function syncInactiveSiteModels(monacoInstance: Monaco, files: Record<SiteSource
 }
 
 export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorProps>(function SiteCodeEditor({ siteId, reloadToken = 0, onSiteUpdated, review = null }, ref) {
-  const [selected, setSelected] = useState<SiteSourceFile>("app.tsx");
+  const [selected, setSelected] = useState<EditorFile>("app.tsx");
   const [drafts, setDrafts] = useState<Record<SiteSourceFile, string> | null>(null);
   const [saved, setSaved] = useState<Record<SiteSourceFile, string> | null>(null);
   const [prod, setProd] = useState<Record<SiteSourceFile, string> | null>(null);
@@ -77,7 +76,7 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
     const nextSaved = res.files;
     const nextDrafts = { ...nextSaved };
     if (current && prevSaved) {
-      for (const file of SOURCE_FILES) {
+      for (const file of EDITOR_FILES) {
         if (current[file] !== prevSaved[file]) nextDrafts[file] = current[file];
       }
     }
@@ -104,18 +103,18 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
   }, [loadFiles, reloadToken]);
 
   const dirtyFiles = useMemo(() => {
-    const set = new Set<SiteSourceFile>();
+    const set = new Set<EditorFile>();
     if (!drafts || !saved) return set;
-    for (const file of SOURCE_FILES) {
+    for (const file of EDITOR_FILES) {
       if (drafts[file] !== saved[file]) set.add(file);
     }
     return set;
   }, [drafts, saved]);
 
   const changedVsProd = useMemo(() => {
-    const list: SiteSourceFile[] = [];
+    const list: EditorFile[] = [];
     if (!drafts || !prod) return list;
-    for (const file of SOURCE_FILES) {
+    for (const file of EDITOR_FILES) {
       if (drafts[file] !== prod[file]) list.push(file);
     }
     return list;
@@ -140,7 +139,7 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
         }
         if (depsInstalled) await loadFiles();
         if (lastSite) onSiteUpdated(lastSite);
-        if (!opts?.quiet) message.success(dirty.includes("package.json") || depsInstalled ? "Saved — dependencies installed" : "Saved");
+        if (!opts?.quiet) message.success(depsInstalled ? "Saved — dependencies installed" : "Saved");
       } catch (err: unknown) {
         if (!opts?.quiet) message.error(err instanceof Error ? err.message : "Save failed");
         throw err;
@@ -152,7 +151,7 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
   );
 
   const handleSave = useCallback(() => {
-    void saveFiles(SOURCE_FILES).catch(() => undefined);
+    void saveFiles([...EDITOR_FILES]).catch(() => undefined);
   }, [saveFiles]);
 
   const handleReviewNext = useCallback(() => {
@@ -204,7 +203,7 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
     ref,
     () => ({
       flush: async (opts) => {
-        await saveFiles(SOURCE_FILES, opts);
+        await saveFiles([...EDITOR_FILES], opts);
       },
     }),
     [saveFiles],
@@ -228,7 +227,7 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card md:border-r md:border-border">
       <div className="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-border bg-muted/30">
-        {SOURCE_FILES.map((file) => {
+        {EDITOR_FILES.map((file) => {
           const item = FILE_META[file];
           const FileIcon = item.icon;
           const active = selected === file;

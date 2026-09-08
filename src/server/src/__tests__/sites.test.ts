@@ -532,6 +532,17 @@ export default function App() {
     const pkg = JSON.parse(readFileSync(`${draftDir}/package.json`, "utf8")) as { dependencies?: Record<string, string> };
     expect(pkg.dependencies?.nanoid).toBeTruthy();
 
+    const putPkg = await authRequest(app, token, "PUT", `/api/sites/${site.id}/files/package.json`, {
+      content: "{}\n",
+      tree: "draft",
+    });
+    expect(putPkg.status).toBe(400);
+
+    const approveRes = await authRequest(app, token, "POST", `/api/sites/${site.id}/approve`, { file: "app.tsx" });
+    expect(approveRes.status).toBe(200);
+    const prodPkg = JSON.parse(readFileSync(`${dataDir}/sites/${site.id}/prod/package.json`, "utf8")) as { dependencies?: Record<string, string> };
+    expect(prodPkg.dependencies?.nanoid).toBeTruthy();
+
     await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
   }, 90_000);
 });
