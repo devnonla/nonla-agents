@@ -1,6 +1,6 @@
 /**
  * Mid-step compact for coding agents: before each model call, redact older edit_*
- * payloads and keep only the latest successful snapshot per toolName.
+ * payloads and keep only the latest successful snapshot per tool (and per `file` when present).
  * Also redacts heavy args on the latest call (snapshot lives in ToolMessage).
  */
 
@@ -9,12 +9,18 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { createMiddleware } from "langchain";
 import { EDIT_PAYLOAD_OMITTED } from "./apply-exact-replace.js";
 
-export const CODING_EDIT_TOOL_NAMES = new Set(["edit_code", "edit_ui", "edit_styles", "edit_backend", "edit_deps", "edit_skill_file"]);
+export const CODING_EDIT_TOOL_NAMES = new Set(["edit_code", "edit_site_files", "edit_ui", "edit_styles", "edit_backend", "edit_deps", "edit_skill_file"]);
 
 const HEAVY_ARG_KEYS = ["code", "content", "edits"] as const;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/** One snapshot lane per tool, or per file when the call targets a specific file. */
+export function editKeepKey(toolName: string, args: unknown): string {
+  const file = isRecord(args) && typeof args.file === "string" ? args.file.trim() : "";
+  return file ? `${toolName}:${file}` : toolName;
 }
 
 function redactArgs(args: unknown): Record<string, unknown> {
@@ -53,6 +59,7 @@ function redactToolResultContent(raw: string): string {
 type EditOccurrence = {
   toolCallId: string;
   toolName: string;
+  keepKey: string;
   aiIndex: number;
   toolIndex: number;
   ok: boolean;
@@ -84,6 +91,7 @@ function collectEditOccurrences(messages: BaseMessage[]): EditOccurrence[] {
       out.push({
         toolCallId: id,
         toolName: name,
+        keepKey: editKeepKey(name, tc.args),
         aiIndex: i,
         toolIndex: tool.index,
         ok: tool.ok,
@@ -93,16 +101,16 @@ function collectEditOccurrences(messages: BaseMessage[]): EditOccurrence[] {
   return out;
 }
 
-/** Latest successful edit per toolName; if none succeeded, latest call overall per name. */
+/** Latest successful edit per keepKey; if none succeeded, latest call overall per key. */
 function latestKeepIds(occurrences: EditOccurrence[]): Set<string> {
-  const byName = new Map<string, EditOccurrence[]>();
+  const byKey = new Map<string, EditOccurrence[]>();
   for (const o of occurrences) {
-    const list = byName.get(o.toolName) ?? [];
+    const list = byKey.get(o.keepKey) ?? [];
     list.push(o);
-    byName.set(o.toolName, list);
+    byKey.set(o.keepKey, list);
   }
   const keep = new Set<string>();
-  for (const list of byName.values()) {
+  for (const list of byKey.values()) {
     const lastOk = [...list].reverse().find((o) => o.ok);
     const chosen = lastOk ?? list[list.length - 1];
     if (chosen) keep.add(chosen.toolCallId);
@@ -169,16 +177,17 @@ export function createCompactEditMiddleware() {
   });
 }
 
-function latestKeepOutputIndexes(messages: Array<{ role: string; toolName?: string; toolOutput?: string }>): Set<number> {
-  const byName = new Map<string, number[]>();
+function latestKeepOutputIndexes(messages: Array<{ role: string; toolName?: string; toolInput?: unknown; toolOutput?: string }>): Set<number> {
+  const byKey = new Map<string, number[]>();
   messages.forEach((m, i) => {
     if (m.role !== "tool-call" || !m.toolName || !CODING_EDIT_TOOL_NAMES.has(m.toolName)) return;
-    const list = byName.get(m.toolName) ?? [];
+    const key = editKeepKey(m.toolName, m.toolInput);
+    const list = byKey.get(key) ?? [];
     list.push(i);
-    byName.set(m.toolName, list);
+    byKey.set(key, list);
   });
   const keep = new Set<number>();
-  for (const indexes of byName.values()) {
+  for (const indexes of byKey.values()) {
     const lastOk = [...indexes].reverse().find((i) => parseToolResult(messages[i]?.toolOutput).ok === true);
     keep.add(lastOk ?? indexes[indexes.length - 1]!);
   }

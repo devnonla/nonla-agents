@@ -10,6 +10,7 @@ import { createAgent } from "langchain";
 import { makeNonlaagentsGuideTool } from "../../../common/ai/agent-tools/nonlaagents-guide.tool.js";
 import { makeRunJsTool } from "../../../common/ai/agent-tools/run-js.tool.js";
 import { webFetchTool } from "../../../common/ai/agent-tools/web-fetch.tool.js";
+import { EDIT_PAYLOAD_OMITTED } from "../../../common/ai/apply-exact-replace.js";
 import { createCompactEditMiddleware, redactEditHistoryPayloads } from "../../../common/ai/compact-edit-middleware.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
@@ -18,10 +19,11 @@ import { makeDatatableTool } from "../../agents/runtime/llm-tools/datatable.tool
 import { makeKvStoreTool } from "../../agents/runtime/llm-tools/kv-store.tool.js";
 import { makeSecretsTool } from "../../agents/runtime/llm-tools/secrets.tool.js";
 import { makeCheckSiteTool } from "../common/agent-tools/check-site.tool.js";
-import { makeAllSiteEditTools } from "../common/agent-tools/edit-site-surface.tool.js";
+import { makeEditSiteFilesTool } from "../common/agent-tools/edit-site-surface.tool.js";
 import { makePreviewSiteTool } from "../common/agent-tools/preview-site.tool.js";
 import { makeReadSiteFilesTool } from "../common/agent-tools/read-site-files.tool.js";
 import { buildSiteAgentSystemPrompt } from "../common/site-agent-prompt.js";
+import { readAllSourceFiles } from "../sites-fs.js";
 import { getSite } from "../sites.service.js";
 
 interface ToolCallMessage {
@@ -50,9 +52,26 @@ export function toolCallArgs(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
 }
 
-/** Cross-turn: redact edit args; keep the latest successful snapshot per surface. */
+function redactReadSiteFilesOutput(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (parsed.ok === false) return raw;
+    const next = { ...parsed };
+    if ("content" in next) next.content = EDIT_PAYLOAD_OMITTED;
+    if ("files" in next) next.files = EDIT_PAYLOAD_OMITTED;
+    return JSON.stringify(next);
+  } catch {
+    return EDIT_PAYLOAD_OMITTED;
+  }
+}
+
+/** Cross-turn: redact edit args; keep the latest successful snapshot per surface. Drop stale read_site_files bodies (draft is in the system prompt). */
 export function compactSiteWriteHistory(messages: SiteAgentStreamRequest["messages"]): SiteAgentStreamRequest["messages"] {
-  return redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true });
+  return redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true }).map((m) => {
+    if (m.role !== "tool-call" || m.toolName !== "read_site_files") return m;
+    if (typeof m.toolOutput !== "string" || !m.toolOutput) return m;
+    return { ...m, toolOutput: redactReadSiteFilesOutput(m.toolOutput) };
+  });
 }
 
 function appendToolResults(result: BaseMessage[], toolMsgs: ToolCallMessage[], idFallback: (k: number) => string) {
@@ -141,7 +160,7 @@ export async function streamSiteAgent(siteId: string, body: SiteAgentStreamReque
 
   const tools: StructuredToolInterface[] = [
     makeReadSiteFilesTool(siteId),
-    ...makeAllSiteEditTools(siteId),
+    makeEditSiteFilesTool(siteId),
     makeCheckSiteTool(siteId),
     makePreviewSiteTool(siteId),
     makeNonlaagentsGuideTool("sites"),
@@ -152,10 +171,12 @@ export async function streamSiteAgent(siteId: string, body: SiteAgentStreamReque
     makeDatatableTool(["list_projects", "get_schema"]),
   ];
 
+  const draft = readAllSourceFiles(siteId, "draft");
   const systemPrompt = buildSiteAgentSystemPrompt({
     name: site.name,
     slug: site.slug,
     publicBaseUrl: publicBaseUrl || undefined,
+    files: { "app.tsx": draft["app.tsx"], "styles.css": draft["styles.css"], "backend.ts": draft["backend.ts"] },
   });
   const agent = createAgent({
     model,

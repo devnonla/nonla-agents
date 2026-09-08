@@ -1,5 +1,5 @@
 /**
- * Site surface edit tools — edit_ui / edit_styles / edit_backend.
+ * Site draft edit tool — one function for app.tsx / styles.css / backend.ts.
  */
 
 import { tool } from "@langchain/core/tools";
@@ -7,6 +7,9 @@ import { z } from "zod";
 import { type EditHunk, OMITTED_EDIT_TOOL_ERROR, applyEdits, editPayloadIsOmitted, normalizeToLf } from "../../../../common/ai/apply-exact-replace.js";
 import { type SiteSourceFile, readSourceFile } from "../../sites-fs.js";
 import { updateSiteFile } from "../../sites.service.js";
+
+export const SITE_EDITABLE_FILES = ["app.tsx", "styles.css", "backend.ts"] as const;
+export type SiteEditableFile = (typeof SITE_EDITABLE_FILES)[number];
 
 const editHunkSchema = z.object({
   old_string: z.string().min(1),
@@ -16,6 +19,7 @@ const editHunkSchema = z.object({
 
 const editSiteSchema = z
   .object({
+    file: z.enum(SITE_EDITABLE_FILES),
     mode: z.enum(["replace", "full"]),
     content: z.string().optional(),
     edits: z.array(editHunkSchema).optional(),
@@ -31,31 +35,7 @@ const editSiteSchema = z
     }
   });
 
-export type SiteEditSurface = {
-  name: "edit_ui" | "edit_styles" | "edit_backend";
-  file: SiteSourceFile;
-  description: string;
-};
-
-export const SITE_EDIT_SURFACES: SiteEditSurface[] = [
-  {
-    name: "edit_ui",
-    file: "app.tsx",
-    description: 'Edit the site UI (React App). Call read_site_files first if you have not read app.tsx this turn. mode="replace": edits[{ old_string, new_string, replace_all? }]. mode="full": write complete content. Prefer replace for small changes.',
-  },
-  {
-    name: "edit_styles",
-    file: "styles.css",
-    description: 'Edit site styles.css. Call read_site_files first if you have not read styles this turn. mode="replace" with edits[] or mode="full" with complete CSS content.',
-  },
-  {
-    name: "edit_backend",
-    file: "backend.ts",
-    description: 'Edit the site backend handle() API (GET data / POST action). mode="replace" with edits[] or mode="full" with complete content. Call read_site_files first if you have not read the backend this turn.',
-  },
-];
-
-export function makeEditSiteSurfaceTool(siteId: string, surface: SiteEditSurface) {
+export function makeEditSiteFilesTool(siteId: string) {
   return tool(
     async (input) => {
       const parsed = editSiteSchema.safeParse(input);
@@ -63,17 +43,17 @@ export function makeEditSiteSurfaceTool(siteId: string, surface: SiteEditSurface
         return JSON.stringify({
           ok: false,
           error: parsed.error.issues.map((i) => i.message).join("; "),
-          hint: 'Use mode="full" with content, or mode="replace" with edits[{ old_string, new_string }].',
+          hint: 'Use file="app.tsx"|"styles.css"|"backend.ts", then mode="full" with content, or mode="replace" with edits[{ old_string, new_string }].',
         });
       }
 
-      const { mode, content, edits, summary } = parsed.data;
+      const { file, mode, content, edits, summary } = parsed.data;
       try {
         let next: string;
         if (mode === "full") {
           next = normalizeToLf(content!);
         } else {
-          const current = readSourceFile(siteId, "draft", surface.file);
+          const current = readSourceFile(siteId, "draft", file as SiteSourceFile);
           if (!current.trim()) {
             return JSON.stringify({
               ok: false,
@@ -92,10 +72,11 @@ export function makeEditSiteSurfaceTool(siteId: string, surface: SiteEditSurface
           return JSON.stringify(OMITTED_EDIT_TOOL_ERROR);
         }
 
-        const result = await updateSiteFile(siteId, surface.file, next, "draft");
-        const written = readSourceFile(siteId, "draft", surface.file);
+        const result = await updateSiteFile(siteId, file, next, "draft");
+        const written = readSourceFile(siteId, "draft", file as SiteSourceFile);
         return JSON.stringify({
           ok: true,
+          file,
           mode,
           message: summary ?? "Draft updated.",
           content: written,
@@ -110,13 +91,10 @@ export function makeEditSiteSurfaceTool(siteId: string, surface: SiteEditSurface
       }
     },
     {
-      name: surface.name,
-      description: surface.description,
+      name: "edit_site_files",
+      description:
+        'Edit a site draft file. file: "app.tsx" (UI), "styles.css", or "backend.ts". Draft is in the system prompt / latest snapshot for that file — do not re-read unless replace failed. mode="replace": edits[{ old_string, new_string, replace_all? }]. mode="full": write complete content. Prefer replace for small changes.',
       schema: editSiteSchema,
     },
   );
-}
-
-export function makeAllSiteEditTools(siteId: string) {
-  return SITE_EDIT_SURFACES.map((surface) => makeEditSiteSurfaceTool(siteId, surface));
 }

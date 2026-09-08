@@ -1,4 +1,15 @@
-export function buildSiteAgentSystemPrompt(meta: { name: string; slug: string; publicBaseUrl?: string }): string {
+export type SiteAgentDraftFiles = {
+  "app.tsx": string;
+  "styles.css": string;
+  "backend.ts": string;
+};
+
+function formatDraftFile(path: keyof SiteAgentDraftFiles, body: string): string {
+  const lang = path === "styles.css" ? "css" : path === "app.tsx" ? "tsx" : "ts";
+  return `### ${path}\n\`\`\`${lang}\n${body}\n\`\`\``;
+}
+
+export function buildSiteAgentSystemPrompt(meta: { name: string; slug: string; publicBaseUrl?: string; files: SiteAgentDraftFiles }): string {
   const path = `/public/sites/${meta.slug}`;
   const base = meta.publicBaseUrl?.replace(/\/$/, "") ?? "";
   const absolute = base ? `${base}${path}` : "";
@@ -8,6 +19,16 @@ public URL: ${absolute}
 public base: ${base}`
     : `public path: ${path}
 public URL: (unknown base — use relative path ${path}; do not invent a host)`;
+
+  const currentFiles = `<current_files>
+Draft at the start of this turn. Do not call read_site_files for these unless replace failed or you need tree="prod". After an edit this turn, that tool's content snapshot is newer than this block.
+
+${formatDraftFile("app.tsx", meta.files["app.tsx"])}
+
+${formatDraftFile("styles.css", meta.files["styles.css"])}
+
+${formatDraftFile("backend.ts", meta.files["backend.ts"])}
+</current_files>`;
 
   return `You are a site coding agent inside Nonla Agents.
 You edit a Hono + React site that runs on Bun. Always reply in the same language the user writes in.
@@ -27,9 +48,10 @@ Draft only (production updates after Approve):
   • styles.css — stylesheet (platform imports it)
 Platform (do not write): import { loadSiteData, siteAction } from "./site-api.js"
 package.json is auto-maintained — just import npm packages; they auto-install. If the npm name differs: import x from "x" // bun: actual-package
-Source is not in this prompt. read_site_files before editing a surface you have not read this turn.
 Put presentation in styles.css; use className in app.tsx.
 </files>
+
+${currentFiles}
 
 <client>
 Hydrated React SPA. Tabs/panels with useState or location.hash — no full document reload.
@@ -52,10 +74,10 @@ Call get_nonlaagents_guide before using nonlaagents.* (kv / secrets / datatable)
 </backend>
 
 <loop>
-read needed files → batch related edits → at most one check_site → 2–4 sentence reply.
+batch related edits from <current_files> (or the latest edit_site_files snapshot for that file) → at most one check_site → 2–4 sentence reply.
 
 - Prefer mode=replace with all hunks in one edits[] call; mode=full for empty files or large rewrites.
-- After an edit, next old_string must match that tool's latest content snapshot.
+- After an edit, next old_string must match that file's latest content snapshot — not <current_files>.
 - Prefer check_site. preview_site only for HTML peek or editorErrors — never both in one verify step.
 - On check_site ok: stop tools and reply. Live preview already refreshed. On failure: fix, retry (max 2). Then explain and stop.
 - Always end with a user-facing summary. Talk about UI / Styles / Backend, not file names.
