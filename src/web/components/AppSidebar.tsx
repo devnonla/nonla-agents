@@ -70,12 +70,7 @@ function SketchDivider({ className }: { className?: string }) {
 
 function SidebarNavLink({ item, end }: { item: NavItem; end?: boolean }) {
   return (
-    <NavLink
-      to={item.to}
-      end={end}
-      title={item.label}
-      className={({ isActive }) => cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-muted font-medium text-brand" : "font-normal text-sidebar-foreground hover:bg-muted")}
-    >
+    <NavLink to={item.to} end={end} title={item.label} className={({ isActive }) => cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base font-medium no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-muted text-brand" : "text-sidebar-foreground hover:bg-muted")}>
       {({ isActive }) => (
         <>
           <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:block [&_svg]:size-4", isActive ? "text-brand" : "text-tertiary-foreground")}>{item.icon}</span>
@@ -113,7 +108,7 @@ function SidebarNavButton({
   onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} className={cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-base transition-colors duration-150 cursor-pointer", active ? "bg-muted font-medium text-brand" : "font-normal text-sidebar-foreground hover:bg-muted")}>
+    <button type="button" onClick={onClick} className={cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-base font-medium transition-colors duration-150 cursor-pointer", active ? "bg-muted text-brand" : "text-sidebar-foreground hover:bg-muted")}>
       <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:block [&_svg]:size-4", active ? "text-brand" : "text-tertiary-foreground")}>{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {trailing}

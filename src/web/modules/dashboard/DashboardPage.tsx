@@ -19,13 +19,6 @@ function greetingForHour(hour: number): string {
   return "Good evening";
 }
 
-function crewLine(agentCount: number, runningCount: number): string {
-  if (agentCount === 0) return "No agents on deck yet.";
-  if (runningCount > 0) return `${runningCount} agent${runningCount === 1 ? "" : "s"} mid-mission. The rest are standing by.`;
-  if (agentCount === 1) return "One agent on deck.";
-  return `${agentCount} agents on deck.`;
-}
-
 const JUMPS = [
   {
     to: "/agents",
@@ -79,14 +72,9 @@ export default function DashboardPage() {
 
       <section className="mb-10 rounded-2xl border border-border-subtle bg-card px-6 py-7 sm:px-8 sm:py-8">
         <div className="min-w-0 max-w-xl">
-          <p className="m-0 mb-2 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-brand-soft">
-            <span className="size-1.5 rounded-full bg-brand-soft motion-safe:animate-pulse" />
-            Agent desk
-          </p>
           <h1 className="m-0 text-2xl font-semibold leading-tight text-foreground">
             {greeting}, {displayName}
           </h1>
-          <p className="mt-2 m-0 text-base text-muted-foreground">{crewLine(agents.length, runningCount)}</p>
         </div>
 
         <div className="mt-7 flex flex-wrap gap-2">

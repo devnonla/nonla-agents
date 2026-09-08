@@ -33,6 +33,7 @@
 .dark {
   /* Palette + shadcn tokens come from @nonla-agents/ui/styles.css.
      Override --nonla-* here to retheme the whole app — no component edits. */
+  --nonla-brand: #eb9d29;
 
   /* App-only tokens */
   --sidebar: color-mix(in oklab, var(--nonla-bg, #121212) 92%, white);
