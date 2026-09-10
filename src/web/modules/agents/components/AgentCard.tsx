@@ -1,16 +1,13 @@
 import type { MenuProps } from "@nonla-agents/ui";
-import { Dropdown, Modal, message } from "@nonla-agents/ui";
-import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
+import { Dropdown } from "@nonla-agents/ui";
 import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
-import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
 import { useMemo, useState } from "react";
-import type { Agent, AgentListItem } from "src/common/types";
+import type { AgentListItem } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
 import { UserAvatar } from "src/components/UserAvatar";
-import { cloneAgent, deleteAgent, updateAgent } from "src/modules/agents/common/agentsSlice";
 import type { TeamWithMembers } from "src/modules/agents/common/teamsSlice";
+import { agentMenuItems } from "src/modules/agents/components/agentMenuItems";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 
 function modelLabel(aiModel: string | null): string {
@@ -29,104 +26,7 @@ export function AgentCard({ agent, onOpen, dragging }: AgentCardProps) {
   const teams = useAppSelector((s) => s.teams.teams) as TeamWithMembers[];
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const menuItems: MenuProps["items"] = useMemo(() => {
-    const teamChildren: NonNullable<MenuProps["items"]> = [...teams]
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((team) => ({
-        key: team.id,
-        label: team.name,
-        disabled: agent.teamId === team.id,
-        onClick: () => {
-          void (async () => {
-            try {
-              await dispatch(updateAgent({ id: agent.id, teamId: team.id })).unwrap();
-              message.success(`Moved "${agent.name}"to ${team.name}`);
-            } catch (err: any) {
-              message.error(err?.message ?? "Failed to move agent");
-            }
-          })();
-        },
-      }));
-
-    const items: NonNullable<MenuProps["items"]> = [];
-
-    if (agent.isPublic) {
-      items.push({
-        key: "open-public",
-        label: (
-          <div className="flex items-center gap-2">
-            <GlobalIcon size={14} />
-            Open public chat
-          </div>
-        ),
-        onClick: () => {
-          window.open(`/chat/${agent.id}`, "_blank", "noopener,noreferrer");
-        },
-      });
-    }
-
-    items.push(
-      {
-        key: "clone",
-        label: (
-          <div className="flex items-center gap-2">
-            <ClipboardIcon size={14} />
-            Clone
-          </div>
-        ),
-        onClick: () => {
-          void (async () => {
-            try {
-              const cloned = (await dispatch(cloneAgent(agent.id)).unwrap()) as Agent;
-              message.success(`Cloned as "${cloned.name}"`);
-            } catch (err: any) {
-              message.error(err?.message ?? "Failed to clone agent");
-            }
-          })();
-        },
-      },
-      {
-        key: "move",
-        label: (
-          <div className="flex items-center gap-2">
-            <UsersGroupTwoRoundedIcon size={14} />
-            Move to team
-          </div>
-        ),
-        children: teamChildren,
-      },
-      { type: "divider" },
-      {
-        key: "delete",
-        danger: true,
-        label: (
-          <div className="flex items-center gap-2">
-            <TrashBinTrashIcon size={14} />
-            Delete
-          </div>
-        ),
-        onClick: () => {
-          Modal.confirm({
-            title: `Delete "${agent.name}"?`,
-            content: "This action cannot be undone. All conversations and tasks will be lost.",
-            okText: "Delete",
-            okType: "danger",
-            cancelText: "Cancel",
-            onOk: async () => {
-              try {
-                await dispatch(deleteAgent(agent.id)).unwrap();
-                message.success(`Deleted "${agent.name}"`);
-              } catch (err: any) {
-                message.error(err?.message ?? "Failed to delete agent");
-              }
-            },
-          });
-        },
-      },
-    );
-
-    return items;
-  }, [agent.id, agent.isPublic, agent.name, agent.teamId, dispatch, teams]);
+  const menuItems: MenuProps["items"] = useMemo(() => agentMenuItems({ agent, teams, dispatch }), [agent, dispatch, teams]);
 
   return (
     <div

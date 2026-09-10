@@ -1,6 +1,5 @@
 import { Button, Drawer, EFormItemType, Popconfirm, SchemaForm, type TFormItemProps, Tag, message } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
-import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
 import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
 import { HistoryIcon } from "@solar-icons/react/dynamic/history";
 import { PlayIcon } from "@solar-icons/react/dynamic/play";
@@ -16,6 +15,7 @@ import { SettingKey } from "src/common/enum";
 import type { ToolActionEvent } from "src/common/hooks/useAssistantStreaming";
 import type { Job, JobRun } from "src/common/types";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
+import { FluentIcon } from "src/components/FluentIcon";
 import { type EditorInstance, MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
 import { getSettingValues } from "src/modules/settings/common/settingsApi";
 import { CodingAgentPanel } from "src/modules/tools/[id]/components/CodingAgentPanel";
@@ -319,12 +319,12 @@ export default function JobEditPage() {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">Loading…</div>;
+    return <div className="flex h-full items-center justify-center bg-background text-sm text-muted-foreground">Loading…</div>;
   }
 
   if (!job) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-background">
+      <div className="flex h-full flex-col items-center justify-center gap-3 bg-background">
         <p className="text-sm text-foreground">Job not found</p>
         <Button onClick={() => navigate("/jobs")}>Back to Jobs</Button>
       </div>
@@ -332,15 +332,15 @@ export default function JobEditPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border-subtle bg-card px-4">
         <button type="button" onClick={() => navigate("/jobs")} className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none" title="Back" aria-label="Back to Jobs">
           <AltArrowLeftIcon size={16} />
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand/12">
-            <ClockCircleIcon size={15} className="text-brand-soft" weight="BoldDuotone" />
+          <div className="flex size-7 shrink-0 items-center justify-center">
+            <FluentIcon name="calendar-clock-24" size={20} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -363,7 +363,7 @@ export default function JobEditPage() {
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             size="small"
-            icon={<ClockCircleIcon size={14} weight="BoldDuotone" />}
+            icon={<FluentIcon name="calendar-clock-24" size={16} />}
             onClick={() => {
               setSchedules(parseJobSchedules(job.cron));
               setSchedulesOpen(true);

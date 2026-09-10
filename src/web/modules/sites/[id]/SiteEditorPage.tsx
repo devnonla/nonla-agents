@@ -3,7 +3,6 @@ import type { MenuProps } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
 import { EyeIcon } from "@solar-icons/react/dynamic/eye";
-import { GlobalIcon } from "@solar-icons/react/dynamic/global";
 import { LinkIcon } from "@solar-icons/react/dynamic/link";
 import { LockIcon } from "@solar-icons/react/dynamic/lock";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
@@ -19,6 +18,7 @@ import type { ToolActionEvent } from "src/common/hooks/useAssistantStreaming";
 import type { Site, SiteSourceFile } from "src/common/types";
 import { normalizeSlugInput, slugify } from "src/common/utils/slug";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
+import { FluentIcon } from "src/components/FluentIcon";
 import RenderIf from "src/components/RenderIf";
 import { getSettingValues } from "src/modules/settings/common/settingsApi";
 import { capturePreviewIframe } from "../common/capturePreviewIframe";
@@ -339,7 +339,7 @@ export default function SiteEditorPage() {
   };
 
   if (loading || !site) {
-    return <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">Loading…</div>;
+    return <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading…</div>;
   }
 
   const publicPath = `/public/sites/${site.slug}`;
@@ -464,14 +464,14 @@ export default function SiteEditorPage() {
         </div>
       }
     >
-      <Button size="small" icon={site.isPublished ? hasPassword ? <LockIcon size={14} className="text-success" /> : <GlobalIcon size={14} className="text-success" /> : <GlobalIcon size={14} className="text-muted-foreground" />}>
+      <Button size="small" icon={<FluentIcon name={site.isPublished ? (hasPassword ? "globe-shield-24" : "globe-24") : "cloud-dismiss-24"} size={16} />}>
         <span className={site.isPublished ? "text-success" : "text-muted-foreground"}>{site.isPublished ? "Published" : "Unpublished"}</span>
       </Button>
     </Popover>
   );
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-full flex-col bg-background">
       <header className="flex min-h-14 shrink-0 items-center gap-3 border-b border-border px-4">
         <Link to="/sites" className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Back to sites">
           <AltArrowLeftIcon size={18} />

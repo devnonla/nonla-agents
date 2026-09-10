@@ -200,7 +200,7 @@ export function MessageList({ messages, generating, activityStatus: activityStat
                 </RenderIf>
                 <div className="px-4 pb-0.5">
                   <div className="flex items-center min-h-7">
-                    <span className="text-(length:--chat-body-size) leading-5.5 font-medium font-family-chat text-tertiary-foreground antialiased ca-status-shimmer">{statusLabel}</span>
+                    <span className="text-(length:--chat-body-size) leading-5.5 font-medium font-family-chat text-tertiary-foreground ca-status-shimmer">{statusLabel}</span>
                   </div>
                 </div>
               </div>

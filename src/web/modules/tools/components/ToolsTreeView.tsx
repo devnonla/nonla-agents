@@ -7,7 +7,6 @@ import { AddIcon } from "@solar-icons/react/dynamic/add";
 import { FolderIcon } from "@solar-icons/react/dynamic/folder";
 import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
 import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
 import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentTool } from "src/common/types";
@@ -155,7 +154,7 @@ function FolderMenu({ title, onEdit, onDelete }: { title: string; onEdit?: () =>
     <Dropdown trigger={["click"]} placement="bottomRight" open={menuOpen} onOpenChange={setMenuOpen} menu={{ items: menuItems, style: { minWidth: 160 } }}>
       <button
         type="button"
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/70 hover:text-foreground cursor-pointer opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         aria-label="Folder actions"
         onClick={(e) => e.stopPropagation()}
       >
@@ -220,17 +219,15 @@ function ToolRowView({
       <button
         type="button"
         onClick={onClick}
-        className={cn("group/tool flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors cursor-grab active:cursor-grabbing touch-none", !dragging && "hover:bg-muted/55", dragging && "cursor-grabbing bg-muted/70 ring-1 ring-border shadow-lg")}
+        className={cn("group/tool flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-2.5 text-left transition-colors cursor-grab active:cursor-grabbing touch-none", !dragging && "hover:bg-white/60", dragging && "cursor-grabbing bg-white/80 ring-1 ring-foreground/10 shadow-lg")}
         {...listeners}
         {...attributes}
       >
-        <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 ring-inset", tool.isActive ? "bg-success/10 text-success ring-success/20" : "bg-destructive/10 text-destructive ring-destructive/20")}>
-          <ToolIcon icon={tool.icon} size={14} fallback={<ProgrammingIcon size={14} />} />
-        </div>
+        <ToolIcon icon={tool.icon} size={18} className="shrink-0" />
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <span className="min-w-0 truncate font-mono text-[13px] leading-snug text-foreground/90 group-hover/tool:text-foreground transition-colors">{tool.label}</span>
           <RenderIf condition={!tool.isActive}>
-            <Tag variant="filled" className="m-0! shrink-0 rounded-md text-[10px] leading-none">
+            <Tag color="error" className="m-0! shrink-0 rounded-md text-[10px] leading-none">
               Inactive
             </Tag>
           </RenderIf>
@@ -286,11 +283,11 @@ function FolderNode({
   const toolIds = tools.map((t) => t.id);
 
   return (
-    <div ref={setNodeRef} className={cn("flex flex-col gap-1 rounded-xl transition-colors", isOver && "bg-muted/35 ring-1 ring-border/80")}>
+    <div ref={setNodeRef} className={cn("flex flex-col gap-1 rounded-xl transition-colors", isOver && "bg-white/50 ring-1 ring-foreground/12")}>
       <div className="group/folder flex items-center gap-1">
         <div className="flex min-w-0 flex-1 items-center gap-2.5 py-1.5">
           <div className="flex w-8 shrink-0 items-center justify-center">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-foreground/80 ring-1 ring-inset ring-border">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/70 text-foreground/80 ring-1 ring-inset ring-foreground/10">
               <FolderIcon size={15} weight="Bold" />
             </div>
           </div>
@@ -298,7 +295,7 @@ function FolderNode({
         </div>
 
         <AddToolDialog onCreated={onToolCreated} defaultFolderId={meta.folderId} triggerClassName="inline-flex shrink-0">
-          <button type="button" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100" aria-label="Add tool" title="Add tool">
+          <button type="button" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/70 hover:text-foreground cursor-pointer opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100" aria-label="Add tool" title="Add tool">
             <AddIcon size={14} />
           </button>
         </AddToolDialog>
@@ -534,7 +531,7 @@ export function ToolsTreeView({ tools, folders, onToolClick, onToolCreated, onEd
           <FolderNode key={meta.key} meta={meta} tools={toolsFor(meta.key)} onToolClick={handleToolClick} onToolCreated={onToolCreated} onEditFolder={onEditFolder} onDeleteFolder={onDeleteFolder} />
         ))}
 
-        <Button type="text" icon={<AddIcon size={14} />} onClick={onCreateFolder} className="h-8! px-1.5! self-start text-muted-foreground">
+        <Button type="text" icon={<AddIcon size={14} />} onClick={onCreateFolder} className="h-8! px-1.5! self-start text-muted-foreground hover:bg-white/60 hover:text-foreground">
           Add folder
         </Button>
       </div>

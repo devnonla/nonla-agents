@@ -11,16 +11,15 @@ import "./index.css";
 const ToolsPage = lazy(() => import("./modules/tools/ToolsPage"));
 const SkillsPage = lazy(() => import("./modules/skills/SkillsPage"));
 const SettingsPage = lazy(() => import("./modules/settings/SettingsPage"));
-const AgentsPage = lazy(() => import("./modules/agents/AgentsPage"));
 const PublicChatPage = lazy(() => import("./modules/agents/public/PublicChatPage"));
 const LoginPage = lazy(() => import("./modules/auth/LoginPage"));
 const SetupPage = lazy(() => import("./modules/auth/SetupPage"));
 const EditToolPage = lazy(() => import("./modules/tools/[id]/EditToolPage"));
 const EditSkillPage = lazy(() => import("./modules/skills/[id]/EditSkillPage"));
 const AgentDetailPage = lazy(() => import("./modules/agents/[id]/page"));
-const DashboardPage = lazy(() => import("./modules/dashboard/DashboardPage"));
 const ProfilePage = lazy(() => import("./modules/profile/ProfilePage"));
 const McpServersPage = lazy(() => import("./modules/mcp-servers/McpServersPage"));
+const MyMcpServersPage = lazy(() => import("./modules/my-mcp-servers/MyMcpServersPage"));
 const KvStorePage = lazy(() => import("./modules/kvstore/KvStorePage"));
 const SecretsPage = lazy(() => import("./modules/secrets/SecretsPage"));
 const DatatablesPage = lazy(() => import("./modules/datatables/DatatablesPage"));
@@ -116,29 +115,19 @@ function AppContent() {
     <Suspense fallback={null}>
       <Routes>
         <Route element={<AuthGuard />}>
-          {/* Full-page routes (no sidebar) */}
-          <Route path="/tools/:id" element={<EditToolPage />} />
-          <Route path="/skills/:id" element={<EditSkillPage />} />
-          <Route path="/sites/:id" element={<SiteEditorPage />} />
-          <Route path="/agents/:id/*" element={<AgentDetailPage />} />
-          <Route
-            path="/jobs/:id"
-            element={
-              <AdminGuard>
-                <JobEditPage />
-              </AdminGuard>
-            }
-          />
-
-          {/* Sidebar pages — wrapped in AppLayout */}
           <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/" element={null} />
+            <Route path="/agents" element={<Navigate to="/" replace />} />
+            <Route path="/agents/:id/*" element={<AgentDetailPage />} />
             <Route path="/tools" element={<ToolsPage />} />
+            <Route path="/tools/:id" element={<EditToolPage />} />
             <Route path="/skills" element={<SkillsPage />} />
+            <Route path="/skills/:id" element={<EditSkillPage />} />
             <Route path="/sites" element={<SitesPage />} />
+            <Route path="/sites/:id" element={<SiteEditorPage />} />
             <Route path="/mcp-servers" element={<McpServersPage />} />
-            <Route path="/teams" element={<Navigate to="/agents" replace />} />
+            <Route path="/my-mcp-servers" element={<MyMcpServersPage />} />
+            <Route path="/teams" element={<Navigate to="/" replace />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/providers" element={<Navigate to="/settings/providers" replace />} />
             <Route path="/kvstore" element={<KvStorePage />} />
@@ -158,6 +147,14 @@ function AppContent() {
               element={
                 <AdminGuard>
                   <JobsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/jobs/:id"
+              element={
+                <AdminGuard>
+                  <JobEditPage />
                 </AdminGuard>
               }
             />

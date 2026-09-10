@@ -1,124 +1,75 @@
-const ICONIFY_BASE = "https://api.iconify.design";
-const PREFIX = "lucide";
-const COLLECTION_URL = `${ICONIFY_BASE}/collection?prefix=${PREFIX}`;
-const CACHE_KEY = "iconify:lucide:names";
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const STROKE_WIDTH = "1.5";
+export const ICON_PREFIX = "fluent-color";
+export const DEFAULT_ICON_NAME = "bot-24";
+export const DEFAULT_TOOL_ICON = `${ICON_PREFIX}:${DEFAULT_ICON_NAME}`;
 
-type NamesCachePayload = { fetchedAt: number; names: string[] };
+const SIZE_SUFFIX = /-24$/;
+
+type IconifyIcon = { body: string; width?: number; height?: number };
+type IconifyPack = {
+  icons?: Record<string, IconifyIcon>;
+  width?: number;
+  height?: number;
+};
 
 let memoryNames: string[] | null = null;
-const svgCache = new Map<string, string>();
-const svgInflight = new Map<string, Promise<string>>();
+const svgByName = new Map<string, string>();
+const imgSrcByName = new Map<string, string>();
+let inflight: Promise<string[]> | null = null;
 
-function isNoisyName(name: string): boolean {
-  return name.endsWith("-off");
-}
-
-/** Normalize Lucide stroke to a thinner default for UI density. */
-export function withThinStroke(svg: string): string {
-  return svg.replace(/stroke-width="[^"]*"/g, `stroke-width="${STROKE_WIDTH}"`).replace(/stroke-width:\s*[^;"']+/g, `stroke-width:${STROKE_WIDTH}`);
-}
-
-function readLocalNames(): string[] | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as NamesCachePayload;
-    if (!parsed?.names?.length || typeof parsed.fetchedAt !== "number") return null;
-    if (Date.now() - parsed.fetchedAt > CACHE_TTL_MS) return null;
-    return parsed.names;
-  } catch {
-    return null;
+function hydrate(pack: IconifyPack): string[] {
+  const defaultW = pack.width ?? 24;
+  const defaultH = pack.height ?? 24;
+  const names: string[] = [];
+  for (const [name, icon] of Object.entries(pack.icons ?? {})) {
+    if (!SIZE_SUFFIX.test(name) || !icon?.body) continue;
+    const w = icon.width ?? defaultW;
+    const h = icon.height ?? defaultH;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 ${w} ${h}">${icon.body}</svg>`;
+    svgByName.set(name, svg);
+    names.push(name);
   }
+  memoryNames = names;
+  return names;
 }
 
-function writeLocalNames(names: string[]) {
-  try {
-    const payload: NamesCachePayload = { fetchedAt: Date.now(), names };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
-  } catch {
-    /* quota / private mode */
-  }
+/** Loads the vendored Fluent Color pack (code-split). No network. */
+export function ensureFluentIcons(): Promise<string[]> {
+  if (memoryNames) return Promise.resolve(memoryNames);
+  if (inflight) return inflight;
+  inflight = import("@iconify-json/fluent-color/icons.json")
+    .then((mod) => hydrate((mod.default ?? mod) as IconifyPack))
+    .finally(() => {
+      inflight = null;
+    });
+  return inflight;
+}
+
+export function getIconNames(): string[] {
+  return memoryNames ?? [];
+}
+
+export function getFluentImgSrc(name: string): string | null {
+  const hit = imgSrcByName.get(name);
+  if (hit) return hit;
+  const svg = svgByName.get(name);
+  if (!svg) return null;
+  const src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  imgSrcByName.set(name, src);
+  return src;
 }
 
 export function isSvgIcon(value?: string | null): boolean {
   return !!value && value.trimStart().startsWith("<svg");
 }
 
-export async function getLucideIconNames(): Promise<string[]> {
-  if (memoryNames) return memoryNames;
-
-  const cached = readLocalNames();
-  if (cached) {
-    memoryNames = cached;
-    return cached;
-  }
-
-  const res = await fetch(COLLECTION_URL);
-  if (!res.ok) throw new Error(`Failed to load Lucide icons (${res.status})`);
-  const data = (await res.json()) as { uncategorized?: string[] };
-  const names = (data.uncategorized ?? []).filter((n) => !isNoisyName(n));
-  memoryNames = names;
-  writeLocalNames(names);
-  return names;
+export function isFluentIcon(value?: string | null): boolean {
+  return !!value && value.startsWith(`${ICON_PREFIX}:`);
 }
 
-export async function fetchLucideSvg(name: string): Promise<string> {
-  const cached = svgCache.get(name);
-  if (cached) return cached;
-
-  const pending = svgInflight.get(name);
-  if (pending) return pending;
-
-  const promise = fetch(`${ICONIFY_BASE}/${PREFIX}/${encodeURIComponent(name)}.svg`)
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`Failed to load icon "${name}" (${res.status})`);
-      const svg = withThinStroke((await res.text()).trim());
-      if (!svg.startsWith("<svg")) throw new Error(`Invalid SVG for "${name}"`);
-      svgCache.set(name, svg);
-      return svg;
-    })
-    .finally(() => {
-      svgInflight.delete(name);
-    });
-
-  svgInflight.set(name, promise);
-  return promise;
+export function fluentIconName(value: string): string {
+  return value.slice(ICON_PREFIX.length + 1);
 }
 
-/** Batch-fetch SVG bodies for picker previews. Returns Map<name, svg>. */
-export async function fetchLucideSvgs(names: string[]): Promise<Map<string, string>> {
-  const result = new Map<string, string>();
-  const missing: string[] = [];
-
-  for (const name of names) {
-    const cached = svgCache.get(name);
-    if (cached) result.set(name, cached);
-    else missing.push(name);
-  }
-
-  if (missing.length === 0) return result;
-
-  const chunkSize = 40;
-  for (let i = 0; i < missing.length; i += chunkSize) {
-    const chunk = missing.slice(i, i + chunkSize);
-    const url = `${ICONIFY_BASE}/${PREFIX}.json?icons=${chunk.map(encodeURIComponent).join(",")}`;
-    const res = await fetch(url);
-    if (!res.ok) continue;
-    const data = (await res.json()) as {
-      icons?: Record<string, { body: string }>;
-      width?: number;
-      height?: number;
-    };
-    const w = data.width ?? 24;
-    const h = data.height ?? 24;
-    for (const [name, icon] of Object.entries(data.icons ?? {})) {
-      const svg = withThinStroke(`<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 ${w} ${h}">${icon.body}</svg>`);
-      svgCache.set(name, svg);
-      result.set(name, svg);
-    }
-  }
-
-  return result;
+export function fluentIconRef(name: string): string {
+  return `${ICON_PREFIX}:${name}`;
 }

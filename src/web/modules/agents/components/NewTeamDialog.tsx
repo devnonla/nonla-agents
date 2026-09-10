@@ -2,11 +2,14 @@ import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message 
 import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
 import { type ReactNode, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { createTeam } from "src/modules/agents/common/teamsSlice";
+import { type TeamWithMembers, createTeam } from "src/modules/agents/common/teamsSlice";
 import { useAppDispatch } from "src/store/store";
 
 interface NewTeamDialogProps {
-  children: ReactNode;
+  children?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onCreated?: (team: TeamWithMembers) => void;
 }
 
 type NewTeamValues = {
@@ -29,12 +32,18 @@ const ITEMS: TFormItemProps[] = [
 
 const EMPTY: NewTeamValues = { name: "" };
 
-export function NewTeamDialog({ children }: NewTeamDialogProps) {
+export function NewTeamDialog({ children, open: openProp, onOpenChange, onCreated }: NewTeamDialogProps) {
   const dispatch = useAppDispatch();
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = openProp ?? innerOpen;
   const [saving, setSaving] = useState(false);
   const form = useForm<NewTeamValues>({ defaultValues: EMPTY, mode: "onSubmit" });
   const rootError = form.formState.errors.root?.message;
+
+  const setOpen = (next: boolean) => {
+    if (openProp === undefined) setInnerOpen(next);
+    onOpenChange?.(next);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -49,8 +58,9 @@ export function NewTeamDialog({ children }: NewTeamDialogProps) {
   const onSubmit = form.handleSubmit(async ({ name }) => {
     setSaving(true);
     try {
-      await dispatch(createTeam({ name: name.trim() })).unwrap();
+      const team = await dispatch(createTeam({ name: name.trim() })).unwrap();
       message.success("Team created");
+      onCreated?.(team);
       handleClose();
     } catch (err: unknown) {
       form.setError("root", { message: err instanceof Error ? err.message : "Failed to create team" });
@@ -61,9 +71,11 @@ export function NewTeamDialog({ children }: NewTeamDialogProps) {
 
   return (
     <>
-      <span className="inline-flex" onClick={() => setOpen(true)}>
-        {children}
-      </span>
+      {children ? (
+        <span className="inline-flex" onClick={() => setOpen(true)}>
+          {children}
+        </span>
+      ) : null}
 
       <Modal
         open={open}

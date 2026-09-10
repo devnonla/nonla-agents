@@ -1,8 +1,6 @@
 import { Button, Input, Switch } from "@nonla-agents/ui";
-import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
 import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
-import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
 import { DangerTriangleIcon } from "@solar-icons/react/dynamic/danger-triangle";
 import { InfoCircleIcon } from "@solar-icons/react/dynamic/info-circle";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
@@ -11,14 +9,15 @@ import { StopCircleIcon } from "@solar-icons/react/dynamic/stop-circle";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { JobLogEntry, JobLogLevel, JobRun } from "src/common/types";
 import { formatDayHeader, formatTimeOnly, getDayKey } from "src/common/utils/date";
+import { FluentIcon } from "src/components/FluentIcon";
 import RenderIf from "src/components/RenderIf";
 
 const TIMELINE_W = 240;
 
 function statusIcon(status: JobRun["status"], size = 14) {
-  if (status === "success") return <CheckCircleIcon size={size} className="text-success" weight="BoldDuotone" />;
-  if (status === "failed") return <DangerCircleIcon size={size} className="text-destructive" weight="BoldDuotone" />;
-  return <PlayCircleIcon size={size} className="animate-pulse text-brand-soft" weight="BoldDuotone" />;
+  if (status === "success") return <FluentIcon name="checkmark-circle-24" size={size} />;
+  if (status === "failed") return <FluentIcon name="error-circle-24" size={size} />;
+  return <FluentIcon name="fast-forward-circle-24" size={size} className="animate-pulse" />;
 }
 
 function runListDuration(run: JobRun): string | null {
@@ -63,11 +62,11 @@ function levelIcon(level: JobLogLevel) {
 }
 
 function levelTextClass(level: JobLogLevel) {
-  if (level === "error") return "text-red-300";
-  if (level === "warn") return "text-amber-300";
-  if (level === "system") return "text-sky-300";
-  if (level === "step") return "text-emerald-200";
-  return "text-zinc-200";
+  if (level === "error") return "text-destructive";
+  if (level === "warn") return "text-warn";
+  if (level === "system") return "text-sky-700";
+  if (level === "step") return "text-emerald-700";
+  return "text-foreground";
 }
 
 function runDurationMs(run: JobRun): number {
@@ -85,7 +84,7 @@ function timelineMarks(totalMs: number): number[] {
 /** Shared time axis track — ticks, span bars, and event dots use the same 0→100% space. */
 function TimelineTrack({ children, className = "" }: { children?: ReactNode; className?: string }) {
   return (
-    <div className={`relative h-full min-h-[28px] border-l border-white/5 px-2.5 ${className}`}>
+    <div className={`relative h-full min-h-[28px] border-l border-border px-2.5 ${className}`}>
       <div className="pointer-events-none absolute inset-y-0 left-2.5 right-2.5">
         {[25, 50, 75].map((p) => (
           <span key={p} className="absolute inset-y-0 w-px bg-foreground/8" style={{ left: `${p}%` }} />
@@ -101,7 +100,7 @@ function TimelineTicks({ durationMs }: { durationMs: number }) {
   return (
     <TimelineTrack className="flex items-end pb-1">
       {marks.map((m, i) => (
-        <span key={m} className="absolute bottom-1 -translate-x-1/2 text-[9px] tabular-nums text-zinc-500" style={{ left: `${(i / (marks.length - 1)) * 100}%` }}>
+        <span key={m} className="absolute bottom-1 -translate-x-1/2 text-[9px] tabular-nums text-muted-foreground" style={{ left: `${(i / (marks.length - 1)) * 100}%` }}>
           {formatOffset(m)}
         </span>
       ))}
@@ -355,13 +354,13 @@ export function JobRunsPanel({
               </span>
             </div>
 
-            <div className="sticky top-0 z-10 grid border-b border-white/5 bg-[#0d1117]" style={gridStyle}>
-              <div className="flex h-8 items-center gap-2 px-3 text-[11px] text-zinc-400">
+            <div className="sticky top-0 z-10 grid border-b border-border bg-card" style={gridStyle}>
+              <div className="flex h-8 items-center gap-2 px-3 text-[11px] text-muted-foreground">
                 {statusIcon(selected.status)}
-                <span className="font-medium text-zinc-200">Attempt 1</span>
+                <span className="font-medium text-foreground">Attempt 1</span>
                 {showDurations ? (
                   <>
-                    <span className="text-zinc-600">·</span>
+                    <span className="text-quaternary-foreground">·</span>
                     <span className="tabular-nums">{formatOffset(durationMs)}</span>
                   </>
                 ) : null}
@@ -370,25 +369,25 @@ export function JobRunsPanel({
               <TimelineTicks durationMs={durationMs} />
             </div>
 
-            <div ref={logRef} className="min-h-0 flex-1 overflow-auto bg-[#0d1117]">
-              <div className="grid border-b border-white/3" style={gridStyle}>
-                <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-zinc-400">
-                  <span className="font-medium text-zinc-300">Run</span>
-                  {showDurations ? <span className="tabular-nums text-zinc-500">{formatOffset(durationMs)}</span> : null}
+            <div ref={logRef} className="min-h-0 flex-1 overflow-auto bg-card">
+              <div className="grid border-b border-border" style={gridStyle}>
+                <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">Run</span>
+                  {showDurations ? <span className="tabular-nums text-muted-foreground">{formatOffset(durationMs)}</span> : null}
                 </div>
                 <TimelineSpanBar status={selected.status} />
               </div>
 
               {displayRows.length === 0 ? (
-                <div className="px-3 py-8 text-center text-[11px] text-zinc-500">{selected.status === "running" ? "Waiting for output…" : "(no logs)"}</div>
+                <div className="px-3 py-8 text-center text-[11px] text-muted-foreground">{selected.status === "running" ? "Waiting for output…" : "(no logs)"}</div>
               ) : (
                 displayRows.map((row, i) => (
-                  <div key={`${row.entry.t}-${i}-${row.entry.message.slice(0, 24)}`} className="grid border-b border-white/3" style={gridStyle}>
+                  <div key={`${row.entry.t}-${i}-${row.entry.message.slice(0, 24)}`} className="grid border-b border-border" style={gridStyle}>
                     <div className="flex items-start gap-2 py-1.5 pr-3 font-mono text-[11px] leading-snug" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
-                      {row.depth > 0 ? <span className="mt-0.5 w-3 shrink-0 text-zinc-600">└</span> : null}
+                      {row.depth > 0 ? <span className="mt-0.5 w-3 shrink-0 text-quaternary-foreground">└</span> : null}
                       <span className="mt-0.5 shrink-0">{levelIcon(row.entry.level)}</span>
                       <span className={`min-w-0 flex-1 break-all whitespace-pre-wrap ${levelTextClass(row.entry.level)}`}>{row.entry.message}</span>
-                      {showDurations ? <span className="shrink-0 tabular-nums text-[10px] text-zinc-500">{formatOffset(row.segmentMs)}</span> : null}
+                      {showDurations ? <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground">{formatOffset(row.segmentMs)}</span> : null}
                     </div>
                     <TimelineEventSegment t={row.entry.t} endT={row.endT} durationMs={durationMs} level={row.entry.level} />
                   </div>

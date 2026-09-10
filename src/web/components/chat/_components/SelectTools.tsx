@@ -37,7 +37,7 @@ export function SelectTools({ tools, loading = false }: SelectToolsProps) {
         },
       }}
       content={
-        <div className="box-border w-72 max-h-80 overflow-hidden rounded-xl border border-border bg-popover shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
+        <div className="box-border w-72 max-h-80 overflow-hidden rounded-xl border border-border bg-popover shadow-(--popper-shadow)">
           <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-2">
             <ProgrammingIcon size={13} className="shrink-0 text-muted-foreground" />
             <span className="text-[12px] font-medium text-foreground">Tools</span>

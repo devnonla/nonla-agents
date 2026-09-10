@@ -1,4 +1,4 @@
-import { Button, Popover } from "@nonla-agents/ui";
+import { Popover } from "@nonla-agents/ui";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { CheckCircleIcon } from "@solar-icons/react/dynamic/check-circle";
 import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
@@ -39,18 +39,14 @@ export function EditSkillHeader({ title, hasDraft, viewMode, onViewModeChange, o
   };
 
   return (
-    <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-border px-4">
-      <Link to="/skills" className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Back to skills">
-        <AltArrowLeftIcon size={18} />
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <Link to="/skills" className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-black/6 hover:text-foreground" aria-label="Back to skills">
+        <AltArrowLeftIcon size={14} />
       </Link>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h1 className="m-0 truncate text-sm font-semibold">{title}</h1>
-          <RenderIf condition={hasDraft}>
-            <span className="shrink-0 rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium leading-none text-brand-soft">Draft changes</span>
-          </RenderIf>
-        </div>
-      </div>
+      <span className="min-w-0 truncate text-[12px] font-semibold leading-none text-foreground/90">{title}</span>
+      <RenderIf condition={hasDraft}>
+        <span className="shrink-0 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium leading-none text-brand-soft">Draft</span>
+      </RenderIf>
       <Popover
         open={menuOpen}
         onOpenChange={setMenuOpen}
@@ -87,8 +83,10 @@ export function EditSkillHeader({ title, hasDraft, viewMode, onViewModeChange, o
           </div>
         }
       >
-        <Button type="text" size="small" icon={<MenuDotsIcon size={16} weight="Bold" />} aria-label="Skill menu" />
+        <button type="button" className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground hover:bg-black/6 hover:text-foreground" aria-label="Skill menu">
+          <MenuDotsIcon size={14} weight="Bold" />
+        </button>
       </Popover>
-    </header>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 import { ChatSpinner } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { DangerCircleIcon } from "@solar-icons/react/dynamic/danger-circle";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
 import { useState } from "react";
 import RenderIf from "src/components/RenderIf";
 import { cn } from "src/lib/utils";
@@ -35,7 +34,7 @@ function ToolStatusIcon({
   toolIcon?: string | null;
   interactive: boolean;
 }) {
-  const icon = hasError ? <DangerCircleIcon size={13} className="text-destructive" /> : <ToolIcon icon={toolIcon} size={13} className="text-muted-foreground" fallback={<ProgrammingIcon size={13} className="text-muted-foreground" />} />;
+  const icon = hasError ? <DangerCircleIcon size={13} className="text-destructive" /> : <ToolIcon icon={toolIcon} size={13} className="text-muted-foreground" />;
 
   if (!interactive) {
     return <span className="flex size-4 shrink-0 items-center justify-center">{icon}</span>;

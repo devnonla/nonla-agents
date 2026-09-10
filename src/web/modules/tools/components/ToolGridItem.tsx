@@ -1,5 +1,4 @@
 import { LockIcon } from "@solar-icons/react/dynamic/lock";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
 import type { AgentTool } from "src/common/types";
 import { ToolIcon } from "./ToolIcon";
 
@@ -12,7 +11,6 @@ export function ToolTableRow({
 }) {
   const isBuiltin = tool.id.startsWith("builtin:");
   const isActive = tool.isActive;
-  const FallbackIcon = isBuiltin ? LockIcon : ProgrammingIcon;
 
   const paramCount = (() => {
     const schema = tool.parameters as { properties?: Record<string, unknown> };
@@ -22,10 +20,10 @@ export function ToolTableRow({
   const Wrapper = onClick ? "button" : "div";
 
   return (
-    <Wrapper {...(onClick && { type: "button" as const, onClick })} className={["group flex items-center gap-4 w-full px-4 py-3 text-left transition-all duration-150 border-b border-border/40", onClick ? "cursor-pointer hover:bg-primary/3" : "cursor-default"].join(" ")}>
+    <Wrapper {...(onClick && { type: "button" as const, onClick })} className={["group flex items-center gap-4 w-full px-4 py-3 text-left transition-all duration-150 border-b border-border/40", onClick ? "cursor-pointer hover:bg-white/60" : "cursor-default"].join(" ")}>
       {/* Icon */}
-      <div className={["flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", isBuiltin ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"].join(" ")}>
-        <ToolIcon icon={tool.icon} size={16} fallback={<FallbackIcon size={16} />} />
+      <div className={["flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset", isBuiltin ? "bg-white/70 text-success ring-success/20" : "bg-white/70 text-muted-foreground ring-foreground/10"].join(" ")}>
+        <ToolIcon icon={tool.icon} size={18} fallback={isBuiltin ? <LockIcon size={16} /> : undefined} />
       </div>
 
       <span className={["flex-1 min-w-0 text-[13px] font-semibold text-foreground truncate group-hover:text-primary transition-colors duration-150", !isBuiltin && !isActive ? "opacity-90" : ""].join(" ")}>{tool.label}</span>

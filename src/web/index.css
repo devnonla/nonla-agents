@@ -27,22 +27,29 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+@font-face {
+  font-family: "Geist Pixel Square";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("./assets/fonts/GeistPixel-Square.woff2") format("woff2");
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root,
 .dark {
   /* Palette + shadcn tokens come from @nonla-agents/ui/styles.css.
      Override --nonla-* here to retheme the whole app — no component edits. */
-  --nonla-brand: #eb9d29;
 
-  /* App-only tokens */
-  --sidebar: color-mix(in oklab, var(--nonla-bg, #121212) 92%, white);
+  /* App-only tokens — warm paper (tancn) */
+  --sidebar: #fcf9eb;
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: var(--accent);
   --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
   --edge-call-agent: var(--success);
   --edge-mcp: var(--link);
@@ -51,8 +58,8 @@
   --edge-datatable: #fc7744;
   --solar-size: 16px;
   --scrollbar-size: 6px;
-  --scrollbar-thumb: color-mix(in oklab, #f0f0f0 14%, transparent);
-  --scrollbar-thumb-hover: color-mix(in oklab, #f0f0f0 22%, transparent);
+  --scrollbar-thumb: #cfcabe;
+  --scrollbar-thumb-hover: #a3a3a3;
 
   /* Chat type — one scale for full-page chat and side panels */
   --chat-body-size: 14px;
@@ -100,6 +107,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-border-subtle: var(--border-subtle);
+  --default-border-color: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
@@ -127,8 +135,8 @@
   --shadow-card: none;
   --shadow-whisper: none;
   --shadow-button-outline: 0 0 0 1px var(--border);
-  --shadow-drop: 0 2px 8px color-mix(in oklab, #0a0a0a 8%, transparent);
-  --shadow-panel: 0 0 0 1px var(--border), 0 4px 16px color-mix(in oklab, #0a0a0a 8%, transparent);
+  --shadow-drop: 0 2px 8px color-mix(in oklab, #171717 10%, transparent);
+  --shadow-panel: 0 0 0 1px var(--border), 0 4px 16px color-mix(in oklab, #171717 10%, transparent);
 
   --spacing-control-xs: 24px;
   --spacing-control-sm: 28px;
@@ -136,8 +144,9 @@
   --spacing-control-lg: 36px;
   --spacing-nav-item: 32px;
 
-  --font-sans: -apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-pixel: "Geist Pixel Square", ui-monospace, monospace;
 
   --font-family-sans: var(--font-sans);
   --font-family-serif: Georgia, "Times New Roman", Times, serif;
@@ -200,22 +209,22 @@
     font-family: var(--font-family-sans);
   }
   body {
-    @apply overflow-hidden w-screen bg-background text-foreground;
+    @apply overflow-hidden w-screen text-foreground;
     font-family: var(--font-family-sans);
+    background: var(--background);
     height: 100dvh;
     font-size: 14px;
     line-height: 20px;
     font-weight: 400;
     font-synthesis: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     text-rendering: auto;
     font-optical-sizing: auto;
     font-feature-settings: "kern" 1, "calt" 1, "lnum" 1;
     font-variant-numeric: lining-nums;
   }
   #root {
-    @apply flex flex-col overflow-hidden bg-background;
+    @apply flex flex-col overflow-hidden;
+    background: var(--background);
     height: 100%;
   }
 }

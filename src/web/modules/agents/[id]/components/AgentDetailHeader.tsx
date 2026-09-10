@@ -21,7 +21,7 @@ export function AgentDetailHeader({ id, agent, avatar, onDelete }: AgentDetailHe
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleBack = useCallback(() => {
-    navigate("/agents");
+    navigate("/");
   }, [navigate]);
 
   const openMemory = useCallback(() => {
@@ -46,7 +46,7 @@ export function AgentDetailHeader({ id, agent, avatar, onDelete }: AgentDetailHe
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border" />
 
       <div className="relative z-1 flex items-center gap-2 h-8 min-w-0 pl-1">
-        <button type="button" className="flex items-center justify-center size-7 shrink-0 rounded-md border-none bg-transparent text-muted-foreground cursor-pointer transition-colors duration-150 font-[inherit] hover:bg-muted/70 hover:text-foreground" onClick={handleBack} aria-label="Back to agents">
+        <button type="button" className="flex items-center justify-center size-7 shrink-0 rounded-md border-none bg-transparent text-muted-foreground cursor-pointer transition-colors duration-150 font-[inherit] hover:bg-muted/70 hover:text-foreground" onClick={handleBack} aria-label="Back to desktop">
           <AltArrowLeftIcon size={14} />
         </button>
         <UserAvatar avatar={avatar ?? agent.avatar} name={agent.name} size={18} className="shrink-0" />

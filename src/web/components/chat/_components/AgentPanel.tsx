@@ -138,7 +138,7 @@ export function AgentPanel({ title, emptyState, placeholder = "Describe what to 
   );
 
   if (!resizeCfg) {
-    return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#1e1e1e]">{body}</div>;
+    return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">{body}</div>;
   }
 
   return (
@@ -151,7 +151,7 @@ export function AgentPanel({ title, emptyState, placeholder = "Describe what to 
         onLostPointerCapture={endDrag}
         className={["h-full w-px shrink-0 touch-none z-10 transition-colors duration-150", mobileStack ? "hidden md:block md:cursor-col-resize" : "cursor-col-resize", isDragging ? "bg-brand/60" : "bg-border hover:bg-brand/40"].join(" ")}
       />
-      <div className={mobileStack ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e] md:flex-none" : "flex h-full min-h-0 flex-col overflow-hidden bg-[#1e1e1e]"} style={{ width, maxWidth: "100%" }}>
+      <div className={mobileStack ? "flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background md:flex-none" : "flex h-full min-h-0 flex-col overflow-hidden bg-background"} style={{ width, maxWidth: "100%" }}>
         {body}
       </div>
     </div>

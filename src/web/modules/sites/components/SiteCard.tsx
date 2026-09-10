@@ -1,12 +1,8 @@
 import { Button, Popover } from "@nonla-agents/ui";
-import { GlobalIcon } from "@solar-icons/react/dynamic/global";
-import { LockIcon } from "@solar-icons/react/dynamic/lock";
 import { SquareTopDownIcon } from "@solar-icons/react/dynamic/square-top-down";
-import { UnlinkMinimalisticIcon } from "@solar-icons/react/dynamic/unlink-minimalistic";
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cn } from "src/common/lib/cn";
 import type { Site } from "src/common/types";
+import { FluentIcon } from "src/components/FluentIcon";
 import RenderIf from "src/components/RenderIf";
 import { sitesApi } from "../common/sitesApi";
 
@@ -18,24 +14,21 @@ export function siteVisibility(site: Site): SiteVisibility {
   return "public";
 }
 
-export const SITE_VISIBILITY_META: Record<SiteVisibility, { label: string; description: string; className: string; icon: ReactNode }> = {
+export const SITE_VISIBILITY_META: Record<SiteVisibility, { label: string; description: string; icon: string }> = {
   unpublished: {
     label: "Unpublished",
     description: "Hidden from the public URL. Only editors can open it here.",
-    className: "text-muted-foreground",
-    icon: <UnlinkMinimalisticIcon size={14} />,
+    icon: "cloud-dismiss-24",
   },
   protected: {
     label: "Protected",
     description: "Published with a password. Visitors must unlock to view.",
-    className: "text-warn",
-    icon: <LockIcon size={14} />,
+    icon: "globe-shield-24",
   },
   public: {
     label: "Public",
     description: "Anyone with the link can view this site.",
-    className: "text-success",
-    icon: <GlobalIcon size={14} />,
+    icon: "globe-24",
   },
 };
 
@@ -78,7 +71,7 @@ function SitePreview({ site, publicPath }: { site: Site; publicPath: string }) {
           condition={!!thumbSrc && !thumbFailed}
           fallback={
             <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
-              <GlobalIcon size={18} weight="BoldDuotone" />
+              <FluentIcon name="globe-24" size={20} />
               <span className="text-[10px]">{thumbLoading ? "…" : "—"}</span>
             </div>
           }
@@ -140,8 +133,8 @@ export function SiteVisibilityIcon({ site }: { site: Site }) {
         </div>
       }
     >
-      <span className={cn("inline-flex size-5 cursor-help items-center justify-center", meta.className)} aria-label={meta.label} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        {meta.icon}
+      <span className="inline-flex size-5 cursor-help items-center justify-center" aria-label={meta.label} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <FluentIcon name={meta.icon} size={16} />
       </span>
     </Popover>
   );

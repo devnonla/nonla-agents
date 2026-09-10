@@ -168,11 +168,12 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
       type="button"
       disabled={disabled}
       className={cn(
-        "flex h-field-md w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-left text-base leading-5.5 outline-none",
-        "border border-solid border-input bg-secondary text-foreground",
-        "transition-colors duration-150 hover:bg-muted",
-        open && "bg-muted",
-        disabled && "cursor-not-allowed border-input bg-muted text-muted-foreground hover:bg-muted",
+        "flex h-field-md w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.75 text-left text-[14px] leading-5 outline-none",
+        "border border-solid border-input bg-transparent text-foreground",
+        "transition-[border-color] duration-150",
+        "focus:border-brand focus-within:border-brand",
+        open ? "border-brand" : "hover:border-brand/40",
+        disabled && "cursor-not-allowed border-input bg-transparent text-muted-foreground hover:border-input",
       )}
     >
       {selectedProvider && selectedModel ? (

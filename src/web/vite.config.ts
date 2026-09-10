@@ -75,7 +75,9 @@ export default defineConfig({
             id.includes("node_modules/@xyflow") ||
             id.includes("node_modules/.bun/@xyflow") ||
             id.includes("node_modules/@solar-icons") ||
-            id.includes("node_modules/.bun/@solar-icons")
+            id.includes("node_modules/.bun/@solar-icons") ||
+            id.includes("@iconify-json/fluent-color") ||
+            id.includes("@iconify-json+fluent-color")
           ) {
             return;
           }

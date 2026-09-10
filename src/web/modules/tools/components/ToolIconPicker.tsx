@@ -1,12 +1,11 @@
-import { Button, Input, Popover, Spin, Tooltip } from "@nonla-agents/ui";
+import { Button, Input, Popover, Spin } from "@nonla-agents/ui";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
 import type { ReactNode, UIEvent } from "react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { fetchLucideSvg, fetchLucideSvgs, getLucideIconNames } from "../common/iconify";
+import { ensureFluentIcons, fluentIconRef, getFluentImgSrc, getIconNames } from "../common/iconify";
 import { ToolIcon } from "./ToolIcon";
 
-const PAGE_SIZE = 96;
+const PAGE_SIZE = 36;
 
 interface ToolIconPickerProps {
   icon?: string | null;
@@ -15,21 +14,12 @@ interface ToolIconPickerProps {
   disabled?: boolean;
 }
 
-function IconCell({ name, svg, onPick }: { name: string; svg?: string; onPick: () => void }) {
+function IconCell({ name, onPick }: { name: string; onPick: () => void }) {
+  const src = getFluentImgSrc(name);
   return (
-    <Tooltip title={name} mouseEnterDelay={0.25} placement="top">
-      <button type="button" onClick={onPick} className="flex h-11 w-11 items-center justify-center rounded-lg border border-transparent text-foreground transition-colors hover:bg-muted hover:text-foreground">
-        {svg ? (
-          <span
-            className="inline-flex size-6 [&>svg]:h-full [&>svg]:w-full"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG markup from Iconify
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
-        ) : (
-          <span className="size-4 animate-pulse rounded-sm bg-muted-foreground/20" />
-        )}
-      </button>
-    </Tooltip>
+    <button type="button" title={name.replace(/-24$/, "").replace(/-/g, " ")} onClick={onPick} className="flex h-11 w-11 items-center justify-center rounded-lg border border-transparent transition-colors hover:bg-white/70">
+      {src ? <img src={src} alt="" width={28} height={28} decoding="async" draggable={false} className="size-7 select-none" /> : <span className="size-7 animate-pulse rounded-sm bg-foreground/10" />}
+    </button>
   );
 }
 
@@ -41,7 +31,6 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [limit, setLimit] = useState(PAGE_SIZE);
-  const [svgMap, setSvgMap] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -49,9 +38,9 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
     let cancelled = false;
     setLoadingNames(true);
     setNamesError("");
-    void getLucideIconNames()
+    void ensureFluentIcons()
       .then((names) => {
-        if (!cancelled) setAllNames(names);
+        if (!cancelled) setAllNames(names.length ? names : getIconNames());
       })
       .catch((err) => {
         if (!cancelled) setNamesError(String(err));
@@ -69,29 +58,13 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
   }, [deferredQuery]);
 
   const filtered = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase().replace(/\s+/g, "-");
     if (!q) return allNames;
     return allNames.filter((n) => n.includes(q));
   }, [allNames, deferredQuery]);
 
   const visible = useMemo(() => filtered.slice(0, limit), [filtered, limit]);
   const hasMore = visible.length < filtered.length;
-
-  useEffect(() => {
-    if (!open || visible.length === 0) return;
-    let cancelled = false;
-    void fetchLucideSvgs(visible).then((map) => {
-      if (cancelled) return;
-      setSvgMap((prev) => {
-        const next = { ...prev };
-        for (const [name, svg] of map) next[name] = svg;
-        return next;
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, visible]);
 
   const handleScroll = (e: UIEvent<HTMLDivElement>) => {
     if (!hasMore) return;
@@ -105,8 +78,7 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
     if (saving) return;
     setSaving(true);
     try {
-      const svg = await fetchLucideSvg(name);
-      await onChange(svg);
+      await onChange(fluentIconRef(name));
       setOpen(false);
     } finally {
       setSaving(false);
@@ -128,11 +100,11 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
     <button
       type="button"
       disabled={disabled}
-      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-foreground/10 bg-white/70 text-muted-foreground transition-colors hover:bg-white/90 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       title="Change icon"
       aria-label="Change icon"
     >
-      <ToolIcon icon={icon} size={16} fallback={<ProgrammingIcon size={16} />} />
+      <ToolIcon icon={icon} size={18} />
     </button>
   );
 
@@ -140,7 +112,8 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (disabled || saving) return;
+        if (disabled) return;
+        if (saving && next) return;
         setOpen(next);
         if (!next) {
           setQuery("");
@@ -152,7 +125,7 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
       arrow={false}
       content={
         <div className="flex w-90 flex-col gap-2.5">
-          <Input allowClear size="small" placeholder="Search Lucide icons…" value={query} onChange={(e) => setQuery(e.target.value)} prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} autoFocus />
+          <Input allowClear size="small" placeholder="Search icons…" value={query} onChange={(e) => setQuery(e.target.value)} prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} autoFocus />
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] tabular-nums text-muted-foreground">{loadingNames ? "Loading…" : `${filtered.length.toLocaleString()} icons`}</span>
             <Button type="text" size="small" disabled={!icon || saving} onClick={() => void handleClear()}>
@@ -171,7 +144,7 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
             ) : (
               <div className="grid grid-cols-6 gap-1">
                 {visible.map((name) => (
-                  <IconCell key={name} name={name} svg={svgMap[name]} onPick={() => void handlePick(name)} />
+                  <IconCell key={name} name={name} onPick={() => void handlePick(name)} />
                 ))}
               </div>
             )}

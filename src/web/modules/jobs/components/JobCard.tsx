@@ -1,9 +1,8 @@
 import { Popover } from "@nonla-agents/ui";
-import { AlarmIcon } from "@solar-icons/react/dynamic/alarm";
-import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
 import { cn } from "src/common/lib/cn";
 import type { Job } from "src/common/types";
 import { formatDateTime, relativeTime } from "src/common/utils/date";
+import { FluentIcon } from "src/components/FluentIcon";
 import RenderIf from "src/components/RenderIf";
 import { formatJobScheduleLabel, jobIsScheduled, parseJobCronExpressions } from "../common/schedule";
 
@@ -49,8 +48,8 @@ export function JobCard({
       }}
       className={cn("group relative flex w-full cursor-pointer items-center gap-4 rounded-xl border border-border-subtle bg-card px-3 py-3 text-left", "transition-[border-color,background-color] duration-200", "hover:border-brand/30 hover:bg-secondary", !scheduled && "opacity-80 hover:opacity-100")}
     >
-      <div className={cn("relative flex size-11 shrink-0 items-center justify-center rounded-lg border border-border-subtle", scheduled ? "bg-brand/12 text-brand-soft" : "bg-muted text-muted-foreground")}>
-        <AlarmIcon size={20} weight="BoldDuotone" />
+      <div className={cn("relative flex size-11 shrink-0 items-center justify-center rounded-lg border border-border-subtle", scheduled ? "bg-card" : "bg-muted opacity-70")}>
+        <FluentIcon name="calendar-clock-24" size={24} />
       </div>
 
       <div className="relative min-w-0 flex-1">
@@ -99,7 +98,7 @@ export function JobCard({
                 next?.imminent ? "border-brand/40 bg-brand/12 text-brand-soft" : "border-border-subtle text-foreground group-hover:border-brand/25",
               )}
             >
-              <ClockCircleIcon size={13} weight="BoldDuotone" className="shrink-0 opacity-80" />
+              <FluentIcon name="clock-24" size={14} />
               <span className="text-[9px] font-bold tracking-[0.14em] text-muted-foreground">NEXT</span>
               <span className="font-semibold tracking-tight">{next?.eta}</span>
             </span>

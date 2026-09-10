@@ -207,7 +207,7 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="flex h-screen shrink-0 flex-col overflow-hidden bg-[#181818] border-r border-border text-sidebar-foreground" style={{ width: SIDEBAR_W }}>
+    <aside className="flex h-screen shrink-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border text-sidebar-foreground" style={{ width: SIDEBAR_W }}>
       <div className="flex h-12 w-full min-w-0 shrink-0 items-center gap-2.5 px-4">
         <AppLogo size={36} className="shrink-0" />
         <span className="truncate text-base font-semibold tracking-tight text-sidebar-foreground">Nonla Agents</span>

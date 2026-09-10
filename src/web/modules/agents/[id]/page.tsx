@@ -188,7 +188,7 @@ export default function AgentDetailPage() {
   const handleDelete = async () => {
     if (!id) return;
     await dispatch(deleteAgent(id));
-    navigate("/agents");
+    navigate("/");
   };
 
   // ── Flow interaction handlers ──────────────────────────────────────────────
@@ -313,12 +313,12 @@ export default function AgentDetailPage() {
 
   // Loading / not found states
   if (!id) {
-    return <Navigate to="/agents" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (!agent) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-sm text-muted-foreground">Loading agent…</div>
       </div>
     );
@@ -358,7 +358,7 @@ export default function AgentDetailPage() {
 
   return (
     <AgentDetailCtx.Provider value={ctxValue}>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="flex flex-col h-full overflow-hidden">
         <AgentDetailHeader id={id} agent={agent} avatar={avatar} onDelete={handleDelete} />
 
         <div className="flex flex-1 min-h-0 overflow-hidden bg-card">

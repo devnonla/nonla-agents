@@ -44,8 +44,8 @@ loader.config({ monaco });
 export type EditorInstance = editorNS.IStandaloneCodeEditor;
 export type { Monaco };
 
-const RAW_DARK_THEME = "raw-dark";
-let rawDarkThemeRegistered = false;
+const RAW_LIGHT_THEME = "raw-light";
+let rawLightThemeRegistered = false;
 let scriptDtsRegistered = false;
 let markdownTokensRegistered = false;
 
@@ -56,42 +56,44 @@ function ensureMarkdownLanguage(monacoInstance: Monaco) {
   monacoInstance.languages.setLanguageConfiguration("markdown", markdownConf);
 }
 
-function ensureRawDarkTheme(monacoInstance: Monaco) {
-  monacoInstance.editor.defineTheme(RAW_DARK_THEME, {
-    base: "vs-dark",
+function ensureRawLightTheme(monacoInstance: Monaco) {
+  monacoInstance.editor.defineTheme(RAW_LIGHT_THEME, {
+    base: "vs",
     inherit: true,
     rules: [
-      { token: "keyword.md", foreground: "599ce7", fontStyle: "bold" },
-      { token: "strong.md", foreground: "ebebeb", fontStyle: "bold" },
-      { token: "emphasis.md", foreground: "8c8c8c", fontStyle: "italic" },
-      { token: "comment.md", foreground: "636363", fontStyle: "italic" },
-      { token: "string.md", foreground: "0ac864" },
-      { token: "variable.md", foreground: "f1b467" },
-      { token: "string.link.md", foreground: "599ce7" },
-      { token: "variable.source.md", foreground: "8c8c8c" },
-      { token: "meta.separator.md", foreground: "636363" },
-      { token: "tag.md", foreground: "dd7627" },
-      { token: "keyword.table.header.md", foreground: "599ce7", fontStyle: "bold" },
+      { token: "keyword.md", foreground: "1677ff", fontStyle: "bold" },
+      { token: "strong.md", foreground: "171717", fontStyle: "bold" },
+      { token: "emphasis.md", foreground: "525252", fontStyle: "italic" },
+      { token: "comment.md", foreground: "737373", fontStyle: "italic" },
+      { token: "string.md", foreground: "1f9d55" },
+      { token: "variable.md", foreground: "c47f14" },
+      { token: "string.link.md", foreground: "1677ff" },
+      { token: "variable.source.md", foreground: "525252" },
+      { token: "meta.separator.md", foreground: "737373" },
+      { token: "tag.md", foreground: "c47f14" },
+      { token: "keyword.table.header.md", foreground: "1677ff", fontStyle: "bold" },
     ],
     colors: {
-      "editor.lineHighlightBackground": "#ffffff0a",
+      "editor.background": "#ffffff",
+      "editor.foreground": "#171717",
+      "editor.lineHighlightBackground": "#1717170a",
       "editor.lineHighlightBorder": "#00000000",
       "editorOverviewRuler.border": "#00000000",
       "scrollbar.shadow": "#00000000",
-      "diffEditor.insertedTextBackground": "#9bb95526",
-      "diffEditor.removedTextBackground": "#ff000026",
-      "diffEditor.insertedLineBackground": "#9bb95526",
-      "diffEditor.removedLineBackground": "#ff000026",
+      "diffEditor.insertedTextBackground": "#1f9d5526",
+      "diffEditor.removedTextBackground": "#c0392b26",
+      "diffEditor.insertedLineBackground": "#1f9d5514",
+      "diffEditor.removedLineBackground": "#c0392b14",
     },
   });
-  monacoInstance.editor.setTheme(RAW_DARK_THEME);
-  if (!rawDarkThemeRegistered) {
-    rawDarkThemeRegistered = true;
+  monacoInstance.editor.setTheme(RAW_LIGHT_THEME);
+  if (!rawLightThemeRegistered) {
+    rawLightThemeRegistered = true;
   }
 }
 
 function prepareMonaco(monacoInstance: Monaco) {
-  ensureRawDarkTheme(monacoInstance);
+  ensureRawLightTheme(monacoInstance);
   ensureMarkdownLanguage(monacoInstance);
   ensureScriptDts(monacoInstance);
 }
@@ -266,7 +268,7 @@ export interface MonacoEditorProps extends Omit<EditorProps, "loading" | "theme"
 
 let editorModelSeq = 0;
 
-export function MonacoEditor({ theme = RAW_DARK_THEME, options, height = "100%", onSave, onMount, path, language, ...props }: MonacoEditorProps) {
+export function MonacoEditor({ theme = RAW_LIGHT_THEME, options, height = "100%", onSave, onMount, path, language, ...props }: MonacoEditorProps) {
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
   const idRef = useRef(`model-${++editorModelSeq}`);
@@ -327,7 +329,7 @@ export interface DiffEditorComponentProps extends Omit<MonacoDiffEditorProps, "l
 
 let diffModelSeq = 0;
 
-export function MonacoDiffEditor({ theme = RAW_DARK_THEME, options, height = "100%", onMount, originalModelPath, modifiedModelPath, language, ...props }: DiffEditorComponentProps) {
+export function MonacoDiffEditor({ theme = RAW_LIGHT_THEME, options, height = "100%", onMount, originalModelPath, modifiedModelPath, language, ...props }: DiffEditorComponentProps) {
   const idRef = useRef(`diff-${++diffModelSeq}`);
   const ext = modelExtForLanguage(language);
   const originalPath = originalModelPath ?? `inmemory://original/${idRef.current}${ext}`;

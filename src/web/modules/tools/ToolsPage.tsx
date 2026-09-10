@@ -54,7 +54,7 @@ export default function ToolsPage() {
         <div className="mb-8 flex items-center justify-between">
           <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Tools</h1>
           <div className="flex items-center gap-2">
-            <Button type="default" icon={<FolderIcon size={16} />} onClick={() => setCreatingFolder(true)}>
+            <Button type="default" icon={<FolderIcon size={16} />} onClick={() => setCreatingFolder(true)} className="hover:bg-white/75">
               New Folder
             </Button>
             <AddToolDialog onCreated={handleToolClick}>

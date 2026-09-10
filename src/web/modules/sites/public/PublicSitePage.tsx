@@ -1,7 +1,7 @@
 import { message } from "@nonla-agents/ui";
-import { LockIcon } from "@solar-icons/react/dynamic/lock";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { FluentIcon } from "src/components/FluentIcon";
 import { PublicUnlockScreen } from "src/components/PublicUnlockScreen";
 import { injectSiteFrameBridge, isSrcDocFrameNavigatedAway } from "../common/injectSiteFrameBridge";
 import type { SiteActionResult } from "../common/siteFormSubmit";
@@ -204,7 +204,7 @@ export default function PublicSitePage() {
   }
 
   if (requiresPassword && !isAuthenticated) {
-    return <PublicUnlockScreen icon={<LockIcon size={32} className="text-brand-soft" />} title={siteName || "Protected site"} description="Enter password to continue" error={authError} verifying={verifying} onSubmit={(password) => void verifyPassword(password)} />;
+    return <PublicUnlockScreen icon={<FluentIcon name="lock-closed-24" size={32} />} title={siteName || "Protected site"} description="Enter password to continue" error={authError} verifying={verifying} onSubmit={(password) => void verifyPassword(password)} />;
   }
 
   if (html == null) {

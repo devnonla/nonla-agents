@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { apiClient, setAuthToken } from "src/common/api";
 import type { User } from "src/common/types";
 import { AppLogo } from "src/components/AppLogo";
+import { MeadowShell } from "src/components/desktop/MeadowShell";
 
 interface TimezoneItem {
   tz: string;
@@ -152,18 +153,16 @@ export default function SetupPage() {
   if (checking) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background overflow-y-auto py-8">
-      <div className="relative w-full max-w-110 mx-4">
-        <div className="rounded-md border border-border bg-card overflow-hidden">
-          <div className="flex flex-col items-center pt-8 pb-4 px-6">
-            <div className="mb-4">
-              <AppLogo size={48} />
-            </div>
-            <h1 className="text-xl font-medium text-foreground mb-1">Initial Setup</h1>
-            <p className="text-sm text-muted-foreground text-center">Create your admin account and configure the system</p>
-          </div>
+    <MeadowShell>
+      <div className="relative w-full max-w-110 mx-4 overflow-hidden rounded-md border border-border bg-card shadow-(--elevated-shadow)">
+        <div className="flex items-center gap-2 h-8 px-3 bg-background border-b border-border/35">
+          <AppLogo size={16} />
+          <span className="text-[13px] font-semibold text-foreground">Initial Setup</span>
+        </div>
+        <div className="px-6 pb-6 pt-6">
+          <p className="text-sm text-muted-foreground text-center mb-4">Create your admin account and configure the system</p>
 
-          <form onSubmit={onSubmit} className="px-6 pb-6 pt-2">
+          <form onSubmit={onSubmit}>
             <div className="flex items-center gap-2 mb-1">
               <div className="h-px flex-1 bg-border" />
               <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Admin Account</span>
@@ -189,12 +188,7 @@ export default function SetupPage() {
             </Button>
           </form>
         </div>
-
-        <div className="flex items-center justify-center mt-4 gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-          <span className="text-[10px] text-muted-foreground font-mono">Nonla Agents</span>
-        </div>
       </div>
-    </div>
+    </MeadowShell>
   );
 }

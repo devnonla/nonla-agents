@@ -308,7 +308,7 @@ export default function EditToolPage() {
   // ── Loading / Not found states ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-full bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           <span className="text-sm text-muted-foreground font-medium">Loading tool…</span>
@@ -319,7 +319,7 @@ export default function EditToolPage() {
 
   if (!loading && id && !tool) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-full bg-background">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
             <ProgrammingIcon size={22} />
@@ -339,7 +339,7 @@ export default function EditToolPage() {
   if (!tool) return null;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
+    <div className="flex flex-col h-full overflow-hidden bg-background">
       {/* Top bar */}
       <EditToolHeader label={toolLabel} toolId={id} icon={tool?.icon} isActive={isActive} toggling={toggling} deleting={deleting} onToggleActive={handleToggleActive} onDelete={handleDelete} onIconChange={handleIconChange} />
 

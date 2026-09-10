@@ -9,6 +9,7 @@ import type { Skill, SkillReference } from "src/common/types";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
 import { MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
 import RenderIf from "src/components/RenderIf";
+import { WindowHeader } from "src/components/desktop/DesktopWindow";
 import { fetchLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { getSettingValues, saveSettingValues } from "src/modules/settings/common/settingsApi";
 import { useAppDispatch, useAppSelector } from "src/store/store";
@@ -22,12 +23,7 @@ import { SkillMarkdownPreview } from "./components/SkillMarkdownPreview";
 
 function EditSkillSkeleton() {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-border px-4">
-        <div className="size-8 animate-pulse rounded-md bg-muted" />
-        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-        <div className="ml-auto h-7 w-40 animate-pulse rounded-md bg-muted" />
-      </div>
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="w-55 shrink-0 border-r border-border bg-card p-3">
           <div className="mb-3 h-3 w-16 animate-pulse rounded bg-muted" />
@@ -524,8 +520,10 @@ export default function EditSkillPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <EditSkillHeader title={headerTitle} hasDraft={draftFileList.length > 0} viewMode={viewMode} onViewModeChange={(mode) => void handleViewModeChange(mode)} onDelete={handleDelete} />
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      <WindowHeader>
+        <EditSkillHeader title={headerTitle} hasDraft={draftFileList.length > 0} viewMode={viewMode} onViewModeChange={(mode) => void handleViewModeChange(mode)} onDelete={handleDelete} />
+      </WindowHeader>
 
       <RenderIf condition={!!error}>
         <Alert type="error" description={error} showIcon closable={{ onClose: () => setError("") }} className="m-3" />

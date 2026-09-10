@@ -67,7 +67,7 @@ export function CallAgentsNode({ data }: NodeProps<CallAgentsNodeType>) {
             overflow: "hidden",
             borderRadius: 12,
             border: "1px solid color-mix(in srgb, var(--edge-call-agent) 45%, transparent)",
-            boxShadow: "0 0 0 1px rgba(0,0,0,0.35), 0 12px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)",
+            boxShadow: "var(--popper-shadow)",
             background: "var(--popover)",
           },
         }}

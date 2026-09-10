@@ -1,5 +1,10 @@
 import { Empty } from "@nonla-agents/ui";
+import type { ReactNode } from "react";
 
-export function SkillsEmptyState() {
-  return <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No skills yet" />;
+export function SkillsEmptyState({ children }: { children?: ReactNode }) {
+  return (
+    <Empty className="rounded-2xl border border-dashed border-border-subtle bg-card/50 px-5 py-16" description="No skills yet. Write a playbook the agent can follow.">
+      {children}
+    </Empty>
+  );
 }

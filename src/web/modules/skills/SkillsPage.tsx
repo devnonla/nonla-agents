@@ -1,26 +1,41 @@
-import { Button, Empty, Input } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
+import { Button, Empty, Input, Modal, message } from "@nonla-agents/ui";
+import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { cn } from "src/common/lib/cn";
 import type { Skill } from "src/common/types";
 import { MissingProviderCallout } from "src/components/MissingProviderCallout";
 import { PageShell } from "src/components/PageShell";
 import RenderIf from "src/components/RenderIf";
 import { useAppDispatch, useAppSelector } from "src/store/store";
-import { fetchSkills } from "./common/skillsSlice";
+import { deleteSkill, fetchSkills } from "./common/skillsSlice";
 import { NewSkillDialog } from "./components/NewSkillDialog";
+import { SkillCard } from "./components/SkillCard";
 import { SkillsEmptyState } from "./components/SkillsEmptyState";
-import { SkillsTable } from "./components/SkillsTable";
 
 export default function SkillsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const items = useAppSelector((s) => s.skills.items) as Skill[];
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(items.length === 0);
+  const [deleting, setDeleting] = useState<Skill | null>(null);
 
   useEffect(() => {
-    dispatch(fetchSkills());
+    let cancelled = false;
+    void (async () => {
+      try {
+        await dispatch(fetchSkills()).unwrap();
+      } catch (err: unknown) {
+        if (!cancelled) message.error(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
   const filtered = useMemo(() => {
@@ -32,32 +47,80 @@ export default function SkillsPage() {
   return (
     <PageShell>
       <MissingProviderCallout />
-      <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Skills</h1>
-        <NewSkillDialog>
-          <Button type="primary" icon={<AddIcon size={16} />}>
-            New skill
-          </Button>
-        </NewSkillDialog>
+        <div className="flex min-w-0 items-center gap-2">
+          <RenderIf condition={items.length > 0}>
+            <div className="w-52">
+              <Input allowClear prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} placeholder="Search skills…" value={query} onChange={(e) => setQuery(e.target.value)} />
+            </div>
+          </RenderIf>
+          <NewSkillDialog>
+            <Button type="primary" icon={<AddCircleIcon size={16} />}>
+              New skill
+            </Button>
+          </NewSkillDialog>
+        </div>
       </div>
 
-      <RenderIf condition={items.length > 0}>
-        <div className="mb-4">
-          <Input allowClear prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} placeholder="Search skills…" value={query} onChange={(e) => setQuery(e.target.value)} className="max-w-sm" />
-        </div>
-      </RenderIf>
-
-      <RenderIf condition={items.length === 0}>
-        <SkillsEmptyState />
+      <RenderIf condition={items.length === 0 && !loading}>
+        <SkillsEmptyState>
+          <NewSkillDialog>
+            <Button type="primary" icon={<AddCircleIcon size={16} />}>
+              New skill
+            </Button>
+          </NewSkillDialog>
+        </SkillsEmptyState>
       </RenderIf>
 
       <RenderIf condition={items.length > 0 && filtered.length === 0}>
-        <Empty className="py-12" description="No matches" />
+        <Empty className="rounded-2xl border border-dashed border-border-subtle bg-card/50 py-12" description="No matches" />
+      </RenderIf>
+
+      <RenderIf condition={loading && items.length === 0}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {["a", "b", "c", "d"].map((key) => (
+            <div key={key} className="h-24 animate-pulse rounded-xl border border-border-subtle bg-card/70 px-4 py-3.5">
+              <div className="flex gap-3">
+                <div className="size-11 rounded-lg bg-muted" />
+                <div className="flex-1 space-y-2 pt-1">
+                  <div className="h-4 w-1/3 rounded bg-muted" />
+                  <div className="h-3 w-2/3 rounded bg-muted/70" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </RenderIf>
 
       <RenderIf condition={filtered.length > 0}>
-        <SkillsTable skills={filtered} onNavigate={(id) => navigate(`/skills/${id}`)} />
+        <div className={cn("grid gap-3", filtered.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
+          {filtered.map((skill) => (
+            <SkillCard key={skill.id} skill={skill} onOpen={() => navigate(`/skills/${skill.id}`)} onDelete={() => setDeleting(skill)} />
+          ))}
+        </div>
       </RenderIf>
+
+      <Modal
+        open={!!deleting}
+        title={deleting ? `Delete ${deleting.name}?` : "Delete skill?"}
+        okText="Delete"
+        okButtonProps={{ danger: true }}
+        destroyOnHidden
+        onCancel={() => setDeleting(null)}
+        onOk={async () => {
+          if (!deleting) return;
+          try {
+            await dispatch(deleteSkill(deleting.id)).unwrap();
+            message.success("Deleted");
+            setDeleting(null);
+          } catch (err: unknown) {
+            message.error(err instanceof Error ? err.message : String(err));
+          }
+        }}
+      >
+        <p className="m-0 text-sm text-muted-foreground">This cannot be undone.</p>
+      </Modal>
     </PageShell>
   );
 }

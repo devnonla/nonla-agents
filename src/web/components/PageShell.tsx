@@ -12,7 +12,7 @@ export function PageShell({
   contentClassName?: string;
 }) {
   return (
-    <div className={cn("py-8 px-10", className)}>
+    <div className={cn("pt-10 pb-8 px-10 in-data-expanded:pb-0", className)}>
       <div className={cn("mx-auto w-full max-w-6xl", contentClassName)}>{children}</div>
     </div>
   );
