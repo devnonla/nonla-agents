@@ -260,8 +260,8 @@ export function Table<T extends object = Record<string, unknown>>({ columns = []
           <div style={scroll?.y != null ? { maxHeight: scroll.y, overflow: "auto" } : undefined}>
             <table data-slot="table" className="w-full caption-bottom border-collapse text-sm">
               {showHeader ? (
-                <thead data-slot="table-header" className="[&_tr]:border-b">
-                  <tr data-slot="table-row" className="border-b transition-colors hover:bg-transparent">
+                <thead data-slot="table-header" className="[&_tr]:border-b [&_tr]:border-border">
+                  <tr data-slot="table-row" className="border-b border-border transition-colors hover:bg-transparent">
                     {rowSelection ? (
                       <th data-slot="table-head" className={cn(sz.head, sz.check, "align-middle font-medium text-foreground", scroll?.y && "sticky top-0 z-10 bg-background", bordered && "border-b border-border")} style={selectionColWidth != null ? { width: selectionColWidth } : undefined}>
                         <div className="flex items-center justify-center">
@@ -309,7 +309,7 @@ export function Table<T extends object = Record<string, unknown>>({ columns = []
 
               <tbody data-slot="table-body" className="[&_tr:last-child]:border-0">
                 {pageData.length === 0 ? (
-                  <tr data-slot="table-row" className="border-b">
+                  <tr data-slot="table-row" className="border-b border-border">
                     <td data-slot="table-cell" colSpan={colCount} className={cn(sz.cell, "text-center align-middle")}>
                       {locale?.emptyText ?? <Empty description="No data" className="py-10" />}
                     </td>
@@ -322,7 +322,7 @@ export function Table<T extends object = Record<string, unknown>>({ columns = []
                     const extraClass = typeof rowClassName === "function" ? rowClassName(record, absoluteIndex) : rowClassName;
                     const selected = selectedKeys.includes(key);
                     return (
-                      <tr key={key} data-slot="table-row" data-state={selected ? "selected" : undefined} className={cn("border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", bordered && "border-border", rowProps?.className, extraClass)} style={rowProps?.style} onClick={rowProps?.onClick}>
+                      <tr key={key} data-slot="table-row" data-state={selected ? "selected" : undefined} className={cn("border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", rowProps?.className, extraClass)} style={rowProps?.style} onClick={rowProps?.onClick}>
                         {rowSelection ? (
                           <td data-slot="table-cell" className={cn(sz.cell, sz.check, "align-middle")} style={selectionColWidth != null ? { width: selectionColWidth } : undefined}>
                             <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
@@ -364,7 +364,7 @@ export function Table<T extends object = Record<string, unknown>>({ columns = []
               </tbody>
 
               {footerNode != null ? (
-                <tfoot data-slot="table-footer" className="border-t bg-muted/50 font-medium [&>tr]:last:border-b-0">
+                <tfoot data-slot="table-footer" className="border-t border-border bg-muted/50 font-medium [&>tr]:last:border-b-0">
                   <tr>
                     <td colSpan={colCount} className={cn(sz.cell, "align-middle text-muted-foreground")}>
                       {footerNode}

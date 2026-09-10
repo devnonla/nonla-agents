@@ -17,7 +17,7 @@ import type { DateRange } from "react-day-picker";
 import { Calendar } from "../calendar/Calendar";
 import { Button } from "../button/Button";
 import { cn } from "../lib/cn";
-import { type ControlSize, controlFieldStyle, controlFieldTransition, controlStatusClass, getSizeTokens } from "../lib/sizes";
+import { type ControlSize, controlFieldFocusBorder, controlFieldStyle, controlFieldSurface, controlFieldTransition, controlStatusClass, getSizeTokens } from "../lib/sizes";
 
 export type DatePickerProps = {
   value?: Date | string | null;
@@ -132,9 +132,10 @@ const TriggerChrome = forwardRef<
       type="button"
       disabled={disabled}
       className={cn(
-        "group/datepicker inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg)] text-left text-foreground",
+        "group/datepicker inline-flex w-full cursor-pointer items-center gap-2 text-left",
+        controlFieldSurface,
         controlFieldTransition,
-        "focus:bg-[var(--control-bg-hover)] data-[state=open]:bg-[var(--control-bg-hover)]",
+        controlFieldFocusBorder,
         "focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
         controlStatusClass(status),
         className,
@@ -263,7 +264,7 @@ const DatePickerRoot = forwardRef<HTMLButtonElement, DatePickerProps>(function D
                 role="button"
                 tabIndex={-1}
                 aria-label="Clear"
-                className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-white/10 hover:text-foreground group-hover/datepicker:opacity-100"
+                className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/6 hover:text-foreground group-hover/datepicker:opacity-100"
                 onClick={clear}
                 onPointerDown={(e) => e.preventDefault()}
               >
@@ -399,7 +400,7 @@ const RangePicker = forwardRef<HTMLButtonElement, RangePickerProps>(function Ran
                 role="button"
                 tabIndex={-1}
                 aria-label="Clear"
-                className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-white/10 hover:text-foreground group-hover/datepicker:opacity-100"
+                className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/6 hover:text-foreground group-hover/datepicker:opacity-100"
                 onClick={clear}
                 onPointerDown={(e) => e.preventDefault()}
               >
@@ -460,7 +461,7 @@ function TimeField({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "h-8 w-12 rounded-md border border-solid border-input bg-[var(--control-bg)] px-1.5 text-center text-sm text-foreground",
+        "h-8 w-12 rounded-md border border-solid border-input bg-transparent px-1.5 text-center text-sm text-foreground",
         "focus-visible:outline-none disabled:opacity-40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
       )}
     />

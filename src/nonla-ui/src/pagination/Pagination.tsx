@@ -50,7 +50,7 @@ function ItemBtn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={cn("inline-flex min-w-7 cursor-pointer items-center justify-center rounded-md px-1.5 text-sm transition-colors", "disabled:cursor-not-allowed disabled:opacity-40", active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-white/6 hover:text-foreground", className)}
+      className={cn("inline-flex min-w-7 cursor-pointer items-center justify-center rounded-md px-1.5 text-sm transition-colors", "disabled:cursor-not-allowed disabled:opacity-40", active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground", className)}
     >
       {children}
     </button>

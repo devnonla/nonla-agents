@@ -21,7 +21,7 @@ export function ChatAgentMessage({ content, children, thinking, thinkingDuration
       {thinking ? <ChatThinking thinking={thinking} duration={thinkingDuration ?? 0} streaming={thinkingStreaming} /> : null}
       {body ? (
         <div className="min-w-0 px-4 pb-0.5">
-          <div className="nonla-chat-body text-(length:--chat-body-size) leading-(--chat-body-leading) text-[var(--nonla-ink)] antialiased">{body}</div>
+          <div className="nonla-chat-body text-(length:--chat-body-size) leading-(--chat-body-leading) text-[var(--nonla-ink)]">{body}</div>
         </div>
       ) : null}
     </div>

@@ -1,6 +1,6 @@
 import { type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type TextareaHTMLAttributes, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../lib/cn";
-import { type ControlSize, controlFieldStyle, controlFieldTransition, controlHeightVar, controlRadiusVar, controlStatusClass, getSizeTokens, normalizeSize } from "../lib/sizes";
+import { type ControlSize, controlFieldFocusBorder, controlFieldStyle, controlFieldSurface, controlFieldTransition, controlHeightVar, controlRadiusVar, controlStatusClass, getSizeTokens, normalizeSize } from "../lib/sizes";
 
 export type InputSize = ControlSize;
 
@@ -15,11 +15,11 @@ export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "p
   onPressEnter?: (e: KeyboardEvent<HTMLInputElement>) => void;
 };
 
-const fieldBase = "w-full border border-solid border-input bg-[var(--control-bg)] text-foreground placeholder:text-quaternary-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 focus:bg-[var(--control-bg-hover)]";
+const fieldBase = cn("w-full", controlFieldSurface, "placeholder:text-quaternary-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45", controlFieldFocusBorder);
 
 function variantClass(variant: InputProps["variant"]) {
-  if (variant === "borderless") return "border-transparent bg-transparent hover:bg-transparent shadow-none";
-  if (variant === "filled") return "border-transparent bg-muted";
+  if (variant === "borderless") return "border-transparent bg-transparent hover:bg-transparent shadow-none focus:border-transparent";
+  if (variant === "filled") return "border-transparent bg-muted focus:border-transparent focus:bg-[var(--control-bg-hover)]";
   return "";
 }
 
@@ -50,7 +50,7 @@ const InputRoot = forwardRef<HTMLInputElement, InputProps>(function Input({ clas
 
   return (
     <div
-      className={cn("inline-flex w-full items-center gap-2 border border-solid border-input bg-[var(--control-bg)]", controlFieldTransition, controlStatusClass(status), variantClass(variant), "focus-within:outline-none focus-within:bg-[var(--control-bg-hover)]", disabled && "opacity-45 cursor-not-allowed", className)}
+      className={cn("inline-flex w-full items-center gap-2", controlFieldSurface, controlFieldTransition, controlStatusClass(status), variantClass(variant), "focus-within:outline-none", controlFieldFocusBorder, disabled && "opacity-45 cursor-not-allowed", className)}
       style={fieldStyle}
     >
       {prefix ? <span className="shrink-0 text-muted-foreground inline-flex items-center">{prefix}</span> : null}
@@ -236,7 +236,7 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
 
   return (
     <div
-      className={cn("group relative inline-flex w-full items-stretch border border-solid border-input bg-[var(--control-bg)]", controlFieldTransition, "focus-within:bg-[var(--control-bg-hover)]", controlStatusClass(status), disabled && "opacity-45 cursor-not-allowed", className)}
+      className={cn("group relative inline-flex w-full items-stretch", controlFieldSurface, controlFieldTransition, controlFieldFocusBorder, controlStatusClass(status), disabled && "opacity-45 cursor-not-allowed", className)}
       style={{ height: fieldStyle.height, borderRadius: fieldStyle.borderRadius, ...style }}
     >
       <input
@@ -297,7 +297,7 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
             tabIndex={-1}
             aria-label="Increase"
             disabled={atMax}
-            className={cn("flex flex-1 items-center justify-center text-muted-foreground", "hover:bg-white/8 hover:text-foreground active:bg-white/12", "disabled:opacity-30 disabled:pointer-events-none", "border-b border-border/60")}
+            className={cn("flex flex-1 items-center justify-center text-muted-foreground", "hover:bg-foreground/5 hover:text-foreground active:bg-foreground/8", "disabled:opacity-30 disabled:pointer-events-none", "border-b border-border/60")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => stepBy(1)}
           >
@@ -308,7 +308,7 @@ const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function Inpu
             tabIndex={-1}
             aria-label="Decrease"
             disabled={atMin}
-            className={cn("flex flex-1 items-center justify-center text-muted-foreground", "hover:bg-white/8 hover:text-foreground active:bg-white/12", "disabled:opacity-30 disabled:pointer-events-none")}
+            className={cn("flex flex-1 items-center justify-center text-muted-foreground", "hover:bg-foreground/5 hover:text-foreground active:bg-foreground/8", "disabled:opacity-30 disabled:pointer-events-none")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => stepBy(-1)}
           >

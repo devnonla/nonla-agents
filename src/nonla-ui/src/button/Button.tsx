@@ -88,7 +88,7 @@ function tokenAppearance(color: "default" | "primary" | "danger" | "link", varia
   }
   if (color === "link" || variant === "link") return "text-link border-transparent hover:text-link/80";
   if (variant === "filled") return "bg-muted text-foreground border-transparent hover:bg-muted/80";
-  if (variant === "text") return "bg-transparent text-foreground border-transparent hover:bg-white/12 hover:text-foreground";
+  if (variant === "text") return "bg-transparent text-foreground border-transparent hover:bg-foreground/6 hover:text-foreground";
   if (variant === "dashed") return "bg-transparent text-foreground border-dashed border-input hover:bg-muted";
   return "border-transparent bg-secondary text-foreground hover:bg-[var(--control-bg-hover)] active:bg-[color-mix(in_oklab,var(--secondary),black_8%)]";
 }

@@ -21,8 +21,8 @@ export function ChatUserMessage({ content, className }: ChatUserMessageProps) {
   const collapsed = isOverflow && !isExpanded;
 
   return (
-    <div className={cn("nonla-chat-user mt-6 mb-3 mx-4 flex flex-col border border-border rounded-xl bg-neutral-50/10 px-2.5 py-2 pt-1.5", className)}>
-      <div ref={contentRef} className="relative overflow-hidden text-(length:--chat-body-size) leading-(--chat-body-leading) text-[var(--nonla-ink)] antialiased whitespace-pre-wrap wrap-break-word transition-[max-height] duration-300 ease-in-out" style={{ maxHeight: collapsed ? MAX_HEIGHT : undefined }}>
+    <div className={cn("nonla-chat-user mt-6 mb-3 mx-4 flex flex-col border border-border rounded-xl bg-card px-2.5 py-2 pt-1.5", className)}>
+      <div ref={contentRef} className="relative overflow-hidden text-(length:--chat-body-size) leading-(--chat-body-leading) text-[var(--nonla-ink)] whitespace-pre-wrap wrap-break-word transition-[max-height] duration-300 ease-in-out" style={{ maxHeight: collapsed ? MAX_HEIGHT : undefined }}>
         {content}
         {collapsed ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10" style={{ background: "linear-gradient(to top, color-mix(in oklab, var(--primary) 10%, var(--background)), transparent)" }} /> : null}
       </div>

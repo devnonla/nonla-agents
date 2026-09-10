@@ -41,7 +41,7 @@ export function Segmented<V extends string | number = string | number>({ options
             className={cn(
               "inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border-0 transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
               block ? "min-w-0 flex-1" : "shrink-0",
-              active ? "bg-[var(--control-bg-hover)] text-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:bg-white/4 hover:text-foreground",
+              active ? "bg-[var(--control-bg-hover)] text-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
             )}
             style={{
               height: `max(22px, calc(${controlHeightVar(size)} - 4px))`,

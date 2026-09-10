@@ -33,10 +33,10 @@ export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(function Switch
       disabled={disabled}
       onCheckedChange={onChange}
       className={cn(
-        "peer inline-flex shrink-0 cursor-pointer items-center border border-transparent transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        "peer inline-flex shrink-0 cursor-pointer items-center border transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
         square ? undefined : "rounded-full",
         "focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
-        "data-[state=checked]:bg-brand data-[state=unchecked]:bg-secondary",
+        "data-[state=checked]:border-transparent data-[state=checked]:bg-brand data-[state=unchecked]:border-[color-mix(in_oklab,var(--foreground)_40%,var(--background))] data-[state=unchecked]:bg-[color-mix(in_oklab,var(--foreground)_22%,var(--background))]",
         className,
       )}
       style={{ width: trackW, height: trackH, borderRadius: square ? squareRadius : undefined, ...style }}

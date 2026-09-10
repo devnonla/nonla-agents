@@ -164,40 +164,42 @@ function ModalView({
         }
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="nonla-modal-overlay" />
-        <Dialog.Content
-          className={cn("nonla-modal-content", className)}
-          data-centered={centered ? "true" : undefined}
-          style={{ width, ...style, ...styles?.container, ...styles?.content }}
-          onAnimationEnd={onContentAnimationEnd}
-          onPointerDownOutside={(e) => {
-            if (!maskClosable) e.preventDefault();
-          }}
-          onInteractOutside={(e) => {
-            if (!maskClosable) e.preventDefault();
-          }}
-        >
-          {(title || closable) && (
-            <div className="nonla-modal-header" style={styles?.header}>
-              <Dialog.Title className="nonla-modal-title">{title}</Dialog.Title>
-              {closable ? (
-                <Dialog.Close className="nonla-modal-close" aria-label="Close">
-                  ×
-                </Dialog.Close>
-              ) : null}
+      {isOpen || present ? (
+        <Dialog.Portal>
+          <Dialog.Overlay className="nonla-modal-overlay" />
+          <Dialog.Content
+            className={cn("nonla-modal-content", className)}
+            data-centered={centered ? "true" : undefined}
+            style={{ width, ...style, ...styles?.container, ...styles?.content }}
+            onAnimationEnd={onContentAnimationEnd}
+            onPointerDownOutside={(e) => {
+              if (!maskClosable) e.preventDefault();
+            }}
+            onInteractOutside={(e) => {
+              if (!maskClosable) e.preventDefault();
+            }}
+          >
+            {(title || closable) && (
+              <div className="nonla-modal-header" style={styles?.header}>
+                <Dialog.Title className="nonla-modal-title">{title}</Dialog.Title>
+                {closable ? (
+                  <Dialog.Close className="nonla-modal-close" aria-label="Close">
+                    ×
+                  </Dialog.Close>
+                ) : null}
+              </div>
+            )}
+            <div className="nonla-modal-body" style={styles?.body}>
+              {body}
             </div>
-          )}
-          <div className="nonla-modal-body" style={styles?.body}>
-            {body}
-          </div>
-          {defaultFooter != null ? (
-            <div className="nonla-modal-footer" style={styles?.footer}>
-              {typeof defaultFooter === "function" ? null : defaultFooter}
-            </div>
-          ) : null}
-        </Dialog.Content>
-      </Dialog.Portal>
+            {defaultFooter != null ? (
+              <div className="nonla-modal-footer" style={styles?.footer}>
+                {typeof defaultFooter === "function" ? null : defaultFooter}
+              </div>
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Portal>
+      ) : null}
     </Dialog.Root>
   );
 }

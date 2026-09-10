@@ -66,6 +66,9 @@ export type { PopoverProps } from "./popover/Popover";
 export { Dropdown } from "./dropdown/Dropdown";
 export type { DropdownProps, MenuItemType, MenuProps } from "./dropdown/Dropdown";
 
+export { ContextMenu } from "./dropdown/ContextMenu";
+export type { ContextMenuProps } from "./dropdown/ContextMenu";
+
 export { Popconfirm } from "./popconfirm/Popconfirm";
 export type { PopconfirmProps } from "./popconfirm/Popconfirm";
 

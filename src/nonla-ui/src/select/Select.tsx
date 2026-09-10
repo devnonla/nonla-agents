@@ -12,7 +12,7 @@ import {
   useState,
 } from "react";
 import { cn } from "../lib/cn";
-import { type ControlSize, controlFieldStyle, controlFieldTransition, controlStatusClass } from "../lib/sizes";
+import { type ControlSize, controlFieldFocusBorder, controlFieldStyle, controlFieldSurface, controlFieldTransition, controlStatusClass } from "../lib/sizes";
 
 export type SelectValue = string | number;
 
@@ -210,9 +210,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           aria-haspopup="listbox"
           aria-expanded={open}
           className={cn(
-            "group/select inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg)] text-left text-foreground",
+            "group/select inline-flex w-full cursor-pointer items-center gap-2 text-left",
+            controlFieldSurface,
             controlFieldTransition,
-            "focus:bg-[var(--control-bg-hover)] data-[state=open]:bg-[var(--control-bg-hover)]",
+            controlFieldFocusBorder,
             "focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
             controlStatusClass(status),
             className,
@@ -228,7 +229,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
               role="button"
               tabIndex={-1}
               aria-label="Clear"
-              className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-white/10 hover:text-foreground group-hover/select:opacity-100"
+              className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/6 hover:text-foreground group-hover/select:opacity-100"
               onPointerDown={(e) => e.preventDefault()}
               onClick={(e) => {
                 e.preventDefault();
@@ -290,7 +291,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
                   className={cn(
                     "relative flex cursor-pointer select-none items-center rounded-md px-2.5 py-1.5 text-sm outline-none",
                     opt.disabled && "pointer-events-none opacity-40",
-                    i === active && !opt.disabled && "bg-white/8",
+                    i === active && !opt.disabled && "bg-foreground/5",
                     opt.value === selected && "text-foreground",
                   )}
                   onMouseEnter={() => setActive(i)}

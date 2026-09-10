@@ -106,7 +106,7 @@ export function ChatInput({ generating = false, placeholder = "Message…", disa
   };
 
   return (
-    <div className={cn("nonla-chat-input shrink-0 mx-2 mb-2 pt-1 rounded-xl border overflow-hidden flex flex-col", disabled ? "bg-muted/50 border-border" : "bg-neutral-50/10 border-border", className)}>
+    <div className={cn("nonla-chat-input shrink-0 mx-2 mb-2 pt-1 rounded-xl border overflow-hidden flex flex-col", disabled ? "bg-muted/50 border-border" : "bg-card border-border", className)}>
       <textarea
         ref={textareaRef}
         data-chat-input
@@ -118,7 +118,7 @@ export function ChatInput({ generating = false, placeholder = "Message…", disa
         rows={1}
         className={cn(
           "w-full resize-none border-0 bg-transparent shadow-none outline-none focus:outline-none px-3.5 pt-1.5 pb-2",
-          "text-(length:--chat-composer-size) leading-(--chat-composer-leading) font-medium antialiased",
+          "text-(length:--chat-composer-size) leading-(--chat-composer-leading) font-medium",
           disabled ? "text-muted-foreground cursor-not-allowed placeholder:text-border-hover" : "text-foreground placeholder:text-muted-foreground placeholder:font-medium",
         )}
       />
@@ -135,7 +135,7 @@ export function ChatInput({ generating = false, placeholder = "Message…", disa
             <span className="sr-only">Stop</span>
           </button>
         ) : (
-          <button type="button" disabled={!canSend} onClick={handleSend} title="Send (Enter)" className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-100 border-0", canSend ? "bg-neutral-50 text-background cursor-pointer" : "bg-border text-muted-foreground cursor-not-allowed opacity-50")}>
+          <button type="button" disabled={!canSend} onClick={handleSend} title="Send (Enter)" className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-100 border-0", canSend ? "bg-foreground text-background cursor-pointer" : "bg-border text-muted-foreground cursor-not-allowed opacity-50")}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 9.5V2.5M6 2.5L3 5.5M6 2.5L9 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

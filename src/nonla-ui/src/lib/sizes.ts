@@ -73,21 +73,28 @@ export function controlRadiusVar(size: ControlSize | undefined): string {
   return "var(--nonla-radius)";
 }
 
-/** Soft status border — solid error/warn reads thicker than the default translucent edge. */
+/** Soft status border — keep the same color on focus so brand focus does not override. */
 export function controlStatusClass(status?: "error" | "warning"): string {
-  if (status === "error") return "border-[color-mix(in_oklab,var(--destructive)_55%,transparent)]";
-  if (status === "warning") return "border-[color-mix(in_oklab,var(--warn)_55%,transparent)]";
+  if (status === "error") return "border-[color-mix(in_oklab,var(--destructive)_55%,transparent)] focus:border-destructive focus-within:border-destructive data-[state=open]:border-destructive";
+  if (status === "warning") return "border-[color-mix(in_oklab,var(--warn)_55%,transparent)] focus:border-warn focus-within:border-warn data-[state=open]:border-warn";
   return "";
 }
 
 /** Focus surface fade — Input / Select / DatePicker / TimePicker. */
-export const controlFieldTransition = "transition-[background-color] duration-[var(--nonla-dur-fast,150ms)] ease-[var(--nonla-ease-out,cubic-bezier(0.16,1,0.3,1))] motion-reduce:transition-none";
+export const controlFieldTransition = "transition-[background-color,border-color] duration-[var(--nonla-dur-fast,150ms)] ease-[var(--nonla-ease-out,cubic-bezier(0.16,1,0.3,1))] motion-reduce:transition-none";
+
+/** Outlined field fill — same resting surface for Input / Select / DatePicker / TimePicker. */
+export const controlFieldSurface = "border border-solid border-input bg-card text-foreground";
+
+/** Focus / open border — brand (Button primary), keep fields outlined. */
+export const controlFieldFocusBorder = "focus:border-brand focus-within:border-brand data-[state=open]:border-brand aria-expanded:border-brand";
 
 /** Shared field chrome (Input / Select / DatePicker). */
 export function controlFieldStyle(size: ControlSize | undefined): CSSProperties {
   const t = getSizeTokens(size);
   return {
     height: controlHeightVar(size),
+    minHeight: controlHeightVar(size),
     fontSize: t.fontSize,
     lineHeight: `${t.lineHeight}px`,
     paddingLeft: t.paddingInline,

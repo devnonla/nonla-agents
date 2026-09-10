@@ -9,8 +9,8 @@ export type TagProps = {
   /** @deprecated prefer `variant="soft"` — kept for antd-ish callers */
   bordered?: boolean;
   /**
-   * `soft` — quiet wash on dark (default).
-   * `solid` — saturated chip, still tuned for dark UI (not candy).
+   * `soft` — quiet wash (default).
+   * `solid` — saturated chip.
    * `filled` / `outlined` map to `soft` for backwards compat.
    */
   variant?: TagVariant | "filled" | "outlined";
@@ -42,7 +42,7 @@ const NAMED_VAR: Record<string, string> = {
   lime: "var(--nonla-lime)",
 };
 
-const SOFT = "bg-[color-mix(in_oklab,var(--nonla-tag)_12%,transparent)] text-[color-mix(in_oklab,var(--nonla-tag)_72%,white)]";
+const SOFT = "bg-[color-mix(in_oklab,var(--nonla-tag)_12%,transparent)] text-[color-mix(in_oklab,var(--nonla-tag)_72%,black)]";
 const SOLID = "bg-(--nonla-tag) text-[var(--nonla-solid-fg)]";
 
 function resolveVariant(variant: TagProps["variant"]): TagVariant {
@@ -79,7 +79,7 @@ export function Tag({
     <span
       className={cn(
         "inline-flex h-[22px] max-w-full items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium tracking-[0.01em]",
-        isDefault && (solid ? "bg-white/[0.14] text-(--nonla-ink)" : "bg-white/[0.06] text-muted-foreground"),
+        isDefault && (solid ? "bg-foreground/10 text-(--nonla-ink)" : "bg-muted text-muted-foreground"),
         !isDefault && (solid ? SOLID : SOFT),
         className,
       )}
@@ -97,7 +97,7 @@ export function Tag({
       {closable ? (
         <button
           type="button"
-          className="-mr-0.5 inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-current/55 transition-colors hover:bg-white/10 hover:text-current"
+          className="-mr-0.5 inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-current/55 transition-colors hover:bg-foreground/8 hover:text-current"
           aria-label="Remove"
           onClick={onClose}
         >

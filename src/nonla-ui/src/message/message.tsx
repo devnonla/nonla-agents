@@ -50,7 +50,7 @@ function IconError() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
       <circle cx="8" cy="8" r="8" fill="var(--destructive)" />
-      <path d="M5.4 5.4L10.6 10.6M10.6 5.4L5.4 10.6" stroke="var(--nonla-solid-fg)" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M5.4 5.4L10.6 10.6M10.6 5.4L5.4 10.6" stroke="var(--destructive-foreground)" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

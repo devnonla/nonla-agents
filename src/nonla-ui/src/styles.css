@@ -1,8 +1,9 @@
-@import "highlight.js/styles/github-dark.css";
+@import "highlight.js/styles/github.css";
 
 /**
  * NonlaUI theme — single source of color.
  *
+ * Light-only. Warm paper + charcoal ink, amber brand.
  * Override `--nonla-*` knobs in the consuming app (CSS or `<App theme>`).
  * Components read only these tokens — never edit Button/Tag/… to retheme.
  */
@@ -10,33 +11,36 @@
 :root,
 .dark,
 .nonla-ui {
+  color-scheme: light;
+
   /* ── Knobs (override these) ──────────────────────────────────────────── */
-  --nonla-bg: #171717;
-  --nonla-fg: #d4d4d4;
-  --nonla-fg-muted: #8a8a8a;
-  --nonla-fg-tertiary: #9a9a9a;
-  --nonla-fg-quaternary: #6e6e6e;
-  --nonla-brand: #dd7626;
-  /* Soft = lighter brand (oklab mix toward white). Override only for a one-off. */
-  --nonla-brand-soft: color-mix(in oklab, var(--nonla-brand) 72%, white);
-  --nonla-solid-fg: #ffffff;
-  --nonla-danger: #fc413d;
-  --nonla-success: #00af57;
-  --nonla-warn: #ffbe00;
+  --nonla-bg: #fffcf1;
+  --nonla-fg: #171717;
+  --nonla-fg-muted: #525252;
+  --nonla-fg-tertiary: #737373;
+  --nonla-fg-quaternary: #a3a3a3;
+  --nonla-brand: #eb9d29;
+  /* Soft = deeper brand for text on cream. Override only for a one-off. */
+  --nonla-brand-soft: #c47f14;
+  /* Ink on brand/amber fills — charcoal, not white (white fails WCAG on #eb9d29). Same as --nonla-fg. */
+  --nonla-solid-fg: #171717;
+  --nonla-danger: #c0392b;
+  --nonla-success: #1f9d55;
+  --nonla-warn: #c47d12;
   --nonla-link: var(--nonla-brand);
   --nonla-radius: 8px;
   --nonla-height: 32px;
   --nonla-height-sm: 24px;
   --nonla-height-lg: 40px;
 
-  --nonla-ink: #e8e8e8;
-  --nonla-surface: #191919;
-  --nonla-elevated: #1e1e1e;
-  --nonla-chip: #212121;
-  --nonla-chip-hover: #2a2a2a;
-  --nonla-border: #666666;
-  --nonla-input: #8a8a8a;
-  --nonla-composer: #3c3c3c;
+  --nonla-ink: #171717;
+  --nonla-surface: #ffffff;
+  --nonla-elevated: #ffffff;
+  --nonla-chip: #f7f2e3;
+  --nonla-chip-hover: #ede8db;
+  --nonla-border: #efebe0;
+  --nonla-input: #e4e0d6;
+  --nonla-composer: #ffffff;
 
   /* Preset accents — Button color="blue" / Tag color="purple" / … */
   --nonla-blue: #1677ff;
@@ -63,7 +67,7 @@
   --card-foreground: var(--nonla-fg);
   --popover: var(--nonla-elevated);
   --popover-foreground: var(--nonla-fg);
-  /* Nonla: --primary = light ink (emphasis), not CTA — CTA is --brand */
+  /* Nonla: --primary = ink (emphasis), not CTA — CTA is --brand */
   --primary: var(--nonla-ink);
   --primary-foreground: var(--nonla-bg);
   --secondary: var(--nonla-chip);
@@ -73,26 +77,26 @@
   --accent: color-mix(in oklab, var(--nonla-brand) 14%, transparent);
   --accent-foreground: var(--nonla-brand-soft);
   --destructive: var(--nonla-danger);
-  --destructive-foreground: var(--nonla-solid-fg);
-  --border: color-mix(in srgb, var(--nonla-border) 12%, transparent);
-  --input: color-mix(in srgb, var(--nonla-input) 20%, transparent);
-  --ring: color-mix(in oklab, var(--nonla-fg) 45%, transparent);
+  --destructive-foreground: #ffffff;
+  --border: var(--nonla-border);
+  --input: var(--nonla-input);
+  --ring: color-mix(in oklab, var(--nonla-brand) 55%, transparent);
 
   --brand: var(--nonla-brand);
   --brand-soft: var(--nonla-brand-soft);
-  --brand-text: var(--nonla-brand);
+  --brand-text: var(--nonla-brand-soft);
   --link: var(--nonla-link);
   --success: var(--nonla-success);
   --warn: var(--nonla-warn);
   --tertiary-foreground: var(--nonla-fg-tertiary);
   --quaternary-foreground: var(--nonla-fg-quaternary);
-  --border-subtle: color-mix(in srgb, var(--nonla-border) 8%, transparent);
+  --border-subtle: color-mix(in srgb, var(--nonla-border) 65%, transparent);
   --control-bg: var(--nonla-chip);
   --control-bg-hover: var(--nonla-chip-hover);
-  --elevated-shadow: 0 0 0 1px color-mix(in srgb, var(--nonla-border) 32%, transparent), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --popper-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --popper-border: color-mix(in srgb, var(--nonla-border) 32%, transparent);
-  --mask: rgba(0, 0, 0, 0.55);
+  --elevated-shadow: 0 16px 48px rgb(23 23 23 / 0.1), 0 0 0 1px rgb(23 23 23 / 0.06);
+  --popper-shadow: 0 16px 48px rgb(23 23 23 / 0.1), 0 0 0 1px rgb(23 23 23 / 0.06);
+  --popper-border: var(--nonla-border);
+  --mask: rgb(23 23 23 / 0.28);
 
   /* Motion — shadcn-like ease-out-expo */
   --nonla-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -139,6 +143,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-border-subtle: var(--border-subtle);
+  --default-border-color: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
@@ -495,7 +500,8 @@
   animation: nonla-overlay-in var(--nonla-dur) var(--nonla-ease-out);
 }
 .nonla-modal-overlay[data-state="closed"] {
-  animation: nonla-overlay-out var(--nonla-dur-fast) var(--nonla-ease-in);
+  animation: nonla-overlay-out var(--nonla-dur-fast) var(--nonla-ease-in) forwards;
+  pointer-events: none;
 }
 
 .nonla-modal-content {
@@ -512,7 +518,7 @@
   border-radius: calc(var(--radius) + 4px);
   background: var(--card);
   color: var(--card-foreground);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--elevated-shadow);
   border: 1px solid var(--border);
   padding: 0;
   outline: none;
@@ -522,7 +528,8 @@
   animation: nonla-modal-in var(--nonla-dur) var(--nonla-ease-out);
 }
 .nonla-modal-content[data-state="closed"] {
-  animation: nonla-modal-out var(--nonla-dur-fast) var(--nonla-ease-in);
+  animation: nonla-modal-out var(--nonla-dur-fast) var(--nonla-ease-in) forwards;
+  pointer-events: none;
 }
 .nonla-modal-content[data-centered="true"] {
   top: 50%;
@@ -533,7 +540,8 @@
   animation: nonla-modal-in-centered var(--nonla-dur) var(--nonla-ease-out);
 }
 .nonla-modal-content[data-centered="true"][data-state="closed"] {
-  animation: nonla-modal-out-centered var(--nonla-dur-fast) var(--nonla-ease-in);
+  animation: nonla-modal-out-centered var(--nonla-dur-fast) var(--nonla-ease-in) forwards;
+  pointer-events: none;
 }
 
 .nonla-modal-header {

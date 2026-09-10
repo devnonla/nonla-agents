@@ -8,7 +8,7 @@ import { MermaidBlock } from "./MermaidBlock";
 import { isPendingMermaidBlock } from "./mermaidFence";
 
 /** Message body — sizes come from --chat-* tokens. */
-export const chatBodyClass = "font-normal text-foreground antialiased text-(length:--chat-body-size) leading-(--chat-body-leading)";
+export const chatBodyClass = "font-normal text-foreground text-(length:--chat-body-size) leading-(--chat-body-leading)";
 
 /** Shared Tailwind prose classes for chat markdown. */
 export const chatMarkdownClass = `${chatBodyClass} min-w-0 wrap-anywhere [&_p]:m-0 [&_p]:mb-(--chat-p-mb) [&_p:last-child]:mb-0 [&_h1]:mt-(--chat-h-mt) [&_h1]:mb-(--chat-h-mb) [&_h1]:text-(length:--chat-h1-size) [&_h1]:font-semibold [&_h1]:leading-snug [&_h2]:mt-(--chat-h-mt) [&_h2]:mb-(--chat-h-mb) [&_h2]:text-(length:--chat-h2-size) [&_h2]:font-semibold [&_h2]:leading-snug [&_h3]:mt-(--chat-h-mt) [&_h3]:mb-(--chat-h-mb) [&_h3]:text-(length:--chat-h3-size) [&_h3]:font-semibold [&_h3]:leading-snug [&_h4]:mt-(--chat-h-mt) [&_h4]:mb-(--chat-h-mb) [&_h4]:text-(length:--chat-h4-size) [&_h4]:font-semibold [&_h4]:leading-snug [&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0 [&_h4:first-child]:mt-0 [&_strong]:font-semibold [&_em]:italic [&_blockquote]:m-0 [&_blockquote]:mb-(--chat-p-mb) [&_blockquote]:border-0 [&_blockquote]:p-0 [&_blockquote]:not-italic [&_blockquote]:text-inherit [&_blockquote:last-child]:mb-0 [&_ul]:mt-2 [&_ul]:mb-(--chat-p-mb) [&_ul]:list-disc [&_ul]:pl-[26px] [&_ol]:mt-2 [&_ol]:mb-(--chat-p-mb) [&_ol]:list-decimal [&_ol]:pl-[26px] [&_li]:my-1.5 [&_li]:leading-(--chat-body-leading) [&_a]:text-link [&_a]:no-underline [&_a]:hover:underline [&_a]:hover:underline-offset-[3px]`;

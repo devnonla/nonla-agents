@@ -50,7 +50,7 @@ function CalendarDayButton({ className, day, modifiers, ...props }: DayButtonPro
       data-range-middle={modifiers.range_middle ? "true" : undefined}
       className={cn(
         "flex aspect-square size-full min-w-8 flex-col items-center justify-center gap-1 rounded-md text-sm font-normal leading-none",
-        "transition-colors hover:bg-white/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+        "transition-colors hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
         "data-[selected-single=true]:bg-brand data-[selected-single=true]:text-[var(--nonla-solid-fg)] data-[selected-single=true]:hover:bg-brand",
         "data-[range-start=true]:bg-brand data-[range-start=true]:text-[var(--nonla-solid-fg)] data-[range-start=true]:hover:bg-brand data-[range-start=true]:rounded-md",
         "data-[range-end=true]:bg-brand data-[range-end=true]:text-[var(--nonla-solid-fg)] data-[range-end=true]:hover:bg-brand data-[range-end=true]:rounded-md",
@@ -89,12 +89,12 @@ export function Calendar({
         nav: cn("absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1", defaultClassNames.nav),
         button_previous: cn(
           "inline-flex size-[var(--cell-size)] items-center justify-center rounded-md p-0 text-foreground select-none",
-          "hover:bg-white/8 disabled:opacity-40",
+          "hover:bg-foreground/5 disabled:opacity-40",
           defaultClassNames.button_previous,
         ),
         button_next: cn(
           "inline-flex size-[var(--cell-size)] items-center justify-center rounded-md p-0 text-foreground select-none",
-          "hover:bg-white/8 disabled:opacity-40",
+          "hover:bg-foreground/5 disabled:opacity-40",
           defaultClassNames.button_next,
         ),
         month_caption: cn("flex h-[var(--cell-size)] w-full items-center justify-center px-[var(--cell-size)]", defaultClassNames.month_caption),

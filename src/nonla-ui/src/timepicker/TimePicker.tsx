@@ -15,7 +15,7 @@ import {
 import { useAppConfig } from "../app/App";
 import { cn } from "../lib/cn";
 import { type PopperPlacement, placementToRadix } from "../lib/placement";
-import { type ControlSize, controlFieldStyle, controlFieldTransition, controlStatusClass, getSizeTokens } from "../lib/sizes";
+import { type ControlSize, controlFieldFocusBorder, controlFieldStyle, controlFieldSurface, controlFieldTransition, controlStatusClass, getSizeTokens } from "../lib/sizes";
 
 export type TimeValue = { hours: number; minutes: number; seconds: number };
 
@@ -244,7 +244,7 @@ function StepperButton({
       aria-label={label}
       className={cn(
         "flex h-10 items-center justify-center rounded-[6px] text-muted-foreground transition-colors",
-        "hover:bg-white/8 hover:text-foreground active:bg-white/12",
+        "hover:bg-foreground/5 hover:text-foreground active:bg-foreground/8",
       )}
       style={{ width: size }}
       onPointerDown={onPointerDown}
@@ -297,7 +297,7 @@ function PickGrid({
             tabIndex={-1}
             className={cn(
               "flex h-11 items-center justify-center rounded-md tabular-nums text-[15px] font-normal transition-colors",
-              selected ? "bg-white/12 text-foreground" : "text-foreground hover:bg-white/8",
+              selected ? "bg-foreground/8 text-foreground" : "text-foreground hover:bg-foreground/5",
             )}
             onClick={() => onSelect(opt.value)}
           >
@@ -371,7 +371,7 @@ function StepperBoard({
               className={cn(
                 "flex cursor-pointer items-center justify-center rounded-[6px] font-semibold leading-none tracking-tight transition-colors",
                 col.wide ? "text-[26px]" : "tabular-nums",
-                col.active ? "bg-white/10 text-foreground" : "text-foreground hover:bg-white/8",
+                col.active ? "bg-foreground/6 text-foreground" : "text-foreground hover:bg-foreground/5",
               )}
               style={{ width: size, height: size, fontSize: col.wide ? undefined : fontSize }}
               onClick={col.onPick}
@@ -579,10 +579,11 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(function
           ref={fieldRef}
           onPointerDown={() => openPicker()}
           className={cn(
-            "group/timepicker inline-flex w-full cursor-pointer items-center gap-2 border border-solid border-input bg-[var(--control-bg)] text-foreground",
+            "group/timepicker inline-flex w-full cursor-pointer items-center gap-2",
+            controlFieldSurface,
             controlFieldTransition,
-            "focus-within:bg-[var(--control-bg-hover)]",
-            open && "bg-[var(--control-bg-hover)]",
+            controlFieldFocusBorder,
+            open && "border-brand",
             controlStatusClass(status),
             disabled && "cursor-not-allowed opacity-45",
             className,
@@ -637,7 +638,7 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(function
               type="button"
               tabIndex={-1}
               aria-label="Clear"
-              className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-white/10 hover:text-foreground group-hover/timepicker:opacity-100 group-focus-within/timepicker:opacity-100"
+              className="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/6 hover:text-foreground group-hover/timepicker:opacity-100 group-focus-within/timepicker:opacity-100"
               onMouseDown={(e) => e.preventDefault()}
               onClick={clear}
             >
@@ -672,13 +673,13 @@ export const TimePicker = forwardRef<HTMLInputElement, TimePickerProps>(function
           )}
         >
           <div className="overflow-hidden rounded-[inherit]">
-            <div className="relative flex h-10 items-center justify-center border-b border-white/8 px-2">
+            <div className="relative flex h-10 items-center justify-center border-b border-border px-2">
               {picking ? (
                 <button
                   type="button"
                   tabIndex={-1}
                   aria-label="Back"
-                  className="absolute top-1/2 left-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-white/8 hover:text-foreground"
+                  className="absolute top-1/2 left-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                   onClick={() => setPicking(null)}
                 >
                   <Chevron dir="left" />

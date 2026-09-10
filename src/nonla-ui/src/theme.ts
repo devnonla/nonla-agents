@@ -2,7 +2,7 @@
  * Theme knobs for NonlaUI.
  *
  * Defaults live in `styles.css` on `:root` / `.dark` / `.nonla-ui`.
- * `--nonla-brand-soft` is derived from `--nonla-brand` unless you override it.
+ * `--nonla-brand-soft` defaults to a deeper amber for text on cream.
  * Consumers retheme without touching components:
  *   1. CSS:  `:root { --nonla-brand: #3b82f6; }`
  *   2. JS:   `<App theme={{ colors: { brand: "#3b82f6" } }} />` or `applyNonlaTheme({ brand: "#3b82f6" })`

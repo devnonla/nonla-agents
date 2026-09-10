@@ -2,6 +2,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { type CSSProperties, type MouseEvent, type ReactNode, useState } from "react";
 import { cn } from "../lib/cn";
 import { type PopperPlacement, placementToRadix } from "../lib/placement";
+import { menuContentClass, menuIconClass, menuItemClass } from "./menuClasses";
 
 export type MenuItemType = {
   key?: string;
@@ -62,22 +63,13 @@ function MenuItems({ items, onClick }: { items: (MenuItemType | null | undefined
         if (item.children?.length) {
           return (
             <DropdownMenu.Sub key={key}>
-              <DropdownMenu.SubTrigger
-                disabled={item.disabled}
-                className={cn(
-                  "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-white/8 data-[disabled]:opacity-40 data-[state=open]:bg-white/8",
-                  item.danger && "text-destructive",
-                )}
-              >
-                {item.icon ? <span className="inline-flex shrink-0 items-center text-current [&_svg]:size-3.5">{item.icon}</span> : null}
+              <DropdownMenu.SubTrigger disabled={item.disabled} className={cn(menuItemClass, "data-[state=open]:bg-foreground/8", item.danger && "text-destructive", item.className)} style={item.style}>
+                {item.icon ? <span className={menuIconClass}>{item.icon}</span> : null}
                 <span className="min-w-0 flex-1">{item.label}</span>
                 <ChevronRight />
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.SubContent
-                  sideOffset={4}
-                  className="z-[9999] min-w-40 overflow-hidden rounded-lg border border-[var(--popper-border)] bg-popover p-1 text-popover-foreground shadow-[var(--popper-shadow)] nonla-popper"
-                >
+                <DropdownMenu.SubContent sideOffset={4} className={cn(menuContentClass, "nonla-popper")}>
                   <MenuItems items={item.children} onClick={onClick} />
                 </DropdownMenu.SubContent>
               </DropdownMenu.Portal>
@@ -88,16 +80,14 @@ function MenuItems({ items, onClick }: { items: (MenuItemType | null | undefined
           <DropdownMenu.Item
             key={key}
             disabled={item.disabled}
-            className={cn(
-              "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-white/8 data-[disabled]:opacity-40",
-              item.danger && "text-destructive",
-            )}
+            className={cn(menuItemClass, item.danger && "text-destructive", item.className)}
+            style={item.style}
             onSelect={() => {
               item.onClick?.({ key });
               onClick?.({ key });
             }}
           >
-            {item.icon ? <span className="inline-flex shrink-0 items-center text-current [&_svg]:size-3.5">{item.icon}</span> : null}
+            {item.icon ? <span className={menuIconClass}>{item.icon}</span> : null}
             {item.label}
           </DropdownMenu.Item>
         );
@@ -106,17 +96,7 @@ function MenuItems({ items, onClick }: { items: (MenuItemType | null | undefined
   );
 }
 
-export function Dropdown({
-  menu,
-  children,
-  trigger = ["click"],
-  open,
-  onOpenChange,
-  placement = "bottomLeft",
-  className,
-  overlayClassName,
-  disabled,
-}: DropdownProps) {
+export function Dropdown({ menu, children, trigger = ["click"], open, onOpenChange, placement = "bottomLeft", className, overlayClassName, disabled }: DropdownProps) {
   const { side, align } = placementToRadix(placement);
   const hover = trigger.includes("hover");
   const contextMenu = trigger.includes("contextMenu");
@@ -136,14 +116,7 @@ export function Dropdown({
 
   return (
     <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen} modal={!hover}>
-      <DropdownMenu.Trigger
-        asChild
-        disabled={disabled}
-        onClick={click ? undefined : (e) => e.preventDefault()}
-        onMouseEnter={hover && !disabled ? () => setIsOpen(true) : undefined}
-        onMouseLeave={hover ? () => setIsOpen(false) : undefined}
-        onContextMenu={handleContext}
-      >
+      <DropdownMenu.Trigger asChild disabled={disabled} onClick={click || contextMenu ? undefined : (e) => e.preventDefault()} onMouseEnter={hover && !disabled ? () => setIsOpen(true) : undefined} onMouseLeave={hover ? () => setIsOpen(false) : undefined} onContextMenu={handleContext}>
         {children}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -151,12 +124,7 @@ export function Dropdown({
           side={side}
           align={align === "center" ? "start" : align}
           sideOffset={4}
-          className={cn(
-            "z-[9999] min-w-40 overflow-hidden rounded-lg border border-[var(--popper-border)] bg-popover p-1 text-popover-foreground shadow-[var(--popper-shadow)] nonla-popper",
-            className,
-            overlayClassName,
-            menu?.className,
-          )}
+          className={cn(menuContentClass, "nonla-popper", className, overlayClassName, menu?.className)}
           style={menu?.style}
           onMouseEnter={hover ? () => setIsOpen(true) : undefined}
           onMouseLeave={hover ? () => setIsOpen(false) : undefined}
