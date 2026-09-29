@@ -57,9 +57,9 @@ Postgres defaults: user / password / database = `nonla`. Override with `POSTGRES
 - **Agents** — Personas, tools, skills, avatars, teams; board drag-and-drop; agent-to-agent calls
 - **Models** — OpenAI, Anthropic, Google Gemini, OpenRouter, and more via LangChain
 - **Tools** — Custom TypeScript/Bun tools in folders; OS sandbox; builtin Web Fetch, KV, secrets, datatables
-- **Skills & memory** — Shared markdown skills (`read_skill`); per-agent knowledge graph
+- **Skills & memory** — Shared markdown skills (`read_skill`); per-owner memory list
 - **Instruct** — Full-page system prompt editor with AI draft review
-- **MCP** — Remote MCP servers (SSE / Streamable HTTP); sync catalogs and attach tools; My MCP to expose workspace tools
+- **MCP** — MCP servers over SSE / Streamable HTTP, including local and private hosts; sync catalogs and attach tools; My MCP to expose workspace tools
 - **Jobs** — Cron-scheduled Bun/TypeScript scripts with an AI editor
 - **Sites** — AI-assisted React sites (`app.tsx` / `backend.ts` / `styles.css`) with draft/publish and public links
 - **Chat & sharing** — Live streaming chat; public links with optional passwords and Open Graph cards
@@ -123,7 +123,7 @@ docker run -d -p 8429:8429 -v nonla-agents-data:/data \
 | ----- | ----- |
 | Runtime | [Bun](https://bun.sh/) |
 | API | [Hono](https://hono.dev/) |
-| UI | React 19, Vite, Tailwind CSS, NonlaUI |
+| UI | React 19, Vite, Tailwind CSS, devnonla-ui |
 | Database | SQLite (`bun:sqlite`) or PostgreSQL via `DATABASE_URL` — Drizzle ORM |
 | Agents | LangChain (`createAgent`, built on LangGraph) |
 | State | Redux Toolkit |

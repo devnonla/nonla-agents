@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-29
+
+### Added
+
+- Agent tools, skills, and MCP are configured in panels. The flow canvas is gone.
+- Memory opens as a per-owner list. The graph canvas is gone.
+- Coding agents can search npm and read the file in the editor (`search_npm`, `read_current_code`) before editing.
+- Secrets page can show a decrypted value.
+- Public chat history loads in pages.
+- MCP server URLs may point at local or private hosts.
+
+### Changed
+
+- UI uses the published `devnonla-ui` package. The vendored NonlaUI workspace is removed.
+- The site agent reads drafts with `read_site_files`. `package.json` stays generated from imports.
+- Saving `SKILL.md` requires YAML `name` and `description`, each on one line.
+- `GET /api/public/agents/:id/conversations` returns `{ items, hasMore }` instead of a bare array.
+- `run_js` is for a calculated result, not planning notes.
+
+### Fixed
+
+- A later tool update reuses the streamed tool-call id, so the chat does not show a second failed call.
+- Sandbox stdout and stderr go to files. npm specs Bun cannot install (a version tag or a template string) are rejected.
+
+### Upgrade notes
+
+- Pull or rebuild the Docker image. No database migration.
+- A skill save after this release needs `name` and `description` in `SKILL.md` frontmatter.
+
 ## [0.3.0] - 2026-09-06
 
 ### Added
@@ -99,7 +128,8 @@ First public release of **Nonla Agents** — self-hosted AI agents with a web UI
 - Dashboard, Docker image `devnonla/nonla-agents`, data in `/data` (Docker) or `~/.nonla-agents` (source)
 - Workspace SDK: `import nonlaagents` (`kv`, `secrets`, `datatable`, `agents`); env `NONLAAGENTS_URL` / `NONLAAGENTS_TOKEN`; header `X-Nonlaagents-Token`
 
-[Unreleased]: https://github.com/devnonla/nonla-agents/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/devnonla/nonla-agents/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/devnonla/nonla-agents/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/devnonla/nonla-agents/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/devnonla/nonla-agents/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devnonla/nonla-agents/releases/tag/v0.1.0
