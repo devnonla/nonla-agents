@@ -41,19 +41,27 @@ describe("stripAnnotationHeader", () => {
 });
 
 describe("buildCodingSystemPrompt", () => {
-  test("includes current tool identity and the editor file as-is", () => {
-    const prompt = buildCodingSystemPrompt("// @name Wiki\n// @description Search Wikipedia\n\nexport default async function main() {\n  return { ok: true };\n}\n", { label: "Wiki", description: "Search Wikipedia", parameters: { type: "object", properties: {} } });
+  test("includes current tool identity without inlining the editor file", () => {
+    const prompt = buildCodingSystemPrompt({ label: "Wiki", description: "Search Wikipedia", parameters: { type: "object", properties: {} } });
     expect(prompt).toContain("<name>Wiki</name>");
     expect(prompt).toContain("<description>Search Wikipedia</description>");
-    const block = prompt.match(/<current_code>\n([\s\S]*?)\n<\/current_code>/)?.[1] ?? "";
-    expect(block).toContain("export default async function main");
-    expect(block).toContain("@name Wiki");
+    expect(prompt).toContain("read_current_code");
+    expect(prompt).not.toContain("<current_code>");
+    expect(prompt).not.toContain("@name Wiki");
   });
 
   test("points at get_nonlaagents_guide instead of inlining the SDK", () => {
-    const prompt = buildCodingSystemPrompt("", null);
+    const prompt = buildCodingSystemPrompt(null);
     expect(prompt).toContain("get_nonlaagents_guide");
     expect(prompt).not.toContain("await nonlaagents.datatable.query(");
     expect(prompt).not.toContain("$contains");
+  });
+
+  test("does not tour secrets/kv by default and forbids planning via run_js", () => {
+    const prompt = buildCodingSystemPrompt(null);
+    expect(prompt).toContain("just in case");
+    expect(prompt).toContain("Do NOT suggest secrets or kv");
+    expect(prompt).toContain("DO NOT use run_js to plan");
+    expect(prompt).toContain("canvas.node");
   });
 });

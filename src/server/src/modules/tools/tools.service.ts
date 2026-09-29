@@ -29,6 +29,12 @@ const ALL_TOOL_DEFS: ToolDefinition[] = [
   READ_SKILL_DEF,
   BACKGROUND_TASKS_DEF,
   {
+    toolName: "read_current_code",
+    toolLabel: "Read Current Code",
+    description: "Read the TypeScript module currently in the editor (draft if present, else published). Returns the source as plain text. Call before editing and whenever replace fails.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
     toolName: "edit_code",
     toolLabel: "Edit Code",
     description: 'Edit the TypeScript module in the editor. mode="replace": exact edits[{ old_string, new_string }]. mode="full": replace the entire file. Complete module with // @name / // @description / // @param and export default async function main(input) — NO markdown fences.',
@@ -81,7 +87,7 @@ import { type BgTaskSnapshot, bgTaskRegistry } from "./common/bg-task-registry.j
 import { type SoftWaitExecuteResult, executeTool, executeToolWithSoftWait } from "./common/tool-runner.js";
 
 /** Core tools that are always-on and shouldn't appear in user-facing tool lists */
-const ALWAYS_ON_TOOL_NAMES = new Set(["memory", "user_memory", "manage_memory", "read_skill", "background_tasks", "edit_code", "run_current_script", "update_prompt", "datatable"]);
+const ALWAYS_ON_TOOL_NAMES = new Set(["memory", "user_memory", "manage_memory", "read_skill", "background_tasks", "read_current_code", "edit_code", "run_current_script", "update_prompt", "datatable"]);
 
 /** Virtual AgentTool objects built from the tool registry */
 const BUILTIN_TOOLS = ALL_TOOL_DEFS.filter((b) => !ALWAYS_ON_TOOL_NAMES.has(b.toolName)).map((b) => ({

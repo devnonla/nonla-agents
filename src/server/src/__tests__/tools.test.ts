@@ -425,4 +425,32 @@ describe("Tools API", () => {
     const data = (await res.json()) as { message: string };
     expect(data.message).toContain("compacted edit placeholder");
   });
+
+  test("makeReadCurrentCodeTool — returns published code, then draft", async () => {
+    const createRes = await authRequest(app, token, "POST", "/api/tools", {
+      name: "read_code_tool",
+      label: "Read Code Tool",
+      description: "For read_current_code",
+      parameters: { type: "object", properties: {}, required: [] },
+      codeContent: "// @name Read Code Tool\n// @description For read_current_code\nexport default async function main() {\n  return { published: true };\n}\n",
+    });
+    expect(createRes.status).toBe(201);
+    const tool = (await createRes.json()) as { id: string };
+
+    const { makeReadCurrentCodeTool } = await import("../modules/tools/common/agent-tools/read-current-code.tool.js");
+    const { updateDraftCode } = await import("../modules/tools/tools.service.js");
+    const readTool = makeReadCurrentCodeTool(tool.id);
+
+    const published = String(await readTool.invoke({}));
+    expect(published).toContain("published: true");
+    expect(published.startsWith("{")).toBe(false);
+
+    await updateDraftCode(tool.id, "// @name Read Code Tool\nexport default async function main() {\n  return { draft: true };\n}\n");
+    const draft = String(await readTool.invoke({}));
+    expect(draft).toContain("draft: true");
+    expect(draft).not.toContain("published: true");
+
+    const missing = String(await makeReadCurrentCodeTool("missing-id").invoke({}));
+    expect(missing).toMatch(/not found/i);
+  });
 });

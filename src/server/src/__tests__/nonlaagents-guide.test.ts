@@ -44,7 +44,7 @@ describe("makeNonlaagentsGuideTool", () => {
 
 describe("coding prompts stay lean", () => {
   test("job prompt does not inline datatable query syntax", () => {
-    const prompt = buildJobCodingSystemPrompt(null, undefined);
+    const prompt = buildJobCodingSystemPrompt();
     expect(prompt).toContain("get_nonlaagents_guide");
     expect(prompt).not.toContain("await nonlaagents.datatable.query(");
     expect(prompt).toContain("nonlaagents.step");

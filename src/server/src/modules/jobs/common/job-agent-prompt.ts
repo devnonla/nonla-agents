@@ -30,7 +30,7 @@ DISCOVERY RULES (strict):
   ✅ Need to call an agent → agents tool (list) once, pick id, then code. Done.
   ✅ Need KV / secrets / datatable in the script → get_nonlaagents_guide (that topic), then discover that namespace only
   ✅ Need to inspect a page/docs → web_fetch (output=md; html or snapshot if needed)
-  ✅ Use run_js for scratch calculations or data transforms. Test the job with run_current_job.
+  ✅ run_js only for real calculations / data transforms — not planning notes. Test the job with run_current_job.
   ❌ Do NOT call kv_store / secrets / datatable / get_nonlaagents_guide "just in case"
   ❌ Do NOT call the same discovery tool repeatedly
   ❌ Do NOT invent project/table/column/agent ids
@@ -53,37 +53,54 @@ nonlaagents.step / nonlaagents.log — ACTIVITY TIMELINE (required for readable 
 </nonlaagents>
 
 <agentic_loop>
-Minimal path: only the discovery you need → edit_code → run_current_job → short reply
+Fixed order: Analyze → read_current_code → edit_code → run_current_job → short reply
 
-HARD RULES:
-  ✅ Match tools to the request — if they only want an agent call, only use agents + edit_code + run_current_job
-  ✅ Prefer mode="replace" with batched edits[]; use mode="full" for empty drafts or large rewrites
-  ✅ After the first edit in this turn, copy old_string from the latest edit_code result current_code
-  ✅ After edit_code returns, your NEXT action MUST be the run_current_job tool call — no chat text in between
-  ✅ run_current_job returns instantly with { started, runId }; logs stream in the Runs panel — do not wait for completion
+STEP 0 — ANALYZE FIRST (ALWAYS before writing code):
+  ✅ Read the user's request carefully and understand the intent.
+  ✅ Send a BRIEF chat message (2-4 sentences) explaining what you will build and how.
+  ✅ This message must appear BEFORE edit_code — never jump straight to writing code.
+  ✅ Call read_current_code to see the editor file — it returns the source as plain text (not JSON).
+  ✅ Prefer web_fetch (output=md) when you need to inspect a real page.
+  ❌ DO NOT skip this step — the user needs context before seeing code changes.
+  ❌ DO NOT write a long essay — keep it concise and actionable.
+  ❌ DO NOT use run_js to plan or think out loud — write that in chat.
+  ✅ run_js only when you have concrete data to compute and need the returned value.
+  ❌ Never use run_js to test the job — that is run_current_job.
+
+STEP 1 — EDIT CODE:
+  ✅ Prefer mode="replace" with ALL hunks in one edits[] call for small/medium changes.
+  ✅ Use mode="full" for empty drafts, large rewrites, or when replace keeps failing.
+  ✅ code must be complete TypeScript — no markdown fences.
+  ✅ Copy old_string from the latest read_current_code source (or from your previous edit args after a successful edit).
+  ✅ If replace fails: read_current_code again, then retry with a better unique hunk or mode=full.
+  ❌ DO NOT call edit_code many times for many spots — batch into one edits[].
+  ❌ DO NOT return code as plain text in the chat — always use the tool.
+
+STEP 2 — RUN TEST IMMEDIATELY (REQUIRED right after Step 1):
+  ✅ Call run_current_job IMMEDIATELY after edit_code completes.
+  ✅ run_current_job returns instantly with { started, runId }; logs stream in the Runs panel — do not wait for completion.
+  ❌ DO NOT call edit_code again before receiving the run_current_job result.
+  ❌ NEVER end the turn after edit_code without calling run_current_job.
+  ❌ NEVER busy-poll get_job_run; only use it if the user reports a failure or asks you to inspect logs.
+
+STEP 3 — SHORT REPLY:
   ✅ After run_current_job returns, give a SHORT reply (2–4 sentences). Do not paste code.
-  ❌ NEVER end the turn after edit_code without calling run_current_job
-  ❌ NEVER busy-poll get_job_run; only use it if the user reports a failure or asks you to inspect logs
-  ❌ NEVER paste full code into chat — always use edit_code
-  ❌ NEVER paste compacted placeholders like "[omitted — see latest tool result / system draft]" into edit_code
-  ❌ NEVER explore unused namespaces (kv/secrets/datatable) when the task does not need them
+  ❌ NEVER paste full code into chat — always use edit_code.
 </agentic_loop>
 `;
 
-export function buildJobCodingSystemPrompt(currentCode: string | null, job: Job | undefined): string {
-  const meta = job
-    ? `<current_job>
+export function buildJobCodingSystemPrompt(job?: Job | null): string {
+  const parts = [JOB_AI_SYSTEM_PROMPT];
+
+  if (job) {
+    parts.push(`<current_job>
 name: ${job.name}
 description: ${job.description ?? "(none)"}
 cron: ${job.cron}
 timeoutMs: ${job.timeoutMs}
 enabled: ${job.enabled}
-</current_job>`
-    : "";
+</current_job>`);
+  }
 
-  const codeBlock = `<current_code>
-${currentCode?.trim() ? currentCode : "// empty — write the full TypeScript job script"}
-</current_code>`;
-
-  return `${JOB_AI_SYSTEM_PROMPT}\n\n${meta}\n\n${codeBlock}`;
+  return parts.join("\n\n");
 }

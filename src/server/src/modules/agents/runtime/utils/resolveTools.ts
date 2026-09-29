@@ -73,6 +73,7 @@ export async function getToolLabel(toolName: string): Promise<string> {
     read_skill: "Read Skill",
     get_tool_schema: "Get Tool Schema",
     background_tasks: "Background Tasks",
+    read_current_code: "Read Current Code",
     edit_code: "Edit Code",
     run_current_script: "Run Current Script",
     get_nonlaagents_guide: "Nonlaagents SDK",

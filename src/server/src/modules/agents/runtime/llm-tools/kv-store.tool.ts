@@ -17,6 +17,7 @@ const DESCRIPTIONS: Record<KvAction, string> = {
 export function makeKvStoreTool(actions: readonly KvAction[] = ALL_ACTIONS): StructuredToolInterface {
   const allowed = actions.length > 0 ? actions : ALL_ACTIONS;
   const description = `Read and write the shared workspace key-value store. Keys must match [A-Z][A-Z0-9_]* (e.g. BASE_URL). Prefer the secrets tool for credentials.
+Do not list or suggest kv keys unless the user's task needs a stored workspace value.
 
 Available actions:
 ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;

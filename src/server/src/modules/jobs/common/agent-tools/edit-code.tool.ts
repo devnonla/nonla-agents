@@ -72,7 +72,6 @@ export function makeJobEditCodeTool(jobId: string) {
           ok: true,
           mode,
           message: summary ?? "Draft updated.",
-          current_code: next,
           next: "REQUIRED NEXT TOOL CALL: run_current_job (now). Do not reply with text first. run_current_job returns instantly — then give a short summary.",
         });
       } catch (err) {
@@ -81,7 +80,8 @@ export function makeJobEditCodeTool(jobId: string) {
     },
     {
       name: "edit_code",
-      description: 'Edit the TypeScript job file in the editor. mode="replace": apply exact edits[{ old_string, new_string, replace_all? }]. mode="full": replace the entire file with code. Raw TS only — NO markdown fences. Always call this tool to apply code; NEVER paste code as chat text.',
+      description:
+        'Edit the TypeScript job file in the editor. mode="replace": apply exact edits[{ old_string, new_string, replace_all? }] (multi-hunk). mode="full": replace the entire file with code. Raw TS only — NO markdown fences. Returns ok/mode only — not file contents. Call read_current_code when you need current text. Always call this tool to apply code; NEVER paste code as chat text. After a successful edit, call run_current_job next.',
       schema: editCodeSchema,
     },
   );

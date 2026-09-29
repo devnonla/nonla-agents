@@ -17,6 +17,7 @@ const DESCRIPTIONS: Record<SecretAction, string> = {
 export function makeSecretsTool(actions: readonly SecretAction[] = ALL_ACTIONS): StructuredToolInterface {
   const allowed = actions.length > 0 ? actions : ALL_ACTIONS;
   const description = `Access encrypted workspace secrets. Keys must match [A-Z][A-Z0-9_]* (e.g. API_TOKEN). Prefer this over kv_store for credentials.
+Do not list or suggest secrets unless the user's task needs a stored credential.
 
 Available actions:
 ${allowed.map((a) => `- ${DESCRIPTIONS[a]}`).join("\n")}`;

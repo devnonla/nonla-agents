@@ -72,8 +72,6 @@ export function makeEditCodeTool(toolId: string) {
           ok: true,
           mode,
           message: summary ?? "Draft updated.",
-          current_code: next,
-          next: "MANDATORY NEXT STEP: Call run_current_script IMMEDIATELY to test the draft code.",
         });
       } catch (err) {
         return JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) });
@@ -82,7 +80,7 @@ export function makeEditCodeTool(toolId: string) {
     {
       name: "edit_code",
       description:
-        'Edit the TypeScript module in the editor. mode="replace": apply exact edits[{ old_string, new_string, replace_all? }] (multi-hunk). mode="full": replace the entire file with code. Complete module with // @name / // @description / // @param headers and export default async function main(input) — NO markdown fences. Always call this tool to apply code; NEVER paste code as chat text.',
+        'Edit the TypeScript module in the editor. mode="replace": apply exact edits[{ old_string, new_string, replace_all? }] (multi-hunk). mode="full": replace the entire file with code. Complete module with // @name / // @description / // @param headers and export default async function main(input) — NO markdown fences. Returns ok/mode only — not file contents. Call read_current_code when you need current text. Always call this tool to apply code; NEVER paste code as chat text.',
       schema: editCodeSchema,
     },
   );
