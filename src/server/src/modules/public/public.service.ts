@@ -78,6 +78,7 @@ export async function getPublicAgent(agentId: string) {
       id: agent.id,
       name: agent.name,
       description: agent.description,
+      avatar: agent.avatar ?? null,
       requiresPassword: !!agent.publicPassword && agent.publicPassword.length > 0,
       model: agent.aiModel ?? undefined,
       providerLabel: providerLabel ?? undefined,
@@ -103,22 +104,28 @@ async function loadConvMessages(convId: string) {
   return (await qall(getDb().select().from(agentMessages).where(eq(agentMessages.conversationId, convId)).orderBy(asc(agentMessages.createdAt), asc(agentMessages.id)))).filter((r) => !(r.role === "tool" && r.content === ""));
 }
 
-/** List all public conversations for a fingerprint, newest first. */
-export async function listPublicConversations(agentId: string, fingerprint: string) {
+/** List public conversations for a fingerprint, newest first. Pass `limit` for paginated lazy-load. */
+export async function listPublicConversations(agentId: string, fingerprint: string, opts: { limit?: number; offset?: number } = {}) {
   const db = getDb();
   const agent = await qone(db.select().from(agents).where(eq(agents.id, agentId)));
   if (!agent || !agent.isPublic) throw new BadRequestException("Agent unavailable");
 
-  const convs = await qall(
-    db
-      .select()
-      .from(agentConversations)
-      .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), eq(agentConversations.ownerId, fingerprint)))
-      .orderBy(desc(agentConversations.createdAt)),
-  );
+  const limit = opts.limit;
+  const offset = opts.offset ?? 0;
+
+  const base = db
+    .select()
+    .from(agentConversations)
+    .where(and(eq(agentConversations.agentId, agentId), eq(agentConversations.trigger, "public"), eq(agentConversations.ownerId, fingerprint)))
+    .orderBy(desc(agentConversations.createdAt));
+
+  const rows = await qall(limit != null ? base.limit(limit + 1).offset(offset) : base.offset(offset));
+
+  const hasMore = limit != null && rows.length > limit;
+  const convs = hasMore ? rows.slice(0, limit) : rows;
 
   // Use first user message as title/preview
-  const result = [];
+  const items = [];
   for (const conv of convs) {
     const firstMsg = await qone(
       db
@@ -127,7 +134,7 @@ export async function listPublicConversations(agentId: string, fingerprint: stri
         .where(and(eq(agentMessages.conversationId, conv.id), eq(agentMessages.role, "user")))
         .orderBy(asc(agentMessages.createdAt), asc(agentMessages.id)),
     );
-    result.push({
+    items.push({
       id: conv.id,
       title: firstMsg ? firstMsg.content.slice(0, 60) : "New Chat",
       createdAt: conv.createdAt,
@@ -136,7 +143,7 @@ export async function listPublicConversations(agentId: string, fingerprint: stri
     });
   }
 
-  return { data: result };
+  return { items, hasMore: !!hasMore };
 }
 
 /** Create a brand-new public conversation for this fingerprint. */

@@ -43,13 +43,17 @@ app.post("/agents/:id/verify-token", async (c) => {
   return c.json({ valid });
 });
 
-// GET /api/public/agents/:id/conversations?fp=<fingerprint>
-// List all conversations for this fingerprint
+// GET /api/public/agents/:id/conversations?fp=<fingerprint>&limit=&offset=
+// List conversations for this fingerprint (paginated when limit is set)
 app.get("/agents/:id/conversations", async (c) => {
   const fp = c.req.query("fp");
   if (!fp) return c.json({ error: "Fingerprint required" }, 400);
-  const result = await listPublicConversations(c.req.param("id"), fp);
-  return c.json(result.data);
+  const limitRaw = c.req.query("limit");
+  const offsetRaw = c.req.query("offset");
+  const limit = limitRaw != null && limitRaw !== "" ? Math.min(100, Math.max(1, Number(limitRaw) || 30)) : undefined;
+  const offset = offsetRaw != null && offsetRaw !== "" ? Math.max(0, Number(offsetRaw) || 0) : 0;
+  const result = await listPublicConversations(c.req.param("id"), fp, { limit, offset });
+  return c.json(result);
 });
 
 // POST /api/public/agents/:id/conversations?fp=<fingerprint>

@@ -381,11 +381,12 @@ describe("SSE Chat & Streaming API", () => {
     // List
     const listRes = await app.request(`/api/public/agents/${agentId}/conversations?fp=${fp}`);
     expect(listRes.status).toBe(200);
-    const list = (await listRes.json()) as { id: string; title: string; isEmpty: boolean }[];
-    expect(list.length).toBeGreaterThanOrEqual(1);
-    expect(list[0]).toHaveProperty("title");
-    expect(list[0]).toHaveProperty("isEmpty");
-    expect(list[0]).toHaveProperty("status");
+    const list = (await listRes.json()) as { items: { id: string; title: string; isEmpty: boolean }[]; hasMore: boolean };
+    expect(list.items.length).toBeGreaterThanOrEqual(1);
+    expect(list.items[0]).toHaveProperty("title");
+    expect(list.items[0]).toHaveProperty("isEmpty");
+    expect(list.items[0]).toHaveProperty("status");
+    expect(list).toHaveProperty("hasMore");
 
     // Get specific
     const getRes = await app.request(`/api/public/agents/${agentId}/conversations/${created.conversationId}?fp=${fp}`);
