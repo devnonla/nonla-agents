@@ -8,12 +8,11 @@
  *   - generate_prompt writes a systemPromptDraft and emits agents:updated via WS
  */
 
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import type { BaseMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { SSEStreamingApi } from "hono/streaming";
 import { createAgent } from "langchain";
 import { webFetchTool } from "../../../common/ai/agent-tools/web-fetch.tool.js";
+import { type ChatHistoryMessage, buildLangChainMessages } from "../../../common/ai/build-langchain-messages.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
 import { agents as agentsTable, getDb } from "../../../common/db/client.js";
@@ -146,97 +145,10 @@ Empty — write a new system prompt based on the user's request.
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface ToolCallMessage {
-  role: "tool-call";
-  content: string;
-  toolCallId?: string;
-  toolName?: string;
-  toolInput?: unknown;
-  toolOutput?: string;
-}
-
-interface TextMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
 export interface PromptStreamRequest {
   providerId: string;
   modelId: string;
-  messages: (TextMessage | ToolCallMessage)[];
-}
-
-function buildLangChainMessages(messages: PromptStreamRequest["messages"]): BaseMessage[] {
-  const result: BaseMessage[] = [];
-
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-
-    if (msg.role === "user") {
-      result.push(new HumanMessage(msg.content));
-      continue;
-    }
-
-    if (msg.role === "system") {
-      result.push(new SystemMessage(msg.content));
-      continue;
-    }
-
-    if (msg.role === "assistant") {
-      const toolCalls: { id: string; name: string; args: Record<string, unknown> }[] = [];
-      let j = i + 1;
-      while (j < messages.length && messages[j].role === "tool-call") {
-        const tc = messages[j] as ToolCallMessage;
-        toolCalls.push({
-          id: tc.toolCallId || `tc-${j}`,
-          name: tc.toolName || "unknown",
-          args: (tc.toolInput as Record<string, unknown>) ?? {},
-        });
-        j++;
-      }
-
-      if (toolCalls.length > 0) {
-        result.push(new AIMessage({ content: msg.content, tool_calls: toolCalls }));
-        for (let k = i + 1; k < j; k++) {
-          const tc = messages[k] as ToolCallMessage;
-          if (tc.toolOutput != null) {
-            result.push(
-              new ToolMessage({
-                content: tc.toolOutput,
-                tool_call_id: tc.toolCallId || `tc-${k}`,
-              }),
-            );
-          }
-        }
-        i = j - 1;
-      } else {
-        result.push(new AIMessage(msg.content));
-      }
-      continue;
-    }
-
-    if (msg.role === "tool-call") {
-      const tc = msg as ToolCallMessage;
-      const toolCallId = tc.toolCallId || `tc-${i}`;
-      result.push(
-        new AIMessage({
-          content: "",
-          tool_calls: [
-            {
-              id: toolCallId,
-              name: tc.toolName || "unknown",
-              args: (tc.toolInput as Record<string, unknown>) ?? {},
-            },
-          ],
-        }),
-      );
-      if (tc.toolOutput != null) {
-        result.push(new ToolMessage({ content: tc.toolOutput, tool_call_id: toolCallId }));
-      }
-    }
-  }
-
-  return result;
+  messages: ChatHistoryMessage[];
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
