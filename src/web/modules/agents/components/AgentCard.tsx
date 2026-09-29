@@ -1,7 +1,6 @@
-import type { MenuProps } from "@nonla-agents/ui";
-import { Dropdown } from "@nonla-agents/ui";
-import { GlobalIcon } from "@solar-icons/react/dynamic/global";
-import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
+import type { MenuProps } from "devnonla-ui";
+import { Dropdown, FluentIcon } from "devnonla-ui";
+import { Ellipsis } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { AgentListItem } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
@@ -46,7 +45,7 @@ export function AgentCard({ agent, onOpen, dragging }: AgentCardProps) {
     >
       <RenderIf condition={agent.isPublic}>
         <span title="Published" className="absolute left-2 top-2 z-10 flex size-7 items-center justify-center rounded-md bg-success/15 text-success">
-          <GlobalIcon size={14} />
+          <FluentIcon name="globe-24" size={14} />
         </span>
       </RenderIf>
 
@@ -60,7 +59,7 @@ export function AgentCard({ agent, onOpen, dragging }: AgentCardProps) {
               menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             }`}
           >
-            <MenuDotsIcon size={15} weight="Bold" />
+            <Ellipsis size={15} />
           </button>
         </Dropdown>
       </div>

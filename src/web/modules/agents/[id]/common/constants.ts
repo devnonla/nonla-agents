@@ -1,7 +1,3 @@
-import { ChatRoundDotsIcon } from "@solar-icons/react/dynamic/chat-round-dots";
-import { NotesIcon } from "@solar-icons/react/dynamic/notes";
-import { StructureIcon } from "@solar-icons/react/dynamic/structure";
-
 // ─── Schedule ─────────────────────────────────────────────────────────────────
 
 export const DAYS = [
@@ -86,28 +82,14 @@ export function parseCron(cron: string | null | undefined): ScheduleState {
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
-export type TabId = "chat" | "instruct" | "editor";
-export const TABS: { id: TabId; label: string; icon: typeof ChatRoundDotsIcon; desc: string; path: string }[] = [
+export type TabId = "chat";
+export const TABS: { id: TabId; label: string; icon: string; desc: string; path: string }[] = [
   {
     id: "chat",
     label: "Chat",
-    icon: ChatRoundDotsIcon,
+    icon: "chat-24",
     desc: "Chat with the agent",
     path: "",
-  },
-  {
-    id: "instruct",
-    label: "Instruct",
-    icon: NotesIcon,
-    desc: "Agent instructions",
-    path: "instruct",
-  },
-  {
-    id: "editor",
-    label: "Editor",
-    icon: StructureIcon,
-    desc: "Agent flow editor",
-    path: "editor",
   },
 ];
 

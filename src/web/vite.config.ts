@@ -34,18 +34,13 @@ export default defineConfig({
   plugins: [tailwindcss(), react(), buildMetaPlugin(APP_BUILD_ID, pkg.version)],
   resolve: {
     alias: [
-      // Exact package entry — do not prefix-match subpaths like styles.css
-      {
-        find: /^@nonla-agents\/ui$/,
-        replacement: `${import.meta.dirname}/../nonla-ui/src/index.ts`,
-      },
-      {
-        find: "@nonla-agents/ui/styles.css",
-        replacement: `${import.meta.dirname}/../nonla-ui/src/styles.css`,
-      },
       // "src/common/..." → packages/web/common/...
       { find: "src", replacement: import.meta.dirname },
     ],
+    dedupe: ["react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: ["highlight.js", "highlight.js/lib/common", "highlight.js/lib/core", "mermaid", "devnonla-ui"],
   },
   build: {
     outDir: "dist",
@@ -56,26 +51,17 @@ export default defineConfig({
       input: `${import.meta.dirname}/index.html`,
       output: {
         manualChunks(id) {
-          // Heavy editors / graphs (incl. @xyflow on agent flow / memory / schema) —
+          // Heavy editors (monaco / mermaid) —
           // keep OUT of vendor-misc and do not force a shared named chunk (that can
           // swallow Vite's preload helper and cause the entry to statically import
-          // monaco/mermaid/xyflow on first paint).
+          // monaco/mermaid on first paint).
           if (
             id.includes("node_modules/monaco-editor") ||
             id.includes("node_modules/@monaco-editor") ||
-            id.includes("node_modules/pixi.js") ||
-            id.includes("node_modules/@pixi") ||
             id.includes("node_modules/mermaid") ||
             id.includes("node_modules/katex") ||
             id.includes("node_modules/cytoscape") ||
-            id.includes("node_modules/dagre") ||
-            id.includes("node_modules/@dagrejs") ||
-            id.includes("node_modules/elkjs") ||
             id.includes("node_modules/framer-motion") ||
-            id.includes("node_modules/@xyflow") ||
-            id.includes("node_modules/.bun/@xyflow") ||
-            id.includes("node_modules/@solar-icons") ||
-            id.includes("node_modules/.bun/@solar-icons") ||
             id.includes("@iconify-json/fluent-color") ||
             id.includes("@iconify-json+fluent-color")
           ) {

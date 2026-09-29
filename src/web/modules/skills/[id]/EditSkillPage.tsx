@@ -1,24 +1,21 @@
-import { Alert, Button, Modal, message } from "@nonla-agents/ui";
-import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
+import { Alert, Button, FluentIcon, Modal, Splitter, message } from "devnonla-ui";
 import { AnimatePresence, motion } from "framer-motion";
+import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { wsClient } from "src/common/api/wsClient";
-import { SettingKey } from "src/common/enum";
 import type { Skill, SkillReference } from "src/common/types";
+import { AgentSidePanel } from "src/components/AgentSidePanel";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
 import { MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
 import RenderIf from "src/components/RenderIf";
-import { WindowHeader } from "src/components/desktop/DesktopWindow";
-import { fetchLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
-import { getSettingValues, saveSettingValues } from "src/modules/settings/common/settingsApi";
-import { useAppDispatch, useAppSelector } from "src/store/store";
+import { useAppDispatch } from "src/store/store";
 import { ensureSkillMarkdown, parseSkillFrontmatter } from "../common/frontmatter";
 import { skillsApi } from "../common/skillsApi";
 import { deleteSkill, updateSkill, upsertSkillLocal } from "../common/skillsSlice";
 import { EditSkillHeader, type SkillViewMode } from "./components/EditSkillHeader";
-import { SkillAgentPanel, type ToolActionEvent } from "./components/SkillAgentPanel";
-import { type SkillEditorFile, SkillFileTree } from "./components/SkillFileTree";
+import { SkillAgentPanel } from "./components/SkillAgentPanel";
+import { type SkillEditorFile, type SkillFileMark, SkillFileTree } from "./components/SkillFileTree";
 import { SkillMarkdownPreview } from "./components/SkillMarkdownPreview";
 
 function EditSkillSkeleton() {
@@ -42,7 +39,7 @@ function EditSkillSkeleton() {
             <div className="h-3 w-2/3 animate-pulse rounded bg-muted/60" />
           </div>
         </div>
-        <div className="w-95 shrink-0 bg-card p-3">
+        <div className="w-100 shrink-0 bg-card p-3">
           <div className="mb-4 h-3 w-28 animate-pulse rounded bg-muted" />
           <div className="mx-auto mt-16 h-3 w-48 animate-pulse rounded bg-muted/60" />
           <div className="mx-auto mt-3 h-8 w-52 animate-pulse rounded-lg bg-muted/50" />
@@ -75,6 +72,7 @@ export default function EditSkillPage() {
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState<SkillViewMode>("preview");
   const [agentGenerating, setAgentGenerating] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(true);
   const [approving, setApproving] = useState(false);
   const [discarding, setDiscarding] = useState(false);
 
@@ -84,12 +82,8 @@ export default function EditSkillPage() {
   skillDraftRef.current = skillDraft;
   const refDraftsRef = useRef(refDrafts);
   refDraftsRef.current = refDrafts;
-
-  const providerItems = useAppSelector((s) => s.llmProviders.items);
-  const providersLoaded = useAppSelector((s) => s.llmProviders.items.length > 0 || s.llmProviders.total === 0);
-  const [providerId, setProviderId] = useState<string | undefined>(undefined);
-  const [model, setModel] = useState("");
-  const providerInitRef = useRef(false);
+  const savedSkillRef = useRef(savedSkill);
+  savedSkillRef.current = savedSkill;
 
   const syncAiDraftsFromServer = useCallback((s: Skill, references: SkillReference[]) => {
     const next: Record<string, string> = {};
@@ -104,80 +98,63 @@ export default function EditSkillPage() {
     setAiDrafts(next);
   }, []);
 
+  const applyServerState = useCallback(
+    (s: Skill, references: SkillReference[], hintPath?: string) => {
+      dispatch(upsertSkillLocal(s));
+      setSkill(s);
+      const md = ensureSkillMarkdown(s.content, s.name, s.description);
+      const localWasClean = skillDraftRef.current === savedSkillRef.current;
+      setSavedSkill(md);
+      if (localWasClean) setSkillDraft(md);
+
+      const ids = new Set(references.map((r) => r.id));
+      setRefs(references);
+      setSavedRefs(() => {
+        const nextSaved: Record<string, string> = {};
+        for (const r of references) nextSaved[r.id] = r.content;
+        return nextSaved;
+      });
+      setRefDrafts((prevLocal) => {
+        const nextLocal: Record<string, string> = {};
+        for (const r of references) {
+          nextLocal[r.id] = r.id in prevLocal ? prevLocal[r.id]! : r.content;
+        }
+        return nextLocal;
+      });
+      syncAiDraftsFromServer(s, references);
+
+      if (selectedRef.current.kind === "reference" && !ids.has(selectedRef.current.refId)) {
+        setSelected({ kind: "skill", path: "SKILL.md" });
+      } else if (hintPath === "SKILL.md") {
+        setSelected({ kind: "skill", path: "SKILL.md" });
+      } else if (hintPath) {
+        const ref = references.find((r) => `references/${r.name}.md` === hintPath);
+        if (ref) {
+          setSelected({ kind: "reference", path: hintPath, refId: ref.id, name: ref.name });
+        }
+      }
+    },
+    [dispatch, syncAiDraftsFromServer],
+  );
+
   const load = useCallback(async () => {
     if (!id) return;
     const [s, references] = await Promise.all([skillsApi.get(id), skillsApi.listReferences(id)]);
-    const md = ensureSkillMarkdown(s.content, s.name, s.description);
-    setSkill(s);
-    setRefs(references);
-    setSkillDraft(md);
-    setSavedSkill(md);
-    const map: Record<string, string> = {};
-    for (const r of references) map[r.id] = r.content;
-    setRefDrafts(map);
-    setSavedRefs({ ...map });
-    syncAiDraftsFromServer(s, references);
-    dispatch(upsertSkillLocal(s));
-  }, [id, dispatch, syncAiDraftsFromServer]);
+    applyServerState(s, references);
+  }, [id, applyServerState]);
 
   useEffect(() => {
     load().catch(() => setError("Failed to load skill"));
   }, [load]);
 
   useEffect(() => {
-    dispatch(fetchLlmProviders());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!providersLoaded || providerItems.length === 0) return;
-    if (providerInitRef.current) return;
-    providerInitRef.current = true;
-    getSettingValues([SettingKey.SkillAssistantProvider, SettingKey.SkillAssistantModel]).then((s) => {
-      const savedProvider = s[SettingKey.SkillAssistantProvider] ?? "";
-      const savedModel = s[SettingKey.SkillAssistantModel] ?? "";
-      const match = providerItems.find((p) => p.id === savedProvider) ?? providerItems[0];
-      setProviderId(match.id);
-      setModel(savedModel);
-    });
-  }, [providersLoaded, providerItems]);
-
-  const savedSkillRef = useRef(savedSkill);
-  savedSkillRef.current = savedSkill;
-
-  useEffect(() => {
     if (!id) return;
     const unsub = wsClient.on<Skill>("skills:updated", (payload) => {
       if (payload.id !== id) return;
-      setSkill(payload);
-      dispatch(upsertSkillLocal(payload));
-      const md = ensureSkillMarkdown(payload.content, payload.name, payload.description);
-      const localWasClean = skillDraftRef.current === savedSkillRef.current;
-      setSavedSkill(md);
-      if (localWasClean) setSkillDraft(md);
-
-      void skillsApi.listReferences(id).then((list) => {
-        const ids = new Set(list.map((r) => r.id));
-        setRefs(list);
-        setSavedRefs(() => {
-          const nextSaved: Record<string, string> = {};
-          for (const r of list) nextSaved[r.id] = r.content;
-          return nextSaved;
-        });
-        setRefDrafts((prevLocal) => {
-          const nextLocal: Record<string, string> = {};
-          for (const r of list) {
-            nextLocal[r.id] = r.id in prevLocal ? prevLocal[r.id]! : r.content;
-          }
-          return nextLocal;
-        });
-        syncAiDraftsFromServer(payload, list);
-        if (selectedRef.current.kind === "reference" && !ids.has(selectedRef.current.refId)) {
-          setSelected({ kind: "skill", path: "SKILL.md" });
-        }
-      });
+      void skillsApi.listReferences(id).then((list) => applyServerState(payload, list));
     });
     return unsub;
-  }, [id, dispatch, syncAiDraftsFromServer]);
+  }, [id, applyServerState]);
 
   const dirtyPaths = useMemo(() => {
     const set = new Set<string>();
@@ -192,6 +169,24 @@ export default function EditSkillPage() {
 
   const draftPaths = useMemo(() => new Set(Object.keys(aiDrafts)), [aiDrafts]);
 
+  const fileMarks = useMemo(() => {
+    const marks: Record<string, SkillFileMark> = {};
+    if (skill) {
+      const published = ensureSkillMarkdown(skill.content, skill.name, skill.description);
+      const pending = pendingDraft(published, skill.draftContent);
+      if (pending || dirtyPaths.has("SKILL.md")) {
+        marks["SKILL.md"] = pending && !published.trim() ? "new" : "modified";
+      }
+    }
+    for (const r of refs) {
+      const path = `references/${r.name}.md`;
+      const pending = pendingDraft(r.content, r.draftContent);
+      if (pending && !(r.content ?? "").trim()) marks[path] = "new";
+      else if (pending || dirtyPaths.has(path)) marks[path] = "modified";
+    }
+    return marks;
+  }, [skill, refs, dirtyPaths]);
+
   const draftFileList = useMemo(() => {
     const sorted = [...refs].sort((a, b) => a.name.localeCompare(b.name));
     const order = ["SKILL.md", ...sorted.map((r) => `references/${r.name}.md`)];
@@ -204,6 +199,7 @@ export default function EditSkillPage() {
   const selectedAiDraft = aiDrafts[selected.path] ?? null;
   const showDiff = selectedAiDraft != null && selectedAiDraft !== editorValue;
   const previewValue = selectedAiDraft ?? editorValue;
+  const previewFilePaths = useMemo(() => ["SKILL.md", ...refs.map((r) => `references/${r.name}.md`)], [refs]);
 
   const selectFileByPath = useCallback(
     (path: string) => {
@@ -349,40 +345,19 @@ export default function EditSkillPage() {
     [id, refs],
   );
 
-  const applyAiDraft = useCallback(
-    (path: string, content: string) => {
-      setAiDrafts((prev) => ({ ...prev, [path]: content }));
-      if (path === "SKILL.md") {
-        setSelected({ kind: "skill", path: "SKILL.md" });
-        return;
-      }
-      const m = path.match(/^references\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);
-      if (!m || !id) return;
-      const name = m[1];
-      void skillsApi.listReferences(id).then((list) => {
-        setRefs(list);
-        setRefDrafts((prev) => {
-          const next = { ...prev };
-          for (const r of list) {
-            if (!(r.id in next)) next[r.id] = r.content;
-          }
-          return next;
-        });
-        setSavedRefs((prev) => {
-          const next = { ...prev };
-          for (const r of list) {
-            if (!(r.id in next)) next[r.id] = r.content;
-          }
-          return next;
-        });
-        const ref = list.find((r) => r.name === name);
-        if (ref) {
-          setSelected({ kind: "reference", path, refId: ref.id, name: ref.name });
-        }
-      });
-    },
-    [id],
-  );
+  const confirmDeleteReference = () => {
+    if (selected.kind !== "reference") return;
+    Modal.confirm({
+      title: `Delete "${selected.name}.md"?`,
+      content: "This action cannot be undone.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        await handleDeleteReference(selected.refId);
+        message.success("Reference deleted");
+      },
+    });
+  };
 
   const handleAcceptAiDraft = async () => {
     if (!id || !selectedAiDraft) return;
@@ -421,9 +396,14 @@ export default function EditSkillPage() {
 
   const handleRejectAiDraft = async () => {
     if (!id) return;
-    const published = editorValue;
     setDiscarding(true);
     try {
+      if (selected.kind === "reference" && fileMarks[selected.path] === "new") {
+        await handleDeleteReference(selected.refId);
+        message.success("File removed");
+        return;
+      }
+      const published = editorValue;
       if (selected.kind === "skill") {
         await skillsApi.update(id, { draftContent: published });
         setSkill((prev) => (prev ? { ...prev, draftContent: published } : prev));
@@ -444,74 +424,31 @@ export default function EditSkillPage() {
     }
   };
 
-  const handleToolAction = useCallback(
-    (event: ToolActionEvent) => {
-      if (event.type !== "tool-result") return;
-
-      if (event.toolName === "edit_skill_file") {
-        let out: { ok?: boolean; path?: string; content?: string } | null = null;
-        if (typeof event.output === "string") {
-          try {
-            out = JSON.parse(event.output) as { ok?: boolean; path?: string; content?: string };
-          } catch {
-            out = null;
-          }
-        } else if (event.output && typeof event.output === "object") {
-          out = event.output as { ok?: boolean; path?: string; content?: string };
-        }
-        if (out?.ok && out.path && typeof out.content === "string") {
-          applyAiDraft(out.path, out.content);
-        }
-        return;
-      }
-
-      if (event.toolName === "delete_skill_file") {
-        let out: { ok?: boolean; path?: string } | null = null;
-        if (typeof event.output === "string") {
-          try {
-            out = JSON.parse(event.output) as { ok?: boolean; path?: string };
-          } catch {
-            out = null;
-          }
-        } else if (event.output && typeof event.output === "object") {
-          out = event.output as { ok?: boolean; path?: string };
-        }
-        if (!out?.ok || !out.path) return;
-        const path = out.path;
-        setRefs((prev) => {
-          const removed = prev.find((r) => `references/${r.name}.md` === path);
-          if (!removed) return prev;
-          setRefDrafts((d) => {
-            const next = { ...d };
-            delete next[removed.id];
-            return next;
-          });
-          setSavedRefs((d) => {
-            const next = { ...d };
-            delete next[removed.id];
-            return next;
-          });
-          setAiDrafts((d) => {
-            const next = { ...d };
-            delete next[path];
-            return next;
-          });
-          if (selectedRef.current.kind === "reference" && selectedRef.current.refId === removed.id) {
-            setSelected({ kind: "skill", path: "SKILL.md" });
-          }
-          return prev.filter((r) => r.id !== removed.id);
-        });
-      }
-    },
-    [applyAiDraft],
-  );
-
   const headerTitle = useMemo(() => {
     const parsed = parseSkillFrontmatter(skillDraft);
     return parsed.frontmatter.name?.trim() || skill?.name || "Skill";
   }, [skillDraft, skill?.name]);
 
-  const reviewBar = draftFileList.length > 0 && !agentGenerating ? <DraftReviewBar changedFiles={draftFileList} currentFile={selected.path} onReviewNext={handleReviewNext} onApprove={() => void handleAcceptAiDraft()} onDiscard={() => void handleRejectAiDraft()} approving={approving} discarding={discarding} /> : null;
+  const reviewBar =
+    draftFileList.length > 0 && !agentGenerating ? (
+      <DraftReviewBar
+        changedFiles={draftFileList}
+        currentFile={selected.path}
+        onReviewNext={handleReviewNext}
+        onApprove={() => void handleAcceptAiDraft()}
+        onDiscard={() => void handleRejectAiDraft()}
+        approving={approving}
+        discarding={discarding}
+        discardConfirm={
+          fileMarks[selected.path] === "new"
+            ? {
+                title: `Delete ${selected.path}?`,
+                description: "This file only exists as a draft. Discarding removes it. Other draft files are kept.",
+              }
+            : undefined
+        }
+      />
+    ) : null;
 
   if (!id) return null;
 
@@ -521,115 +458,114 @@ export default function EditSkillPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
-      <WindowHeader>
-        <EditSkillHeader title={headerTitle} hasDraft={draftFileList.length > 0} viewMode={viewMode} onViewModeChange={(mode) => void handleViewModeChange(mode)} onDelete={handleDelete} />
-      </WindowHeader>
+      <EditSkillHeader title={headerTitle} viewMode={viewMode} onViewModeChange={(mode) => void handleViewModeChange(mode)} onDelete={handleDelete} agentOpen={agentOpen} onToggleAgent={() => setAgentOpen((v) => !v)} />
 
       <RenderIf condition={!!error}>
         <Alert type="error" description={error} showIcon closable={{ onClose: () => setError("") }} className="m-3" />
       </RenderIf>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <SkillFileTree references={refs} selected={selected} dirtyPaths={dirtyPaths} draftPaths={draftPaths} onSelect={setSelected} onCreateReference={handleCreateReference} onDeleteReference={handleDeleteReference} />
-
-        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex h-10 shrink-0 items-center border-b border-border bg-card/80 px-3">
-            <span className="truncate font-mono text-xs text-muted-foreground">{selected.path}</span>
-            {showDiff ? <span className="ml-2 rounded-md bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-soft">AI draft</span> : null}
-          </div>
-
-          {viewMode === "preview" ? (
-            <div className="relative min-h-0 flex-1 overflow-hidden bg-card">
-              <div className="h-full overflow-y-auto">
-                <SkillMarkdownPreview content={previewValue} showFrontmatter={selected.kind === "skill"} />
+        <Splitter className="min-h-0 min-w-0 flex-1">
+          <Splitter.Panel defaultSize={220} min={160} max={420} className="min-h-0 overflow-hidden">
+            <SkillFileTree references={refs} selected={selected} fileMarks={fileMarks} onSelect={setSelected} onCreateReference={handleCreateReference} />
+          </Splitter.Panel>
+          <Splitter.Panel min={280} className="min-h-0 overflow-hidden">
+            <main className="relative flex h-full min-h-0 min-w-0 flex-col">
+              <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border bg-card/80 px-3">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{selected.path}</span>
+                {selected.kind === "reference" ? (
+                  <button type="button" onClick={confirmDeleteReference} className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive" title="Delete reference" aria-label={`Delete ${selected.name}.md`}>
+                    <Trash2 size={14} />
+                  </button>
+                ) : null}
               </div>
-              <AnimatePresence>
-                {reviewBar ? (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
-                    <div className="pointer-events-auto">{reviewBar}</div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="monaco-scroll-pad-x relative min-h-0 flex-1 overflow-hidden">
-              {showDiff && selectedAiDraft != null ? (
-                <MonacoDiffEditor
-                  key={`diff-${selected.path}`}
-                  language="markdown"
-                  original={editorValue}
-                  modified={selectedAiDraft}
-                  height="100%"
-                  options={{
-                    fontSize: 14,
-                    wordWrap: "on",
-                    renderSideBySide: false,
-                    renderIndicators: false,
-                    lineNumbers: "off",
-                    glyphMargin: false,
-                    folding: false,
-                    lineDecorationsWidth: 0,
-                  }}
-                />
-              ) : (
-                <MonacoEditor
-                  key={selected.path}
-                  language="markdown"
-                  value={editorValue}
-                  onChange={handleEditorChange}
-                  onSave={() => void handleSave()}
-                  height="100%"
-                  options={{
-                    fontSize: 14,
-                    wordWrap: "on",
-                    lineNumbers: "off",
-                    glyphMargin: false,
-                    folding: false,
-                    lineDecorationsWidth: 0,
-                    guides: { indentation: false, highlightActiveIndentation: false },
-                  }}
-                />
-              )}
 
-              <AnimatePresence>
-                {isDirty || reviewBar ? (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
-                    {isDirty ? (
-                      <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-                        <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand-soft" />
-                        <span className="mr-1 text-xs font-medium tracking-wide text-brand-soft">Unsaved</span>
-                        <Button size="small" type="primary" icon={!saving ? <DisketteIcon size={14} /> : undefined} loading={saving} onClick={() => void handleSave()}>
-                          {saving ? "Saving…" : "Save"}
-                        </Button>
-                      </div>
+              {viewMode === "preview" ? (
+                <div className="relative min-h-0 flex-1 overflow-hidden bg-card">
+                  <div className="h-full overflow-y-auto">
+                    <SkillMarkdownPreview content={previewValue} showFrontmatter={selected.kind === "skill"} filePaths={previewFilePaths} onOpenFile={selectFileByPath} />
+                  </div>
+                  <AnimatePresence>
+                    {reviewBar ? (
+                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
+                        <div className="pointer-events-auto">{reviewBar}</div>
+                      </motion.div>
                     ) : null}
-                    {reviewBar}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </div>
-          )}
-        </main>
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="monaco-scroll-pad-x relative min-h-0 flex-1 overflow-hidden">
+                  {showDiff && selectedAiDraft != null ? (
+                    <MonacoDiffEditor
+                      key={`diff-${selected.path}`}
+                      language="markdown"
+                      original={editorValue}
+                      modified={selectedAiDraft}
+                      height="100%"
+                      options={{
+                        fontSize: 14,
+                        wordWrap: "on",
+                        renderSideBySide: false,
+                        renderIndicators: false,
+                        lineNumbers: "off",
+                        glyphMargin: false,
+                        folding: false,
+                        lineDecorationsWidth: 0,
+                      }}
+                    />
+                  ) : (
+                    <MonacoEditor
+                      key={selected.path}
+                      language="markdown"
+                      value={editorValue}
+                      onChange={handleEditorChange}
+                      onSave={() => void handleSave()}
+                      height="100%"
+                      options={{
+                        fontSize: 14,
+                        wordWrap: "on",
+                        lineNumbers: "off",
+                        glyphMargin: false,
+                        folding: false,
+                        lineDecorationsWidth: 0,
+                        guides: { indentation: false, highlightActiveIndentation: false },
+                      }}
+                    />
+                  )}
 
-        <SkillAgentPanel
-          providerId={providerId}
-          model={model}
-          streamUrl={`/api/skills/${id}/assistant/stream`}
-          onToolAction={handleToolAction}
-          onGeneratingChange={setAgentGenerating}
-          onBeforeSend={async () => {
-            if (viewMode !== "editor" || !isDirty) return;
-            await handleSave({ quiet: true });
-          }}
-          onModelChange={(pid, m) => {
-            setProviderId(pid);
-            setModel(m);
-            void saveSettingValues({
-              [SettingKey.SkillAssistantProvider]: pid,
-              [SettingKey.SkillAssistantModel]: m,
-            });
-          }}
-        />
+                  <AnimatePresence>
+                    {isDirty || reviewBar ? (
+                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
+                        {isDirty ? (
+                          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
+                            <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand-700" />
+                            <span className="mr-1 text-xs font-medium tracking-wide text-brand-700">Unsaved</span>
+                            <Button size="small" type="primary" icon={!saving ? <FluentIcon name="document-24" size={14} /> : undefined} loading={saving} onClick={() => void handleSave()}>
+                              {saving ? "Saving…" : "Save"}
+                            </Button>
+                          </div>
+                        ) : null}
+                        {reviewBar}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+              )}
+            </main>
+          </Splitter.Panel>
+        </Splitter>
+
+        <AgentSidePanel open={agentOpen}>
+          <SkillAgentPanel
+            skillId={id}
+            onServerSync={applyServerState}
+            onGeneratingChange={setAgentGenerating}
+            onBeforeSend={async () => {
+              if (viewMode !== "editor" || !isDirty) return;
+              await handleSave({ quiet: true });
+            }}
+          />
+        </AgentSidePanel>
       </div>
     </div>
   );

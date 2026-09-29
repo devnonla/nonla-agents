@@ -1,5 +1,5 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { AgentListItem, AgentTeam } from "src/common/types";
@@ -144,7 +144,7 @@ export function NewAgentDialog({ defaultTeamId, children }: NewAgentDialogProps)
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
               <div className="text-[14px] leading-none text-muted-foreground">
-                <AddIcon size={16} />
+                <Plus size={16} />
               </div>
             </div>
             <span className="truncate font-semibold text-foreground">New Agent</span>

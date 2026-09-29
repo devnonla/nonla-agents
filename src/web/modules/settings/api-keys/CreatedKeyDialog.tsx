@@ -1,5 +1,4 @@
-import { Alert, Button, Input, Modal, message } from "@nonla-agents/ui";
-import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
+import { Alert, Button, FluentIcon, Input, Modal, message } from "devnonla-ui";
 import { useMemo } from "react";
 import type { AgentListItem, ApiKey, DatatableProject, KvStoreEntry } from "src/common/types";
 import { MarkdownPreview } from "src/components/MarkdownPreview";
@@ -66,7 +65,7 @@ export function CreatedKeyDialog({ created, agents, datatableProjects, kvEntries
               <span className="text-xs text-muted-foreground">Secret key</span>
               <div className="flex items-center gap-2">
                 <Input value={secret} readOnly className="font-mono text-[12px]" />
-                <Button type="text" icon={<ClipboardIcon size={14} />} onClick={() => void copyKey()} aria-label="Copy key" />
+                <Button type="text" icon={<FluentIcon name="clipboard-24" size={14} />} onClick={() => void copyKey()} aria-label="Copy key" />
               </div>
             </div>
           </>
@@ -75,7 +74,7 @@ export function CreatedKeyDialog({ created, agents, datatableProjects, kvEntries
         <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
             <span className="text-xs text-muted-foreground">LLM Docs</span>
-            <Button type="text" size="small" icon={<ClipboardIcon size={13} />} onClick={() => void copyDocs()}>
+            <Button type="text" size="small" icon={<FluentIcon name="clipboard-24" size={13} />} onClick={() => void copyDocs()}>
               Copy
             </Button>
           </div>

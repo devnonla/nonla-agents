@@ -1,4 +1,4 @@
-import { DatePicker, Input, Select, Switch } from "@nonla-agents/ui";
+import { DatePicker, Input, Select, Switch } from "devnonla-ui";
 import type { DatatableColumn } from "src/common/types";
 import { DATETIME_PICKER_FORMAT, fromPickerDate, toPickerDate } from "src/common/utils/date";
 import { NumberStepper } from "./NumberStepper";

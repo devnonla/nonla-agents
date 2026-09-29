@@ -1,5 +1,6 @@
-import type { MenuProps } from "@nonla-agents/ui";
-import { Modal, message } from "@nonla-agents/ui";
+import type { MenuProps } from "devnonla-ui";
+import { Modal, message } from "devnonla-ui";
+import { Pencil, Trash2 } from "lucide-react";
 import type { Agent, AgentListItem } from "src/common/types";
 import { cloneAgent, deleteAgent, updateAgent } from "src/modules/agents/common/agentsSlice";
 import type { TeamWithMembers } from "src/modules/agents/common/teamsSlice";
@@ -46,7 +47,7 @@ export function agentMenuItems({
     items.push({
       key: "open",
       label: "Edit",
-      icon: <MenuIcon name="edit-24" />,
+      icon: <Pencil size={16} />,
       onClick: onOpen,
     });
   }
@@ -87,31 +88,13 @@ export function agentMenuItems({
     });
   }
 
-  if (agent.teamId) {
-    items.push({
-      key: "ungroup",
-      label: "Remove from team",
-      icon: <MenuIcon name="share-ios-24" />,
-      onClick: () => {
-        void (async () => {
-          try {
-            await dispatch(updateAgent({ id: agent.id, teamId: null })).unwrap();
-            message.success(`Removed "${agent.name}" from team`);
-          } catch (err: unknown) {
-            message.error(err instanceof Error ? err.message : "Failed to move agent");
-          }
-        })();
-      },
-    });
-  }
-
   items.push(
     { type: "divider" },
     {
       key: "delete",
       danger: true,
       label: "Delete",
-      icon: <MenuIcon name="dismiss-circle-24" />,
+      icon: <Trash2 size={16} />,
       onClick: () => {
         Modal.confirm({
           title: `Delete "${agent.name}"?`,

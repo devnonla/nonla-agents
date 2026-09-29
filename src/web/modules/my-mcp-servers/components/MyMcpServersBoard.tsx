@@ -1,4 +1,4 @@
-import { Alert, Empty } from "@nonla-agents/ui";
+import { Alert, Empty } from "devnonla-ui";
 import { useEffect, useState } from "react";
 import type { MyMcpServer } from "src/common/types";
 import RenderIf from "src/components/RenderIf";

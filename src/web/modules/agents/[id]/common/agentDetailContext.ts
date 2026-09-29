@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
-import type { AgentTool, AgentToolAssignment } from "src/common/types";
+import type { AgentSkillAssignment, AgentTool, AgentToolAssignment } from "src/common/types";
 import type { Agent, AgentListItem } from "src/common/types";
+
+export type ConfigSection = "role" | "instruct" | "tools" | "mcp" | "skills" | "agents" | "memory" | "danger";
 
 // ─── Agent Detail Outlet Context ──────────────────────────────────────────────
 
@@ -12,6 +14,7 @@ export interface AgentDetailContext {
   setName: (v: string) => void;
   description: string;
   setDescription: (v: string) => void;
+  avatar: string | null;
   teamId: string | null;
   setTeamId: (v: string | null) => void;
   selectedProviderId: string | null;
@@ -29,6 +32,8 @@ export interface AgentDetailContext {
   // Form state — tools (junction table assignments)
   toolAssignments: AgentToolAssignment[];
   setToolAssignments: (v: AgentToolAssignment[]) => void;
+  // Form state — skills (junction table assignments)
+  skillAssignments: AgentSkillAssignment[];
   // Form state — callable agents
   callableAgentIds: string[];
   setCallableAgentIds: (v: string[]) => void;
@@ -38,6 +43,21 @@ export interface AgentDetailContext {
   agents: AgentListItem[];
   // Actions
   onDelete: () => Promise<void>;
+  // Config actions (auto-save)
+  onToggleTool: (toolId: string, enable: boolean) => void;
+  onToggleSkill: (skillId: string, enable: boolean) => void;
+  onToggleCallableAgent: (agentId: string, enable: boolean) => void;
+  onModelChange: (providerId: string, model: string) => void;
+  onNameChange: (name: string) => void;
+  onDescriptionChange: (desc: string) => void;
+  onAvatarChange: (avatar: string) => void | Promise<void>;
+  onTogglePublish: (checked: boolean) => void;
+  onSavePassword: (password: string) => Promise<void>;
+  // Config route (/agents/:id/config)
+  configOpen: boolean;
+  onToggleConfig: () => void;
+  onOpenConfig: (section?: ConfigSection) => void;
+  onCloseConfig: () => void;
 }
 
 // ─── Standalone React Context ─────────────────────────────────────────────────

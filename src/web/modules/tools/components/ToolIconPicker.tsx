@@ -1,5 +1,5 @@
-import { Button, Input, Popover, Spin } from "@nonla-agents/ui";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
+import { Button, Input, Popover, Spin } from "devnonla-ui";
+import { Search } from "lucide-react";
 import type { ReactNode, UIEvent } from "react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ensureFluentIcons, fluentIconRef, getFluentImgSrc, getIconNames } from "../common/iconify";
@@ -125,7 +125,7 @@ export function ToolIconPicker({ icon, onChange, children, disabled }: ToolIconP
       arrow={false}
       content={
         <div className="flex w-90 flex-col gap-2.5">
-          <Input allowClear size="small" placeholder="Search icons…" value={query} onChange={(e) => setQuery(e.target.value)} prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} autoFocus />
+          <Input allowClear size="small" placeholder="Search icons…" value={query} onChange={(e) => setQuery(e.target.value)} prefix={<Search size={14} className="text-muted-foreground" />} autoFocus />
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] tabular-nums text-muted-foreground">{loadingNames ? "Loading…" : `${filtered.length.toLocaleString()} icons`}</span>
             <Button type="text" size="small" disabled={!icon || saving} onClick={() => void handleClear()}>

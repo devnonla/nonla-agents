@@ -1,7 +1,5 @@
-import { Checkbox, EFormItemType, Input, Modal, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
-import { BotIcon } from "@solar-icons/react/dynamic/bot";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
+import { Checkbox, EFormItemType, FluentIcon, Input, Modal, SchemaForm, type TFormItemProps } from "devnonla-ui";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";
@@ -153,7 +151,7 @@ export function ApiKeyFormDialog({ edit, agents, datatableProjects, kvEntries, o
             ) : (
               <>
                 <div className="flex items-center gap-2 border-b border-border p-2">
-                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search agents" allowClear prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} />
+                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search agents" allowClear prefix={<Search size={14} className="text-muted-foreground" />} />
                   <span className="shrink-0 text-[11px] tabular-nums text-tertiary-foreground">{agentIds.length} selected</span>
                 </div>
                 <div className="max-h-55 overflow-y-auto py-1">
@@ -165,12 +163,12 @@ export function ApiKeyFormDialog({ edit, agents, datatableProjects, kvEntries, o
                       const checkedCount = ids.filter((id) => selected.has(id)).length;
                       const allChecked = checkedCount === ids.length;
                       const someChecked = checkedCount > 0 && !allChecked;
-                      const GroupIcon = group.id ? UsersGroupTwoRoundedIcon : BotIcon;
+                      const groupIcon = group.id ? "people-community-24" : "bot-24";
                       return (
                         <div key={group.id ?? "__ungrouped"} className="pb-1">
                           <div className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-muted/40" onClick={() => setAgentIds((prev) => toggleIds(prev, ids, !allChecked))}>
                             <Checkbox checked={allChecked} indeterminate={someChecked} onClick={(e) => e.stopPropagation()} onChange={(checked) => setAgentIds((prev) => toggleIds(prev, ids, checked))} />
-                            <GroupIcon size={14} className="shrink-0 text-muted-foreground" />
+                            <FluentIcon name={groupIcon} size={14} className="shrink-0 text-muted-foreground" />
                             <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group.name}</span>
                             <span className="text-[11px] tabular-nums text-tertiary-foreground">
                               {checkedCount}/{ids.length}

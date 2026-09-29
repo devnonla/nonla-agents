@@ -1,24 +1,20 @@
-import { Button, message } from "@nonla-agents/ui";
-import { CodeFileIcon } from "@solar-icons/react/dynamic/code-file";
-import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
-import { PaletteIcon } from "@solar-icons/react/dynamic/palette";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
+import { Button, FluentIcon, message } from "devnonla-ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { Site, SiteSourceFile } from "src/common/types";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
 import type { Monaco } from "src/components/MonacoEditor";
-import { MonacoEditor } from "src/components/MonacoEditor";
+import { MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
 import { sitesApi } from "../../common/sitesApi";
 
 const EDITOR_FILES = ["app.tsx", "styles.css", "backend.ts"] as const satisfies readonly SiteSourceFile[];
 type EditorFile = (typeof EDITOR_FILES)[number];
 
-const FILE_META: Record<EditorFile, { language: string; icon: typeof CodeFileIcon }> = {
-  "app.tsx": { language: "typescript", icon: CodeFileIcon },
-  "styles.css": { language: "css", icon: PaletteIcon },
-  "backend.ts": { language: "typescript", icon: ProgrammingIcon },
+const FILE_META: Record<EditorFile, { language: string; icon: string }> = {
+  "app.tsx": { language: "typescript", icon: "document-24" },
+  "styles.css": { language: "css", icon: "paint-brush-24" },
+  "backend.ts": { language: "typescript", icon: "code-24" },
 };
 
 export type SiteCodeEditorHandle = {
@@ -223,19 +219,21 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
 
   const isDirty = dirtyFiles.size > 0;
   const meta = FILE_META[selected];
+  const selectedDraft = drafts?.[selected];
+  const selectedProd = prod?.[selected];
+  const showDiff = selectedDraft != null && selectedProd != null && selectedDraft !== selectedProd;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card md:border-r md:border-border">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div className="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-border bg-muted/30">
         {EDITOR_FILES.map((file) => {
           const item = FILE_META[file];
-          const FileIcon = item.icon;
           const active = selected === file;
           return (
             <button key={file} type="button" onClick={() => setSelected(file)} className={cn("flex shrink-0 cursor-pointer items-center gap-1.5 border-r border-border px-3 text-left transition-colors", active ? "bg-background text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
-              <FileIcon size={13} className="shrink-0 opacity-80" />
+              <FluentIcon name={item.icon} size={13} className="shrink-0 opacity-80" />
               <span className="font-mono text-[12px] font-medium">{file}</span>
-              {dirtyFiles.has(file) || changedVsProd.includes(file) ? <span className="size-1.5 shrink-0 rounded-full bg-brand-soft" /> : null}
+              {dirtyFiles.has(file) || changedVsProd.includes(file) ? <span className="size-1.5 shrink-0 rounded-full bg-brand-700" /> : null}
             </button>
           );
         })}
@@ -244,6 +242,8 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
       <div className="monaco-scroll-pad-x relative min-h-0 min-w-0 flex-1 overflow-hidden">
         {loading || !drafts ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading files…</div>
+        ) : showDiff && selectedProd != null && selectedDraft != null ? (
+          <MonacoDiffEditor key={`diff-${selected}`} language={meta.language} original={selectedProd} modified={selectedDraft} height="100%" options={{ fontSize: 13, renderSideBySide: false, renderIndicators: false }} />
         ) : (
           <MonacoEditor path={`file:///${selected}`} language={meta.language} value={drafts[selected]} keepCurrentModel onChange={(v) => setDrafts((d) => (d ? { ...d, [selected]: v ?? "" } : d))} onSave={handleSave} onMount={handleEditorMount} height="100%" options={{ fontSize: 13, tabSize: 2 }} />
         )}
@@ -253,9 +253,9 @@ export const SiteCodeEditor = forwardRef<SiteCodeEditorHandle, SiteCodeEditorPro
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
               {isDirty ? (
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-                  <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand-soft" />
-                  <span className="mr-1 text-xs font-medium tracking-wide text-brand-soft">Unsaved</span>
-                  <Button size="small" type="primary" icon={!saving ? <DisketteIcon size={14} /> : undefined} loading={saving} onClick={handleSave}>
+                  <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand-700" />
+                  <span className="mr-1 text-xs font-medium tracking-wide text-brand-700">Unsaved</span>
+                  <Button size="small" type="primary" icon={!saving ? <FluentIcon name="document-24" size={14} /> : undefined} loading={saving} onClick={handleSave}>
                     {saving ? "Saving…" : "Save"}
                   </Button>
                 </div>

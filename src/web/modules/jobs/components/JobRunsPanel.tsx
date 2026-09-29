@@ -1,23 +1,16 @@
-import { Button, Input, Switch } from "@nonla-agents/ui";
-import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
-import { CloseCircleIcon } from "@solar-icons/react/dynamic/close-circle";
-import { DangerTriangleIcon } from "@solar-icons/react/dynamic/danger-triangle";
-import { InfoCircleIcon } from "@solar-icons/react/dynamic/info-circle";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { PlayCircleIcon } from "@solar-icons/react/dynamic/play-circle";
-import { StopCircleIcon } from "@solar-icons/react/dynamic/stop-circle";
+import { Button, Input, Switch } from "devnonla-ui";
+import { AlertTriangle, CheckCircle2, CircleHelp, Clock, FastForward, Loader2, Search, X, XCircle } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { JobLogEntry, JobLogLevel, JobRun } from "src/common/types";
-import { formatDayHeader, formatTimeOnly, getDayKey } from "src/common/utils/date";
-import { FluentIcon } from "src/components/FluentIcon";
+import { formatDateTime } from "src/common/utils/date";
 import RenderIf from "src/components/RenderIf";
 
 const TIMELINE_W = 240;
 
 function statusIcon(status: JobRun["status"], size = 14) {
-  if (status === "success") return <FluentIcon name="checkmark-circle-24" size={size} />;
-  if (status === "failed") return <FluentIcon name="error-circle-24" size={size} />;
-  return <FluentIcon name="fast-forward-circle-24" size={size} className="animate-pulse" />;
+  if (status === "success") return <CheckCircle2 size={size} className="text-success" />;
+  if (status === "failed") return <XCircle size={size} className="text-destructive" />;
+  return <Loader2 size={size} className="animate-spin text-brand-700" />;
 }
 
 function runListDuration(run: JobRun): string | null {
@@ -54,11 +47,11 @@ function formatOffset(ms: number): string {
 }
 
 function levelIcon(level: JobLogLevel) {
-  if (level === "error") return <CloseCircleIcon size={13} className="text-red-400" />;
-  if (level === "warn") return <DangerTriangleIcon size={13} className="text-amber-400" />;
-  if (level === "system") return <ClockCircleIcon size={13} className="text-sky-400" />;
-  if (level === "step") return <PlayCircleIcon size={13} className="text-emerald-400" />;
-  return <InfoCircleIcon size={13} className="text-muted-foreground" />;
+  if (level === "error") return <X size={13} className="text-red-400" />;
+  if (level === "warn") return <AlertTriangle size={13} className="text-amber-400" />;
+  if (level === "system") return <Clock size={13} className="text-sky-400" />;
+  if (level === "step") return <FastForward size={13} className="text-emerald-400" />;
+  return <CircleHelp size={13} className="text-muted-foreground" />;
 }
 
 function levelTextClass(level: JobLogLevel) {
@@ -84,7 +77,7 @@ function timelineMarks(totalMs: number): number[] {
 /** Shared time axis track — ticks, span bars, and event dots use the same 0→100% space. */
 function TimelineTrack({ children, className = "" }: { children?: ReactNode; className?: string }) {
   return (
-    <div className={`relative h-full min-h-[28px] border-l border-border px-2.5 ${className}`}>
+    <div className={`relative h-full min-h-7 border-l border-border px-2.5 ${className}`}>
       <div className="pointer-events-none absolute inset-y-0 left-2.5 right-2.5">
         {[25, 50, 75].map((p) => (
           <span key={p} className="absolute inset-y-0 w-px bg-foreground/8" style={{ left: `${p}%` }} />
@@ -246,20 +239,6 @@ export function JobRunsPanel({
   const entries = useMemo(() => normalizeLogs(selected?.logs), [selected?.logs]);
   const durationMs = selected ? runDurationMs(selected) : 1;
 
-  const runsByDay = useMemo(() => {
-    const groups: Array<{ key: string; label: string; runs: JobRun[] }> = [];
-    for (const run of runs) {
-      const key = getDayKey(run.startedAt);
-      const last = groups[groups.length - 1];
-      if (last?.key === key) {
-        last.runs.push(run);
-      } else {
-        groups.push({ key, label: formatDayHeader(run.startedAt), runs: [run] });
-      }
-    }
-    return groups;
-  }, [runs]);
-
   const displayRows = useMemo(() => {
     const rows = buildDisplayRows(entries, durationMs);
     const q = search.trim().toLowerCase();
@@ -299,29 +278,24 @@ export function JobRunsPanel({
   const gridStyle = { gridTemplateColumns: `minmax(0,1fr) ${TIMELINE_W}px` };
 
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-card">
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
       <div className="w-56 shrink-0 overflow-y-auto border-r border-border-subtle">
         <RenderIf condition={runs.length === 0}>
           <div className="px-3 py-8 text-center text-xs text-muted-foreground">No runs yet</div>
         </RenderIf>
-        {runsByDay.map((group) => (
-          <div key={group.key}>
-            <div className="sticky top-0 z-1 bg-card px-3 py-1.5 text-[11px] font-medium text-muted-foreground">{group.label}</div>
-            {group.runs.map((run) => {
-              const active = selected?.id === run.id;
-              const duration = runListDuration(run);
-              return (
-                <button key={run.id} type="button" onClick={() => setSelectedId(run.id)} className={["relative flex w-full cursor-pointer items-center gap-2 border-0 px-3 py-1.5 text-left transition-colors", active ? "bg-accent text-foreground" : "bg-transparent text-foreground hover:bg-muted/40"].join(" ")}>
-                  {active ? <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-brand-soft" /> : null}
-                  <span className="shrink-0">{statusIcon(run.status, 14)}</span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium tabular-nums leading-none">{formatTimeOnly(run.startedAt)}</span>
-                  <span className="shrink-0 text-[11px] capitalize leading-none text-tertiary-foreground">{run.trigger}</span>
-                  {duration ? <span className="w-10 shrink-0 text-right text-[11px] tabular-nums leading-none text-tertiary-foreground">{duration}</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+        {runs.map((run) => {
+          const active = selected?.id === run.id;
+          const duration = runListDuration(run);
+          return (
+            <button key={run.id} type="button" onClick={() => setSelectedId(run.id)} className={["relative flex w-full cursor-pointer items-center gap-2 border-0 px-3 py-1.5 text-left transition-colors", active ? "bg-accent text-foreground" : "bg-transparent text-foreground hover:bg-muted/40"].join(" ")}>
+              {active ? <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-brand-700" /> : null}
+              <span className="shrink-0">{statusIcon(run.status, 14)}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium tabular-nums leading-none">{formatDateTime(run.startedAt)}</span>
+              <span className="shrink-0 text-[11px] capitalize leading-none text-tertiary-foreground">{run.trigger}</span>
+              {duration ? <span className="w-10 shrink-0 text-right text-[11px] tabular-nums leading-none text-tertiary-foreground">{duration}</span> : null}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -330,7 +304,7 @@ export function JobRunsPanel({
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-3 border-b border-border px-3 py-1.5">
-              <Input size="small" allowClear prefix={<MagnifierIcon size={12} className="text-muted-foreground" />} placeholder="Search log" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-50" />
+              <Input size="small" allowClear prefix={<Search size={12} className="text-muted-foreground" />} placeholder="Search log" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-50" />
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Switch size="small" checked={errorsOnly} onChange={setErrorsOnly} aria-label="Errors only" />
                 Errors only
@@ -341,7 +315,7 @@ export function JobRunsPanel({
               </div>
               <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
                 {selected.status === "running" && onCancelRun ? (
-                  <Button size="small" danger icon={<StopCircleIcon size={12} weight="BoldDuotone" />} onClick={() => onCancelRun(selected.id)}>
+                  <Button size="small" danger icon={<X size={12} />} onClick={() => onCancelRun(selected.id)}>
                     Stop
                   </Button>
                 ) : null}
@@ -354,7 +328,7 @@ export function JobRunsPanel({
               </span>
             </div>
 
-            <div className="sticky top-0 z-10 grid border-b border-border bg-card" style={gridStyle}>
+            <div className="sticky top-0 z-10 grid border-b border-border" style={gridStyle}>
               <div className="flex h-8 items-center gap-2 px-3 text-[11px] text-muted-foreground">
                 {statusIcon(selected.status)}
                 <span className="font-medium text-foreground">Attempt 1</span>
@@ -369,7 +343,7 @@ export function JobRunsPanel({
               <TimelineTicks durationMs={durationMs} />
             </div>
 
-            <div ref={logRef} className="min-h-0 flex-1 overflow-auto bg-card">
+            <div ref={logRef} className="min-h-0 flex-1 overflow-auto">
               <div className="grid border-b border-border" style={gridStyle}>
                 <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-muted-foreground">
                   <span className="font-medium text-foreground">Run</span>

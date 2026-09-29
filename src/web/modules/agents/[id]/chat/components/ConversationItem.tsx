@@ -1,4 +1,5 @@
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, Spin } from "devnonla-ui";
+import { X } from "lucide-react";
 import type { AgentConversation } from "src/common/types";
 
 interface ConversationItemProps {
@@ -22,29 +23,22 @@ export function ConversationItem({ conversation, isActive, onSelect, onDelete }:
       }}
       className={["relative w-full flex items-center gap-2 py-2 px-2.5 rounded-lg text-left cursor-pointer border-none group", isActive ? "bg-primary/8" : "bg-transparent hover:bg-muted/80"].join(" ")}
     >
-      <span className={["flex-1 min-w-0 text-sm truncate font-normal text-foreground", "group-hover:pr-6 group-focus-within:pr-7"].join(" ")}>{conversation.title || "Untitled"}</span>
+      <span className="min-w-0 flex-1 truncate pr-6 text-sm font-medium text-foreground">{conversation.title || "Untitled"}</span>
 
-      {conversation.status === "running" && (
-        <span
-          className="shrink-0 inline-block rounded-full animate-spin"
-          style={{
-            width: 12,
-            height: 12,
-            border: "2px solid color-mix(in srgb, var(--primary) 20%, transparent)",
-            borderTopColor: "var(--primary)",
-          }}
-        />
-      )}
+      {conversation.status === "running" && <Spin size="small" className="shrink-0" />}
 
-      <button
-        type="button"
-        onClick={(e) => void onDelete(e, conversation.id)}
-        className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden items-center justify-center size-6 rounded-md cursor-pointer border-none bg-muted text-muted-foreground hover:bg-red-500/20 hover:text-destructive group-hover:flex group-focus-within:flex"
+      <Button
+        type="text"
+        size="small"
+        danger
+        icon={<X />}
+        styles={{ icon: { width: 12, height: 12 } }}
         title="Delete conversation"
+        aria-label="Delete conversation"
         tabIndex={-1}
-      >
-        <TrashBinMinimalisticIcon size={12} />
-      </button>
+        onClick={(e) => void onDelete(e, conversation.id)}
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-6! px-0! opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+      />
     </div>
   );
 }

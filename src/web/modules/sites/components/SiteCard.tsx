@@ -1,8 +1,7 @@
-import { Button, Popover } from "@nonla-agents/ui";
-import { SquareTopDownIcon } from "@solar-icons/react/dynamic/square-top-down";
+import { FluentIcon, Popover } from "devnonla-ui";
+import { ExternalLink, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Site } from "src/common/types";
-import { FluentIcon } from "src/components/FluentIcon";
 import RenderIf from "src/components/RenderIf";
 import { sitesApi } from "../common/sitesApi";
 
@@ -32,20 +31,58 @@ export const SITE_VISIBILITY_META: Record<SiteVisibility, { label: string; descr
   },
 };
 
-function SitePreview({ site, publicPath }: { site: Site; publicPath: string }) {
+/** Drop transparent gutters left by the preview capture, so cover fills the card. */
+async function cropToOpaque(blob: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(blob);
+  const source = document.createElement("canvas");
+  source.width = bitmap.width;
+  source.height = bitmap.height;
+  const ctx = source.getContext("2d");
+  if (!ctx) return blob;
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+
+  const { data, width, height } = ctx.getImageData(0, 0, source.width, source.height);
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] < 12) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < 0) return blob;
+
+  const cropW = maxX - minX + 1;
+  const cropH = maxY - minY + 1;
+  if (cropW === width && cropH === height) return blob;
+
+  const out = document.createElement("canvas");
+  out.width = cropW;
+  out.height = cropH;
+  out.getContext("2d")?.drawImage(source, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+  const cropped = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/png"));
+  return cropped ?? blob;
+}
+
+function SiteThumbnail({ site, onEdit, publicPath }: { site: Site; onEdit: () => void; publicPath: string }) {
   const [thumbSrc, setThumbSrc] = useState<string | null>(null);
-  const [thumbLoading, setThumbLoading] = useState(true);
   const [thumbFailed, setThumbFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
-    setThumbLoading(true);
     setThumbFailed(false);
     setThumbSrc(null);
 
     void sitesApi
       .getThumbnail(site.id)
+      .then((blob) => cropToOpaque(blob))
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
@@ -53,9 +90,6 @@ function SitePreview({ site, publicPath }: { site: Site; publicPath: string }) {
       })
       .catch(() => {
         if (!cancelled) setThumbFailed(true);
-      })
-      .finally(() => {
-        if (!cancelled) setThumbLoading(false);
       });
 
     return () => {
@@ -65,54 +99,26 @@ function SitePreview({ site, publicPath }: { site: Site; publicPath: string }) {
   }, [site.id, site.draftUpdatedAt, site.updatedAt]);
 
   return (
-    <div className="flex w-55 flex-col gap-2 p-1">
-      <div className="relative aspect-16/10 overflow-hidden rounded-lg border border-border-subtle bg-muted">
-        <RenderIf
-          condition={!!thumbSrc && !thumbFailed}
-          fallback={
-            <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
-              <FluentIcon name="globe-24" size={20} />
-              <span className="text-[10px]">{thumbLoading ? "…" : "—"}</span>
-            </div>
-          }
-        >
-          <img src={thumbSrc ?? undefined} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover object-top" />
-        </RenderIf>
-      </div>
-      <RenderIf condition={site.isPublished}>
-        <Button
-          type="primary"
-          size="small"
-          block
-          icon={<SquareTopDownIcon size={14} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(publicPath, "_blank", "noopener,noreferrer");
-          }}
-        >
-          Open site
-        </Button>
+    <div className="relative mx-2 mt-2 aspect-16/10 overflow-hidden rounded-lg border border-border bg-muted shadow-[0_1px_2px_rgb(0_0_0/0.05)]">
+      <RenderIf
+        condition={!!thumbSrc && !thumbFailed}
+        fallback={
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <FluentIcon name="globe-24" size={22} />
+          </div>
+        }
+      >
+        <img src={thumbSrc ?? undefined} alt="" draggable={false} className="absolute inset-0 h-full w-full" style={{ objectFit: "cover", objectPosition: "top center" }} />
       </RenderIf>
+      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        <button type="button" aria-label="Edit" title="Edit" onClick={onEdit} className="inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-0 bg-white/95 text-foreground shadow-sm">
+          <Pencil size={16} />
+        </button>
+        <a href={publicPath} target="_blank" rel="noopener noreferrer" aria-label="Open site" title="Open site" className="inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-foreground shadow-sm">
+          <ExternalLink size={16} />
+        </a>
+      </div>
     </div>
-  );
-}
-
-export function SiteOpenPublicButton({ site }: { site: Site }) {
-  if (!site.isPublished) return null;
-
-  return (
-    <Button
-      type="text"
-      size="xs"
-      icon={<SquareTopDownIcon size={12} />}
-      aria-label={`Open ${site.name}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        window.open(`/public/sites/${site.slug}`, "_blank", "noopener,noreferrer");
-      }}
-    >
-      Open
-    </Button>
   );
 }
 
@@ -133,22 +139,40 @@ export function SiteVisibilityIcon({ site }: { site: Site }) {
         </div>
       }
     >
-      <span className="inline-flex size-5 cursor-help items-center justify-center" aria-label={meta.label} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <span className="inline-flex size-5 shrink-0 cursor-help items-center justify-center" aria-label={meta.label} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <FluentIcon name={meta.icon} size={16} />
       </span>
     </Popover>
   );
 }
 
-export function SiteNameCell({ site, onOpen }: { site: Site; onOpen: () => void }) {
-  const [previewOpen, setPreviewOpen] = useState(false);
+export function SiteCard({ site, onOpen }: { site: Site; onOpen: () => void }) {
   const publicPath = `/public/sites/${site.slug}`;
+  const visibility = SITE_VISIBILITY_META[siteVisibility(site)];
 
   return (
-    <Popover trigger="hover" placement="bottomLeft" mouseEnterDelay={0.25} mouseLeaveDelay={0.15} open={previewOpen} onOpenChange={setPreviewOpen} content={previewOpen ? <SitePreview site={site} publicPath={publicPath} /> : null}>
-      <button type="button" onClick={onOpen} className="m-0 min-w-0 max-w-full cursor-pointer border-0 bg-transparent p-0 text-left" aria-label={`Open ${site.name}`}>
-        <span className="block truncate text-sm font-medium text-foreground hover:text-brand-soft">{site.name}</span>
-      </button>
-    </Popover>
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-card text-left transition-[border-color] duration-200 hover:border-brand/40">
+      <SiteThumbnail site={site} onEdit={onOpen} publicPath={publicPath} />
+
+      <div className="pt-3 pb-3">
+        <div className="px-3 truncate text-[16px] font-semibold text-foreground">{site.name}</div>
+
+        <div className="mt-2 flex flex-col gap-1 pt-2 border-t border-border-subtle">
+          {/*  */}
+          <div className="px-3 flex items-center gap-2 text-[11px] leading-4 py-1">
+            <span className="w-16 shrink-0 text-muted-foreground flex-1">Visibility</span>
+            <span className="inline-flex min-w-0 items-center gap-1 text-foreground">
+              <SiteVisibilityIcon site={site} />
+              {visibility.label}
+            </span>
+          </div>
+
+          <div className="px-3 flex items-center gap-2 text-[11px] leading-4 py-1">
+            <span className="flex-1 shrink-0 text-muted-foreground">Link</span>
+            <span className="truncate font-mono text-tertiary-foreground">{publicPath}</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

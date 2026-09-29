@@ -1,14 +1,19 @@
-import type { TooltipPlacement } from "@nonla-agents/ui";
-import { Popover } from "@nonla-agents/ui";
 import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
 import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
 import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
+import type { TooltipPlacement } from "devnonla-ui";
+import { Popover, controlHeightVar, controlRadiusVar, getSizeTokens } from "devnonla-ui";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmProvider } from "src/common/types";
 import { ProviderIcon } from "src/components/ProviderIcon";
 import { cn } from "src/lib/utils";
 import { PROVIDER_META, ensureLlmProviders, fetchProviderModels } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { useAppDispatch, useAppSelector } from "src/store/store";
+
+/** Match Select / Input field chrome from `devnonla-ui` (internal tokens not exported). */
+const SELECT_FIELD_SURFACE = "border border-solid border-glass-border bg-glass-bar text-foreground shadow-[inset_0_1px_0_var(--glass-highlight)] backdrop-blur-xl";
+const SELECT_FIELD_TRANSITION = "transition-[background-color,border-color] duration-[var(--nonla-dur-fast,150ms)] ease-[var(--nonla-ease-out,cubic-bezier(0.16,1,0.3,1))] motion-reduce:transition-none";
+const SELECT_FIELD_FOCUS = "focus:border-brand focus-within:border-brand data-[state=open]:border-brand aria-expanded:border-brand";
 
 export function shortModelName(name: string) {
   return name.includes("/") ? (name.split("/").pop() as string) : name;
@@ -163,30 +168,37 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
     setView({ level: "providers" });
   };
 
+  const fieldTokens = getSizeTokens("default");
   const defaultTrigger = (
     <button
       type="button"
       disabled={disabled}
-      className={cn(
-        "flex h-field-md w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.75 text-left text-[14px] leading-5 outline-none",
-        "border border-solid border-input bg-transparent text-foreground",
-        "transition-[border-color] duration-150",
-        "focus:border-brand focus-within:border-brand",
-        open ? "border-brand" : "hover:border-brand/40",
-        disabled && "cursor-not-allowed border-input bg-transparent text-muted-foreground hover:border-input",
-      )}
+      aria-expanded={open}
+      data-state={open ? "open" : "closed"}
+      className={cn("inline-flex w-full cursor-pointer items-center gap-2 text-left", SELECT_FIELD_SURFACE, SELECT_FIELD_TRANSITION, SELECT_FIELD_FOCUS, "focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45")}
+      style={{
+        height: controlHeightVar("default"),
+        minHeight: controlHeightVar("default"),
+        fontSize: fieldTokens.fontSize,
+        lineHeight: `${fieldTokens.lineHeight}px`,
+        paddingLeft: fieldTokens.paddingInline,
+        paddingRight: fieldTokens.paddingInline,
+        borderRadius: controlRadiusVar("default"),
+      }}
     >
       {selectedProvider && selectedModel ? (
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
           <ProviderIcon provider={selectedProvider.provider} size={14} />
-          <span className="shrink-0 text-sm text-muted-foreground">{providerMeta?.label ?? selectedProvider.label}</span>
-          <span className="shrink-0 text-muted-foreground">/</span>
-          <span className="truncate font-mono text-sm text-foreground">{shortModelName(selectedModel)}</span>
+          <span className="min-w-0 truncate">
+            <span className="text-muted-foreground">{providerMeta?.label ?? selectedProvider.label}</span>
+            <span className="text-muted-foreground"> / </span>
+            <span className="text-foreground">{shortModelName(selectedModel)}</span>
+          </span>
         </span>
       ) : (
-        <span className="text-quaternary-foreground">{placeholder}</span>
+        <span className="min-w-0 flex-1 truncate text-quaternary-foreground">{placeholder}</span>
       )}
-      <AltArrowDownIcon size={14} className={cn("shrink-0 text-quaternary-foreground transition-transform duration-150", open && "rotate-180")} />
+      <AltArrowDownIcon size={12} className={cn("shrink-0 opacity-60 transition-transform duration-150", open && "rotate-180")} />
     </button>
   );
 
@@ -195,31 +207,38 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
   const placement = mapPlacement(popoverSide, popoverAlign);
 
   const popoverContent = (
-    <div className={cn("box-border min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-popover", resolvedPopoverClassName)} style={widthStyle}>
+    <div className={cn("nonla-glass box-border min-w-0 max-w-full overflow-hidden rounded-xl outline-none", resolvedPopoverClassName)} style={widthStyle}>
       {view.level === "providers" ? (
-        <div className="flex h-80 w-full min-w-0 flex-col">
-          <div className="border-b border-border px-3 py-2.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Select Provider</span>
+        <div className="flex max-h-72 w-full min-w-0 flex-col">
+          <div className="px-2.5 pt-1.5 pb-1">
+            <span className="text-xs font-medium leading-4 text-tertiary-foreground">Select Provider</span>
           </div>
-          <div onWheel={(e) => e.stopPropagation()} className="min-h-0 flex-1 overflow-y-auto py-1">
+          <div onWheel={(e) => e.stopPropagation()} className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto p-1">
             {filteredProviders.map((p) => {
               const isActive = p.id === selectedProviderId;
               const modelCount = (p as any).countModels ?? p.models?.length ?? 0;
               return (
-                <button key={p.id} type="button" onClick={() => handleSelectProvider(p)} className={cn("flex w-full min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100", isActive ? "bg-accent text-primary" : "text-muted-foreground hover:bg-muted")}>
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
-                    <ProviderIcon provider={p.provider} size={16} />
-                  </div>
-
-                  <span className={cn("min-w-0 flex-1 truncate font-medium", isActive && "text-primary")}>{p.label}</span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectProvider(p)}
+                  className={cn(
+                    "nonla-menu-item relative flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-solid border-transparent px-2.5 py-1 text-left text-sm leading-5 outline-none",
+                    isActive ? "bg-ink-hover border-glass-border text-foreground" : "text-foreground hover:bg-ink-hover hover:border-glass-border",
+                  )}
+                >
+                  <span className="inline-flex size-5 shrink-0 items-center justify-center [&_img]:size-4 [&_svg]:size-4">
+                    <ProviderIcon provider={p.provider} size={14} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                  <span className="shrink-0 text-xs text-tertiary-foreground">
                     {modelCount} model{modelCount !== 1 ? "s" : ""}
                   </span>
                 </button>
               );
             })}
             {filteredProviders.length === 0 && (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              <div className="px-2.5 py-2 text-sm text-muted-foreground">
                 No providers available.
                 <br />
                 <span className="text-muted-foreground/60">Go to Settings → API Providers</span>
@@ -228,31 +247,36 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
           </div>
         </div>
       ) : (
-        <div className="flex h-80 w-full min-w-0 flex-col">
-          <div onClick={handleBack} className="flex cursor-pointer items-center gap-2 border-b border-border py-2 pr-3 pl-1 transition-colors hover:bg-muted">
-            <div className="flex size-6 items-center justify-center rounded-md text-muted-foreground">
-              <AltArrowLeftIcon size={14} />
-            </div>
+        <div className="flex max-h-72 w-full min-w-0 flex-col">
+          <div className="shrink-0 border-b border-black/10 bg-black/3 px-1.5 pt-1.5 pb-1.5">
+            <button type="button" onClick={handleBack} className="flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-left outline-none hover:bg-ink-hover">
+              <AltArrowLeftIcon size={14} className="shrink-0 text-foreground" />
+              {viewProvider && (
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <ProviderIcon provider={viewProvider.provider} size={14} />
+                  <span className="truncate text-sm font-medium text-foreground">{viewProviderMeta?.label ?? viewProvider.label}</span>
+                </span>
+              )}
+            </button>
 
-            {viewProvider && (
-              <div className="flex min-w-0 items-center gap-2">
-                <ProviderIcon provider={viewProvider.provider} size={14} />
-                <span className="truncate text-sm font-semibold text-foreground">{viewProviderMeta?.label ?? viewProvider.label}</span>
+            {activeModels.length > 5 && (
+              <div className="relative mt-1">
+                <MagnifierIcon size={13} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search models…"
+                  className="h-7 w-full rounded-lg border border-solid border-black/15 bg-white pr-2.5 pl-7 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                />
               </div>
             )}
           </div>
 
-          {activeModels.length > 5 && (
-            <div className="border-b border-border px-2.5 py-2">
-              <div className="relative">
-                <MagnifierIcon size={13} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted-foreground" />
-                <input ref={searchRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Search models…" className="h-7 w-full rounded-md bg-card pr-2.5 pl-7 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground" />
-              </div>
-            </div>
-          )}
-
-          <div ref={listRef} onWheel={(e) => e.stopPropagation()} className="min-h-0 flex-1 overflow-y-auto py-1">
-            {loadingModels && <div className="px-3 py-4 text-center text-xs text-muted-foreground">Loading models…</div>}
+          <div ref={listRef} onWheel={(e) => e.stopPropagation()} className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto p-1">
+            {loadingModels && <div className="px-2.5 py-2 text-sm text-muted-foreground">Loading models…</div>}
 
             {!loadingModels &&
               filteredModels.map((m, idx) => {
@@ -263,16 +287,20 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
                     key={m}
                     type="button"
                     data-model-item
+                    data-highlighted={!isActive && isFocused ? "" : undefined}
                     onClick={() => handleSelectModel(m)}
                     onMouseEnter={() => setFocusedIndex(idx)}
-                    className={cn("w-full min-w-0 cursor-pointer truncate px-3 py-1.75 text-left text-sm transition-colors duration-100", isActive ? "bg-accent font-medium text-primary" : isFocused ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted")}
+                    className={cn(
+                      "nonla-menu-item relative w-full min-w-0 shrink-0 cursor-pointer truncate rounded-lg border border-solid border-transparent px-2.5 py-1 text-left text-sm leading-5 outline-none",
+                      isActive ? "bg-ink-hover border-glass-border text-foreground" : "text-foreground hover:bg-ink-hover hover:border-glass-border",
+                    )}
                     title={m}
                   >
                     {shortModelName(m)}
                   </button>
                 );
               })}
-            {!loadingModels && filteredModels.length === 0 && <div className="px-3 py-4 text-center text-xs text-muted-foreground">{search ? "No models match your search" : "No models available"}</div>}
+            {!loadingModels && filteredModels.length === 0 && <div className="px-2.5 py-2 text-sm text-muted-foreground">{search ? "No models match your search" : "No models available"}</div>}
           </div>
         </div>
       )}

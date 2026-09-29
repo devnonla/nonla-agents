@@ -1,6 +1,5 @@
-import { Button } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
+import { Button, FluentIcon } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AgentListItem } from "src/common/types";
@@ -48,12 +47,12 @@ export default function AgentsPage() {
           <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Agents</h1>
           <div className="flex items-center gap-2">
             <NewTeamDialog>
-              <Button type="default" icon={<UsersGroupTwoRoundedIcon size={14} />}>
+              <Button type="default" icon={<FluentIcon name="people-community-24" size={14} />}>
                 New Team
               </Button>
             </NewTeamDialog>
             <NewAgentDialog>
-              <Button type="primary" icon={<AddIcon size={14} />}>
+              <Button type="primary" icon={<Plus size={14} />}>
                 New Agent
               </Button>
             </NewAgentDialog>

@@ -1,9 +1,4 @@
-import { CalendarIcon } from "@solar-icons/react/dynamic/calendar";
-import { CheckSquareIcon } from "@solar-icons/react/dynamic/check-square";
-import { CodeIcon } from "@solar-icons/react/dynamic/code";
-import { HashtagIcon } from "@solar-icons/react/dynamic/hashtag";
-import { ListCheckIcon } from "@solar-icons/react/dynamic/list-check";
-import { TextFormatIcon } from "@solar-icons/react/dynamic/text-format";
+import { FluentIcon } from "devnonla-ui";
 import type { ReactNode } from "react";
 import { cn } from "src/common/lib/cn";
 import type { DatatableColumn, DatatableColumnType } from "src/common/types";
@@ -20,22 +15,20 @@ export function formatDatetimeCell(value: unknown, timeZone = "UTC"): string {
   return formatted || String(value);
 }
 
-const ICON = { size: 12, weight: "BoldDuotone" as const };
-
 export function propertyTypeIcon(type: DatatableColumnType): ReactNode {
   switch (type) {
     case "number":
-      return <HashtagIcon {...ICON} />;
+      return <FluentIcon name="number-symbol-square-24" size={16} />;
     case "boolean":
-      return <CheckSquareIcon {...ICON} />;
+      return <FluentIcon name="checkbox-24" size={16} />;
     case "datetime":
-      return <CalendarIcon {...ICON} />;
+      return <FluentIcon name="calendar-24" size={16} />;
     case "select":
-      return <ListCheckIcon {...ICON} />;
+      return <FluentIcon name="text-bullet-list-square-24" size={16} />;
     case "json":
-      return <CodeIcon {...ICON} />;
+      return <FluentIcon name="code-24" size={16} />;
     default:
-      return <TextFormatIcon {...ICON} />;
+      return <FluentIcon name="text-edit-style-24" size={16} />;
   }
 }
 
@@ -151,7 +144,7 @@ export function formatCellValue(col: DatatableColumn, value: unknown, timeZone =
     return <span className="text-quaternary-foreground">&nbsp;</span>;
   }
   if (col.type === "boolean") {
-    return <span className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-xs border text-[10px] leading-none", value ? "border-brand/40 bg-brand/20 text-brand-soft" : "border-border text-transparent")}>{value ? "✓" : null}</span>;
+    return <span className={cn("inline-flex size-4 shrink-0 items-center justify-center rounded-xs border text-[10px] leading-none", value ? "border-brand/40 bg-brand/20 text-brand-700" : "border-border text-transparent")}>{value ? "✓" : null}</span>;
   }
   if (col.type === "select" && typeof value === "string") {
     return <SelectPill value={value} />;

@@ -1,10 +1,6 @@
-import { Button, Popconfirm, Table, Tag, Tooltip, message } from "@nonla-agents/ui";
-import type { ColumnsType } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
-import { LockPasswordIcon } from "@solar-icons/react/dynamic/lock-password";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, FluentIcon, Popconfirm, Table, Tag, Tooltip, message } from "devnonla-ui";
+import type { ColumnsType } from "devnonla-ui";
+import { Pencil, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "src/common/api";
 import type { AgentListItem, ApiKey, DatatableProject, KvStoreEntry } from "src/common/types";
@@ -118,11 +114,11 @@ export function ApiKeysPage() {
       render: (_, row) => (
         <div className="flex items-center justify-end gap-0.5">
           <Tooltip title="LLM Docs">
-            <Button type="text" size="small" icon={<DocumentTextIcon />} onClick={() => setDocsKey(withoutSecret(row))} aria-label={`LLM Docs for ${row.name}`} className="inline-flex items-center justify-center size-7! px-0!" />
+            <Button type="text" size="small" icon={<FluentIcon name="document-text-24" />} onClick={() => setDocsKey(withoutSecret(row))} aria-label={`LLM Docs for ${row.name}`} className="inline-flex items-center justify-center size-7! px-0!" />
           </Tooltip>
-          <Button type="text" size="small" icon={<PenNewSquareIcon />} onClick={() => setEditKey(row)} aria-label={`Edit ${row.name}`} className="inline-flex items-center justify-center size-7! px-0!" />
+          <Button type="text" size="small" icon={<Pencil size={16} />} onClick={() => setEditKey(row)} aria-label={`Edit ${row.name}`} className="inline-flex items-center justify-center size-7! px-0!" />
           <Popconfirm title="Delete this key?" okText="Delete" okType="danger" onConfirm={() => void handleDelete(row.id)}>
-            <Button type="text" size="small" icon={<TrashBinMinimalisticIcon />} aria-label={`Delete ${row.name}`} className="inline-flex items-center justify-center size-7! px-0!" />
+            <Button type="text" size="small" icon={<X size={16} />} aria-label={`Delete ${row.name}`} className="inline-flex items-center justify-center size-7! px-0!" />
           </Popconfirm>
         </div>
       ),
@@ -135,7 +131,7 @@ export function ApiKeysPage() {
         <p className="m-0 text-sm text-muted-foreground">
           {keys.length} key{keys.length !== 1 ? "s" : ""}
         </p>
-        <Button type="primary" icon={<AddCircleIcon size={14} />} onClick={() => setShowCreate(true)}>
+        <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
           New API key
         </Button>
       </div>
@@ -150,13 +146,13 @@ export function ApiKeysPage() {
           emptyText: (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
               <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-foreground">
-                <LockPasswordIcon size={20} />
+                <FluentIcon name="lock-closed-24" size={20} />
               </div>
               <div>
                 <div className="text-base font-medium text-foreground">No API keys yet</div>
                 <div className="mt-1 text-sm text-muted-foreground">Create a key to access agents, datatables, and KV over HTTP.</div>
               </div>
-              <Button type="primary" size="small" icon={<AddCircleIcon size={12} />} onClick={() => setShowCreate(true)}>
+              <Button type="primary" size="small" icon={<Plus size={12} />} onClick={() => setShowCreate(true)}>
                 New API key
               </Button>
             </div>

@@ -1,6 +1,4 @@
-import { Button, Empty, Input, Modal, message } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
+import { Empty, Modal, SearchInput, message } from "devnonla-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "src/common/lib/cn";
@@ -51,25 +49,15 @@ export default function SkillsPage() {
         <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Skills</h1>
         <div className="flex min-w-0 items-center gap-2">
           <RenderIf condition={items.length > 0}>
-            <div className="w-52">
-              <Input allowClear prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} placeholder="Search skills…" value={query} onChange={(e) => setQuery(e.target.value)} />
-            </div>
+            <SearchInput placeholder="Search skills…" className="w-52" onChange={setQuery} />
           </RenderIf>
-          <NewSkillDialog>
-            <Button type="primary" icon={<AddCircleIcon size={16} />}>
-              New skill
-            </Button>
-          </NewSkillDialog>
+          <NewSkillDialog />
         </div>
       </div>
 
       <RenderIf condition={items.length === 0 && !loading}>
         <SkillsEmptyState>
-          <NewSkillDialog>
-            <Button type="primary" icon={<AddCircleIcon size={16} />}>
-              New skill
-            </Button>
-          </NewSkillDialog>
+          <NewSkillDialog />
         </SkillsEmptyState>
       </RenderIf>
 

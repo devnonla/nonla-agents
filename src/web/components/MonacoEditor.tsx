@@ -62,7 +62,7 @@ function ensureRawLightTheme(monacoInstance: Monaco) {
     inherit: true,
     rules: [
       { token: "keyword.md", foreground: "1677ff", fontStyle: "bold" },
-      { token: "strong.md", foreground: "171717", fontStyle: "bold" },
+      { token: "strong.md", foreground: "2c2c2b", fontStyle: "bold" },
       { token: "emphasis.md", foreground: "525252", fontStyle: "italic" },
       { token: "comment.md", foreground: "737373", fontStyle: "italic" },
       { token: "string.md", foreground: "1f9d55" },
@@ -75,8 +75,8 @@ function ensureRawLightTheme(monacoInstance: Monaco) {
     ],
     colors: {
       "editor.background": "#ffffff",
-      "editor.foreground": "#171717",
-      "editor.lineHighlightBackground": "#1717170a",
+      "editor.foreground": "#1f1f1e",
+      "editor.lineHighlightBackground": "#1f1f1e0a",
       "editor.lineHighlightBorder": "#00000000",
       "editorOverviewRuler.border": "#00000000",
       "scrollbar.shadow": "#00000000",

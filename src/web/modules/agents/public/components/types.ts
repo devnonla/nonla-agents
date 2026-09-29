@@ -2,6 +2,7 @@ export interface PublicAgent {
   id: string;
   name: string;
   description: string;
+  avatar?: string | null;
   startMessage: string;
   requiresPassword: boolean;
   model?: string;

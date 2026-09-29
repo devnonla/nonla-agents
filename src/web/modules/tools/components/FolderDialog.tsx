@@ -1,6 +1,5 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Pencil, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAppDispatch } from "src/store/store";
@@ -64,7 +63,7 @@ export function FolderDialog({ open, onClose, folder }: FolderDialogProps) {
     }
   });
 
-  const icon = isEdit ? <PenNewSquareIcon size={16} /> : <AddIcon size={16} />;
+  const icon = isEdit ? <Pencil size={16} /> : <Plus size={16} />;
 
   return (
     <Modal

@@ -1,20 +1,6 @@
-import { Dropdown } from "@nonla-agents/ui";
-import type { MenuProps } from "@nonla-agents/ui";
-import { AlarmPlayIcon } from "@solar-icons/react/dynamic/alarm-play";
-import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
-import { BotIcon } from "@solar-icons/react/dynamic/bot";
-import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
-import { GlobalIcon } from "@solar-icons/react/dynamic/global";
-import { HomeAngleIcon } from "@solar-icons/react/dynamic/home-angle";
-import { KeyMinimalisticIcon } from "@solar-icons/react/dynamic/key-minimalistic";
-import { LockPasswordIcon } from "@solar-icons/react/dynamic/lock-password";
-import { Logout2Icon } from "@solar-icons/react/dynamic/logout-2";
-import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
-import { Planet2Icon } from "@solar-icons/react/dynamic/planet-2";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
-import { SettingsIcon } from "@solar-icons/react/dynamic/settings";
-import { StarsIcon } from "@solar-icons/react/dynamic/stars";
-import { UserIcon } from "@solar-icons/react/dynamic/user";
+import { Dropdown, FluentIcon } from "devnonla-ui";
+import type { MenuProps } from "devnonla-ui";
+import { ArrowLeft, Ellipsis, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiClient, clearAuthToken, getRefreshToken } from "src/common/api";
@@ -34,25 +20,22 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-const ICON = { size: 16, weight: "BoldDuotone" as const };
-
 const WORKSPACE_NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: <HomeAngleIcon {...ICON} /> },
-  { to: "/agents", label: "Agents", icon: <BotIcon {...ICON} /> },
-  { to: "/tools", label: "Tools", icon: <ProgrammingIcon {...ICON} /> },
-  { to: "/skills", label: "Skills", icon: <StarsIcon {...ICON} /> },
-  { to: "/mcp-servers", label: "MCP", icon: <Planet2Icon {...ICON} /> },
+  { to: "/", label: "Dashboard", icon: <FluentIcon name="home-24" size={16} /> },
+  { to: "/agents", label: "Agents", icon: <FluentIcon name="bot-sparkle-24" size={16} /> },
+  { to: "/tools", label: "Tools", icon: <FluentIcon name="code-24" size={16} /> },
+  { to: "/skills", label: "Skills", icon: <FluentIcon name="star-24" size={16} /> },
 ];
 
 const CAPABILITIES_NAV: NavItem[] = [
-  { to: "/sites", label: "Sites", icon: <GlobalIcon {...ICON} /> },
-  { to: "/jobs", label: "Jobs", icon: <AlarmPlayIcon {...ICON} />, adminOnly: true },
+  { to: "/sites", label: "Sites", icon: <FluentIcon name="content-view-24" size={16} /> },
+  { to: "/jobs", label: "Jobs", icon: <FluentIcon name="shifts-24" size={16} />, adminOnly: true },
 ];
 
 const RESOURCES_NAV: NavItem[] = [
-  { to: "/datatables", label: "Datatables", icon: <DatabaseIcon {...ICON} /> },
-  { to: "/kvstore", label: "KV Store", icon: <KeyMinimalisticIcon {...ICON} /> },
-  { to: "/secrets", label: "Secrets", icon: <LockPasswordIcon {...ICON} />, adminOnly: true },
+  { to: "/datatables", label: "Datatables", icon: <FluentIcon name="database-24" size={16} /> },
+  { to: "/kvstore", label: "KV Store", icon: <FluentIcon name="person-key-24" size={16} /> },
+  { to: "/secrets", label: "Secrets", icon: <FluentIcon name="vault-24" size={16} />, adminOnly: true },
 ];
 
 function NavSectionLabel({ children }: { children: React.ReactNode }) {
@@ -61,7 +44,7 @@ function NavSectionLabel({ children }: { children: React.ReactNode }) {
 
 function SketchDivider({ className }: { className?: string }) {
   return (
-    <svg className={cn("mx-3 h-2.5 w-auto shrink-0 text-sidebar-border", className)} viewBox="0 0 196 10" fill="none" aria-hidden>
+    <svg className={cn("mx-3 h-2.5 w-auto shrink-0 text-border", className)} viewBox="0 0 196 10" fill="none" aria-hidden>
       <path d="M1.5 5.2c18.2-2.1 36.4 2.4 54.5.1 12.8-1.6 25.1-3.8 38-.9 14.2 3.2 28.6 1.1 42.4-1.4 13.1-2.4 26.8 1.8 39.9.6 6.8-.6 13.2-2.1 19.7-1.1" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
       <path d="M3 6.4c16.8-.9 33.9 1.6 50.6.2 14.1-1.2 27.8-2.9 42-.4 11.9 2.1 24.1.8 35.8-.7 12.4-1.6 25.2 1.4 37.4.3 8.9-.8 17.4-2.4 26.2-1.2" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" opacity="0.45" />
     </svg>
@@ -70,7 +53,7 @@ function SketchDivider({ className }: { className?: string }) {
 
 function SidebarNavLink({ item, end }: { item: NavItem; end?: boolean }) {
   return (
-    <NavLink to={item.to} end={end} title={item.label} className={({ isActive }) => cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base font-medium no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-muted text-brand" : "text-sidebar-foreground hover:bg-muted")}>
+    <NavLink to={item.to} end={end} title={item.label} className={({ isActive }) => cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-base font-medium no-underline transition-colors duration-150 cursor-pointer", isActive ? "bg-muted text-brand" : "text-foreground hover:bg-muted")}>
       {({ isActive }) => (
         <>
           <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:block [&_svg]:size-4", isActive ? "text-brand" : "text-tertiary-foreground")}>{item.icon}</span>
@@ -84,12 +67,12 @@ function SidebarNavLink({ item, end }: { item: NavItem; end?: boolean }) {
 function SettingsPanelHeader({ onBack }: { onBack: () => void }) {
   return (
     <button type="button" onClick={onBack} aria-label="Back to workspace" className="group mb-2 flex h-8 w-full min-w-0 items-center gap-2 border-0 bg-transparent px-0.5 text-left cursor-pointer">
-      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-tertiary-foreground transition-colors duration-150 group-hover:bg-secondary group-hover:text-sidebar-foreground">
+      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-tertiary-foreground transition-colors duration-150 group-hover:bg-secondary group-hover:text-foreground">
         <span className="flex size-4 items-center justify-center transition-transform duration-150 group-hover:-translate-x-px motion-reduce:transition-none [&_svg]:size-4">
-          <AltArrowLeftIcon size={16} weight="Bold" />
+          <ArrowLeft size={16} />
         </span>
       </span>
-      <span className="min-w-0 truncate text-sm font-semibold tracking-tight text-sidebar-foreground">Settings</span>
+      <span className="min-w-0 truncate text-sm font-semibold tracking-tight text-foreground">Settings</span>
     </button>
   );
 }
@@ -108,7 +91,7 @@ function SidebarNavButton({
   onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} className={cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-base font-medium transition-colors duration-150 cursor-pointer", active ? "bg-muted text-brand" : "text-sidebar-foreground hover:bg-muted")}>
+    <button type="button" onClick={onClick} className={cn("flex h-9 w-full min-w-0 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-base font-medium transition-colors duration-150 cursor-pointer", active ? "bg-muted text-brand" : "text-foreground hover:bg-muted")}>
       <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:block [&_svg]:size-4", active ? "text-brand" : "text-tertiary-foreground")}>{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {trailing}
@@ -142,7 +125,7 @@ function SidebarProfileLink({ user, onLogout }: { user: User | null; onLogout: (
       key: "profile",
       label: (
         <div className="flex min-h-8 items-center gap-2 rounded-md px-2 py-0 text-base text-foreground">
-          <UserIcon size={16} weight="BoldDuotone" />
+          <FluentIcon name="person-24" size={16} />
           Profile Settings
         </div>
       ),
@@ -153,7 +136,7 @@ function SidebarProfileLink({ user, onLogout }: { user: User | null; onLogout: (
       key: "logout",
       label: (
         <div className="flex min-h-8 items-center gap-2 rounded-md px-2 py-0 text-base text-foreground">
-          <Logout2Icon size={16} weight="BoldDuotone" />
+          <LogOut size={16} />
           Log Out
         </div>
       ),
@@ -162,15 +145,15 @@ function SidebarProfileLink({ user, onLogout }: { user: User | null; onLogout: (
   ];
 
   return (
-    <Dropdown trigger={["click"]} placement="topLeft" menu={{ items: menuItems, className: "w-[204px] rounded-lg border-sidebar-border bg-popover p-1 shadow-none" }}>
-      <button type="button" aria-label="User menu" className="flex w-full min-w-0 items-center gap-2 rounded-md border-0 bg-transparent px-2 py-2 text-left text-sidebar-foreground outline-none transition-colors hover:bg-muted cursor-pointer">
+    <Dropdown trigger={["click"]} placement="topLeft" menu={{ items: menuItems, className: "w-[204px] p-1" }}>
+      <button type="button" aria-label="User menu" className="flex w-full min-w-0 items-center gap-2 rounded-md border-0 bg-transparent px-2 py-2 text-left text-foreground outline-none transition-colors hover:bg-muted cursor-pointer">
         <UserAvatar avatar={user.avatar} name={displayName} size={32} className="shrink-0 self-center rounded-full" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-medium leading-tight text-sidebar-foreground">{displayName}</span>
+          <span className="block truncate text-base font-medium leading-tight text-foreground">{displayName}</span>
           <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground tabular-nums">v{__APP_VERSION__}</span>
         </span>
         <span className="inline-flex size-8 shrink-0 items-center justify-center self-center rounded-md text-tertiary-foreground">
-          <MenuDotsIcon size={16} weight="Bold" />
+          <Ellipsis size={16} />
         </span>
       </button>
     </Dropdown>
@@ -207,10 +190,10 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="flex h-screen shrink-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border text-sidebar-foreground" style={{ width: SIDEBAR_W }}>
+    <aside className="flex h-screen shrink-0 flex-col overflow-hidden bg-[#fcf9eb] border-r border-border text-foreground" style={{ width: SIDEBAR_W }}>
       <div className="flex h-12 w-full min-w-0 shrink-0 items-center gap-2.5 px-4">
         <AppLogo size={36} className="shrink-0" />
-        <span className="truncate text-base font-semibold tracking-tight text-sidebar-foreground">Nonla Agents</span>
+        <span className="truncate text-base font-semibold tracking-tight text-foreground">Nonla Agents</span>
       </div>
       <SketchDivider className="mb-2" />
 
@@ -239,7 +222,7 @@ export function AppSidebar() {
 
             {isAdmin && (
               <div className="mt-auto pt-2">
-                <SidebarNavButton label="Settings" icon={<SettingsIcon {...ICON} />} active={isSettingsRoute} onClick={openSettings} />
+                <SidebarNavButton label="Settings" icon={<FluentIcon name="settings-24" size={16} />} active={isSettingsRoute} onClick={openSettings} />
               </div>
             )}
           </nav>
@@ -248,25 +231,22 @@ export function AppSidebar() {
             <SettingsPanelHeader onBack={backToMain} />
             <SketchDivider className="mx-0.5 mb-2" />
             <div className="flex flex-col gap-1">
-              {SETTINGS_TABS.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <SidebarNavLink
-                    key={tab.key}
-                    item={{
-                      to: `/settings/${tab.key}`,
-                      label: tab.label,
-                      icon: <Icon {...ICON} />,
-                    }}
-                  />
-                );
-              })}
+              {SETTINGS_TABS.map((tab) => (
+                <SidebarNavLink
+                  key={tab.key}
+                  item={{
+                    to: `/settings/${tab.key}`,
+                    label: tab.label,
+                    icon: <FluentIcon name={tab.icon} size={16} />,
+                  }}
+                />
+              ))}
             </div>
           </nav>
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-sidebar-border px-2 py-2">
+      <div className="shrink-0 border-t border-border px-2 py-2">
         <SidebarProfileLink user={currentUser} onLogout={handleLogout} />
       </div>
     </aside>

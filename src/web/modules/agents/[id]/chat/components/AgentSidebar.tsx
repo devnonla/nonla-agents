@@ -1,4 +1,5 @@
-import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
+import { FluentIcon } from "devnonla-ui";
+import { ArrowLeft } from "lucide-react";
 import { NavLink, useParams } from "react-router-dom";
 import type { Agent } from "src/common/types";
 import { UserAvatar } from "src/components/UserAvatar";
@@ -16,7 +17,7 @@ export function AgentSidebar({ agent, onClose }: AgentSidebarProps) {
     <div className="flex flex-col h-full">
       {/* Back button */}
       <button type="button" onClick={onClose} className="flex items-center gap-2 px-4 py-3 text-[13px] text-muted-foreground font-medium cursor-pointer transition-colors duration-150 hover:text-foreground hover:bg-muted border-b border-border">
-        <AltArrowLeftIcon size={15} />
+        <ArrowLeft size={15} />
         <span>Back to Agents</span>
       </button>
 
@@ -35,7 +36,6 @@ export function AgentSidebar({ agent, onClose }: AgentSidebarProps) {
       {/* Nav zone — route-based links */}
       <div className="flex-1 min-h-0 overflow-y-auto py-3 px-3 flex flex-col gap-0.5">
         {TABS.map((tab) => {
-          const Icon = tab.icon;
           const to = tab.path ? `/agents/${id}/${tab.path}` : `/agents/${id}`;
           return (
             <NavLink
@@ -46,7 +46,7 @@ export function AgentSidebar({ agent, onClose }: AgentSidebarProps) {
                 ["w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[14px] transition-all duration-150 cursor-pointer border no-underline", isActive ? "border-border bg-muted text-foreground font-medium" : "border-transparent text-muted-foreground font-normal hover:text-foreground hover:bg-muted/60"].join(" ")
               }
             >
-              <Icon size={15} className="text-muted-foreground" />
+              <FluentIcon name={tab.icon} size={15} className="text-muted-foreground" />
               <span>{tab.label}</span>
             </NavLink>
           );

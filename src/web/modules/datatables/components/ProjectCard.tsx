@@ -1,10 +1,6 @@
-import { Button, Dropdown, Tag } from "@nonla-agents/ui";
-import type { MenuProps } from "@nonla-agents/ui";
-import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
-import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { cn } from "src/common/lib/cn";
+import { Button, Dropdown, FluentIcon } from "devnonla-ui";
+import type { MenuProps } from "devnonla-ui";
+import { Ellipsis, Pencil, X } from "lucide-react";
 import type { DatatableProject } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
 
@@ -21,8 +17,7 @@ export function ProjectCard({
   onRename: () => void;
   onDelete: () => void;
 }) {
-  const menuItems: MenuProps["items"] = [{ key: "rename", label: "Rename", icon: <PenNewSquareIcon size={14} />, onClick: onRename }, { type: "divider" }, { key: "delete", label: "Delete", danger: true, icon: <TrashBinMinimalisticIcon size={14} />, onClick: onDelete }];
-
+  const menuItems: MenuProps["items"] = [{ key: "rename", label: "Rename", icon: <Pencil size={14} />, onClick: onRename }, { type: "divider" }, { key: "delete", label: "Delete", danger: true, icon: <X size={14} />, onClick: onDelete }];
   return (
     <div
       role="button"
@@ -35,28 +30,30 @@ export function ProjectCard({
           onOpen();
         }
       }}
-      className={cn("group relative flex w-full cursor-pointer items-center gap-4 rounded-xl border border-border-subtle bg-card px-4 py-4 text-left", "transition-[border-color,background-color] duration-200", "hover:border-brand/30 hover:bg-secondary")}
+      className="group relative flex h-full cursor-pointer flex-col rounded-xl border border-border-subtle bg-card px-4 py-3.5 text-left hover:border-brand/40"
     >
-      <div className="relative flex size-11 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-muted text-muted-foreground">
-        <DatabaseIcon size={20} weight="BoldDuotone" />
+      <div className="flex items-center gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-brand/25 bg-brand/10 text-brand-700">
+          <FluentIcon name="database-24" size={16} />
+        </div>
+        <h2 className="m-0 min-w-0 flex-1 truncate pr-6 text-[15px] font-semibold leading-5 text-foreground">{project.name}</h2>
       </div>
 
-      <div className="min-w-0 flex-1">
-        <h2 className="m-0 truncate text-base font-semibold leading-6 text-foreground">{project.name}</h2>
-        <RenderIf condition={project.tableNames.length > 0} fallback={<p className="mt-1.5 mb-0 text-[12px] leading-4 text-muted-foreground">No tables</p>}>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-3 border-t border-border-subtle pt-3">
+        <RenderIf condition={project.tableNames.length > 0} fallback={<span className="text-[12px] text-muted-foreground">No tables</span>}>
+          <div className="flex max-h-12 flex-wrap gap-1 overflow-hidden">
             {project.tableNames.map((name) => (
-              <Tag key={name} variant="filled" className="m-0! rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] font-normal leading-none text-muted-foreground">
+              <span key={name} className="max-w-full truncate rounded-md border border-border px-1.5 py-0.5 text-[12px] leading-4 text-muted-foreground">
                 {name}
-              </Tag>
+              </span>
             ))}
           </div>
         </RenderIf>
       </div>
 
-      <div className="relative z-10 shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
         <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
-          <Button type="text" size="small" aria-label="Project actions" className="opacity-0 group-hover:opacity-100 focus:opacity-100" icon={<MenuDotsIcon size={16} weight="Bold" />} />
+          <Button type="text" size="small" aria-label="Project actions" className="text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100" icon={<Ellipsis size={16} />} />
         </Dropdown>
       </div>
     </div>

@@ -1,5 +1,4 @@
-import { Select, message } from "@nonla-agents/ui";
-import { ClockCircleIcon } from "@solar-icons/react/dynamic/clock-circle";
+import { FluentIcon, Select, message } from "devnonla-ui";
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "src/common/api";
 import { SettingKey } from "src/common/enum";
@@ -44,7 +43,7 @@ export function TimezoneSection() {
     <section className="max-w-lg rounded-2xl border border-white/50 bg-white/40 p-5 shadow-[inset_0_1px_0_rgb(255_255_255/0.65)]">
       <div className="flex items-start gap-4">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-foreground">
-          <ClockCircleIcon size={20} weight="BoldDuotone" />
+          <FluentIcon name="clock-24" size={20} />
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="m-0 text-sm font-semibold text-foreground">Timezone</h3>

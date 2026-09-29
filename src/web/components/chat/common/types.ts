@@ -1,7 +1,7 @@
 // ── ChatAgent shared types ────────────────────────────────────────────────────
 
 /** Role set supported by ChatAgent */
-export type ChatAgentRole = "user" | "assistant" | "tool-call" | "tool-result" | "error" | (string & {}); // allow consumer-defined roles (e.g. "review")
+type ChatAgentRole = "user" | "assistant" | "tool-call" | "tool-result" | "error" | (string & {}); // allow consumer-defined roles (e.g. "review")
 
 export interface ChatAgentMessage {
   id: string;

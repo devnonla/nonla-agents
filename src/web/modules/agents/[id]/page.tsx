@@ -1,9 +1,9 @@
 // ─── Agent Detail Page ────────────────────────────────────────────────────────
-// Route: /agents/:id/* — Full-screen agent detail with Chat / Instruct / Editor tabs.
+// Route: /agents/:id/* — Full-screen agent detail with Chat / Config.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
-import type { Agent, AgentListItem, AgentSkillAssignment, AgentTool, AgentToolAssignment, McpServer, Skill } from "src/common/types";
+import type { Agent, AgentListItem, AgentSkillAssignment, AgentTool, AgentToolAssignment } from "src/common/types";
 import { fetchTeams } from "src/modules/agents/common/teamsSlice";
 import { fetchDatatableProjects } from "src/modules/datatables/common/datatableProjectsSlice";
 import { fetchMcpServers } from "src/modules/mcp-servers/common/mcpServersSlice";
@@ -13,11 +13,9 @@ import { fetchTools } from "src/modules/tools/common/toolsSlice";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 import { deleteAgent, fetchAgents, fetchOneAgent, updateAgent, upsertAgentLocal } from "../common/agentsSlice";
 import { ChatPage } from "./chat/ChatPage";
-import { type AgentDetailContext, AgentDetailCtx } from "./common/agentDetailContext";
+import { type AgentDetailContext, AgentDetailCtx, type ConfigSection } from "./common/agentDetailContext";
 import { AgentDetailHeader } from "./components/AgentDetailHeader";
-import { AgentFlowView } from "./flow/AgentFlowView";
-import { MemoryPage } from "./memory/MemoryPage";
-import { PromptPage } from "./prompt/PromptPage";
+import { AgentConfigPanel } from "./components/config/AgentConfigPanel";
 
 // ─── API helpers ───────────────────────────────────────────────────────────────
 
@@ -74,14 +72,9 @@ export default function AgentDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const isEditor = /\/editor\/?$/.test(location.pathname);
+  const configOpen = /\/config\/?$/.test(location.pathname);
   const agents = useAppSelector((s) => s.agents.items) as AgentListItem[];
   const allTools = useAppSelector((s) => s.tools.items) as AgentTool[];
-  const allSkills = useAppSelector((s) => s.skills.items) as Skill[];
-  const mcpServers = useAppSelector((s) => s.mcpServers.items) as McpServer[];
-  const datatableProjects = useAppSelector((s) => s.datatableProjects.items);
-  const teams = useAppSelector((s) => s.teams.teams);
-  const toolFolders = useAppSelector((s) => s.toolFolders.folders);
 
   // ── Detail form state (hydrated only from GET /:id — never from list cache) ──
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -103,9 +96,12 @@ export default function AgentDetailPage() {
   const [aiModel, setAiModel] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [publicPassword, setPublicPassword] = useState("");
-  const [editorReadyId, setEditorReadyId] = useState<string | null>(null);
-  const editorReady = editorReadyId === id;
-  const loadedEditorIdRef = useRef<string | null>(null);
+  const loadedConfigIdRef = useRef<string | null>(null);
+  const [configSection, setConfigSection] = useState<ConfigSection>("role");
+
+  useEffect(() => {
+    setConfigSection("role");
+  }, [id]);
 
   // Detail GET is the source of truth for the open agent
   useEffect(() => {
@@ -132,13 +128,10 @@ export default function AgentDetailPage() {
       .catch(() => {});
   }, [id, dispatch]);
 
-  // Editor-only catalog + assignments — mount the flow only after this id is loaded
+  // Config catalog + assignments — load once per agent id when config opens
   useEffect(() => {
-    if (!id || !isEditor) return;
-    if (loadedEditorIdRef.current === id) {
-      setEditorReadyId(id);
-      return;
-    }
+    if (!id || !configOpen) return;
+    if (loadedConfigIdRef.current === id) return;
 
     let cancelled = false;
     setToolAssignments([]);
@@ -160,14 +153,13 @@ export default function AgentDetailPage() {
       dispatch(fetchTeams()),
     ]).finally(() => {
       if (cancelled) return;
-      loadedEditorIdRef.current = id;
-      setEditorReadyId(id);
+      loadedConfigIdRef.current = id;
     });
 
     return () => {
       cancelled = true;
     };
-  }, [id, isEditor, dispatch]);
+  }, [id, configOpen, dispatch]);
 
   // WS / mutations may upsert a full agent into the list store — merge into detail state
   useEffect(() => {
@@ -188,10 +180,10 @@ export default function AgentDetailPage() {
   const handleDelete = async () => {
     if (!id) return;
     await dispatch(deleteAgent(id));
-    navigate("/");
+    navigate("/agents");
   };
 
-  // ── Flow interaction handlers ──────────────────────────────────────────────
+  // ── Assignment / callable handlers ─────────────────────────────────────────
 
   const handleRemoveToolAssignment = useCallback(
     (toolId: string) => {
@@ -259,7 +251,45 @@ export default function AgentDetailPage() {
     [id],
   );
 
-  // ── Flow config handlers (model + name/desc — auto-save) ───────────────
+  // ── Config handlers (model + name/desc — auto-save) ───────────────────────
+
+  const handleToggleTool = useCallback(
+    (toolId: string, enable: boolean) => {
+      if (enable) handleAddToolAssignment(toolId);
+      else handleRemoveToolAssignment(toolId);
+    },
+    [handleAddToolAssignment, handleRemoveToolAssignment],
+  );
+
+  const handleToggleSkill = useCallback(
+    (skillId: string, enable: boolean) => {
+      if (enable) handleAddSkillAssignment(skillId);
+      else handleRemoveSkillAssignment(skillId);
+    },
+    [handleAddSkillAssignment, handleRemoveSkillAssignment],
+  );
+
+  const handleToggleConfig = useCallback(() => {
+    if (!id) return;
+    if (configOpen) {
+      navigate(`/agents/${id}`);
+      return;
+    }
+    setConfigSection("role");
+    navigate(`/agents/${id}/config`);
+  }, [id, configOpen, navigate]);
+  const handleOpenConfig = useCallback(
+    (section: ConfigSection = "role") => {
+      if (!id) return;
+      setConfigSection(section);
+      navigate(`/agents/${id}/config`);
+    },
+    [id, navigate],
+  );
+  const handleCloseConfig = useCallback(() => {
+    if (!id) return;
+    navigate(`/agents/${id}`);
+  }, [id, navigate]);
 
   const handleFlowModelChange = useCallback(
     (providerId: string, model: string) => {
@@ -313,7 +343,7 @@ export default function AgentDetailPage() {
 
   // Loading / not found states
   if (!id) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/agents" replace />;
   }
 
   if (!agent) {
@@ -333,6 +363,7 @@ export default function AgentDetailPage() {
     setName,
     description,
     setDescription,
+    avatar,
     teamId,
     setTeamId,
     selectedProviderId,
@@ -347,11 +378,25 @@ export default function AgentDetailPage() {
     setPublicPassword,
     toolAssignments,
     setToolAssignments,
+    skillAssignments,
     callableAgentIds,
     setCallableAgentIds,
     allTools,
     agents,
     onDelete: handleDelete,
+    onToggleTool: handleToggleTool,
+    onToggleSkill: handleToggleSkill,
+    onToggleCallableAgent: handleToggleCallableAgent,
+    onModelChange: handleFlowModelChange,
+    onNameChange: handleFlowNameChange,
+    onDescriptionChange: handleFlowDescriptionChange,
+    onAvatarChange: handleFlowAvatarChange,
+    onTogglePublish: handleTogglePublish,
+    onSavePassword: handleSavePassword,
+    configOpen,
+    onToggleConfig: handleToggleConfig,
+    onOpenConfig: handleOpenConfig,
+    onCloseConfig: handleCloseConfig,
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -359,59 +404,15 @@ export default function AgentDetailPage() {
   return (
     <AgentDetailCtx.Provider value={ctxValue}>
       <div className="flex flex-col h-full overflow-hidden">
-        <AgentDetailHeader id={id} agent={agent} avatar={avatar} onDelete={handleDelete} />
+        <AgentDetailHeader id={id} agent={agent} avatar={avatar} />
 
-        <div className="flex flex-1 min-h-0 overflow-hidden bg-card">
+        <div className="flex flex-1 min-h-0 overflow-hidden bg-transparent">
           <div className="relative h-full min-h-0 min-w-0 flex-1">
             <Routes>
               <Route index element={<ChatPage />} />
               <Route path="chat" element={<Navigate to={`/agents/${id}`} replace />} />
-              <Route path="instruct" element={<PromptPage />} />
-              <Route path="memory" element={<MemoryPage />} />
-              <Route
-                path="editor"
-                element={
-                  editorReady ? (
-                    <AgentFlowView
-                      key={id}
-                      agent={agent}
-                      agents={agents}
-                      teams={teams}
-                      toolFolders={toolFolders}
-                      allTools={allTools}
-                      allSkills={allSkills}
-                      mcpServers={mcpServers}
-                      datatableProjects={datatableProjects}
-                      toolAssignments={toolAssignments}
-                      skillAssignments={skillAssignments}
-                      callableAgentIds={callableAgentIds}
-                      onRemoveToolAssignment={handleRemoveToolAssignment}
-                      onAddToolAssignment={handleAddToolAssignment}
-                      onRemoveSkillAssignment={handleRemoveSkillAssignment}
-                      onAddSkillAssignment={handleAddSkillAssignment}
-                      onToggleCallableAgent={handleToggleCallableAgent}
-                      selectedProviderId={selectedProviderId}
-                      aiModel={aiModel}
-                      systemPrompt={systemPrompt}
-                      name={name}
-                      description={description}
-                      avatar={avatar}
-                      onModelChange={handleFlowModelChange}
-                      onNameChange={handleFlowNameChange}
-                      onDescriptionChange={handleFlowDescriptionChange}
-                      onAvatarChange={handleFlowAvatarChange}
-                      isPublic={isPublic}
-                      onTogglePublish={handleTogglePublish}
-                      publicPassword={publicPassword}
-                      onSavePassword={handleSavePassword}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-sm text-muted-foreground">Loading editor…</div>
-                    </div>
-                  )
-                }
-              />
+              <Route path="config" element={<AgentConfigPanel key={configSection} onClose={handleCloseConfig} initialSection={configSection} />} />
+              <Route path="editor" element={<Navigate to={`/agents/${id}/config`} replace />} />
             </Routes>
           </div>
         </div>

@@ -1,6 +1,5 @@
-import { Alert, Button, Empty } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { PlugCircleIcon } from "@solar-icons/react/dynamic/plug-circle";
+import { Alert, Button, Empty, FluentIcon } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { McpServer } from "src/common/types";
 import { PageShell } from "src/components/PageShell";
@@ -56,7 +55,7 @@ export default function McpServersPage() {
           <div className="px-4 pb-3 pt-5">
             <h1 className="m-0 text-base font-semibold leading-tight text-foreground">Connect MCP</h1>
             <p className="mt-1 mb-3 text-[12px] leading-snug text-foreground/70">Remote servers for agent tools.</p>
-            <Button type="primary" size="small" icon={<AddCircleIcon size={14} />} onClick={() => setPanel({ type: "create" })}>
+            <Button type="primary" size="small" icon={<Plus size={14} />} onClick={() => setPanel({ type: "create" })}>
               Add
             </Button>
           </div>
@@ -85,7 +84,7 @@ export default function McpServersPage() {
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center text-center">
               <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <PlugCircleIcon size={18} />
+                <FluentIcon name="puzzle-piece-24" size={18} />
               </div>
               <p className="m-0 text-sm font-medium text-foreground">Select a server</p>
               <p className="mt-1 m-0 max-w-xs text-xs text-muted-foreground">Pick one on the left, or add a remote MCP server.</p>

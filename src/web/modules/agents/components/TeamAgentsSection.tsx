@@ -1,8 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
-import { Button } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
+import { Button, FluentIcon } from "devnonla-ui";
+import { Pencil, Plus } from "lucide-react";
 import { cn } from "src/common/lib/cn";
 import type { AgentListItem } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
@@ -29,16 +27,16 @@ export function TeamAgentsSection({ team, agents, onNavigate, onEditTeam }: Team
       <AgentsSectionHeader
         icon={
           <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <UsersGroupTwoRoundedIcon size={16} />
+            <FluentIcon name="people-community-24" size={16} />
           </div>
         }
         title={team.name}
         actions={
           <div className="flex items-center gap-0.5">
             <NewAgentDialog defaultTeamId={team.id}>
-              <Button type="text" size="small" className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Add agent to team" icon={<AddIcon size={15} />} />
+              <Button type="text" size="small" className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Add agent to team" icon={<Plus size={15} />} />
             </NewAgentDialog>
-            <Button type="text" size="small" onClick={() => onEditTeam(team)} className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Edit team" icon={<PenNewSquareIcon size={15} />} />
+            <Button type="text" size="small" onClick={() => onEditTeam(team)} className="px-1.5! opacity-0 transition-opacity duration-150 group-hover/team:opacity-100" title="Edit team" icon={<Pencil size={15} />} />
           </div>
         }
       />

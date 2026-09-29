@@ -25,7 +25,7 @@ export function ChatEmptyState({ agent, onStarter, disabled }: ChatEmptyStatePro
         <div
           className="relative rounded-full p-0.5"
           style={{
-            background: "linear-gradient(145deg, color-mix(in oklab, var(--brand-soft) 55%, transparent), transparent 60%)",
+            background: "linear-gradient(145deg, color-mix(in oklab, var(--brand-700) 55%, transparent), transparent 60%)",
           }}
         >
           <div className="rounded-full bg-popover p-0.5">

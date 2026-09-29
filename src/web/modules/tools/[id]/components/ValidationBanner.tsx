@@ -1,4 +1,4 @@
-import { DangerTriangleIcon } from "@solar-icons/react/dynamic/danger-triangle";
+import { FluentIcon } from "devnonla-ui";
 
 interface ValidationBannerProps {
   errors: string[];
@@ -8,7 +8,7 @@ interface ValidationBannerProps {
 export function ValidationBanner({ errors, onDismiss }: ValidationBannerProps) {
   return (
     <div role="alert" className="shrink-0 flex items-center gap-2 px-4 py-2 bg-destructive/12 border-b border-destructive/20">
-      <DangerTriangleIcon size={13} className="text-destructive shrink-0" />
+      <FluentIcon name="warning-24" size={13} className="text-destructive shrink-0" />
       <span className="text-[11px] font-medium text-destructive/80 leading-snug">
         {errors.length === 1 && errors[0].includes(" ") ? (
           errors[0]

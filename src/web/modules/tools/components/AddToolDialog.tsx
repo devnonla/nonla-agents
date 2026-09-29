@@ -1,5 +1,5 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { fetchToolFolders } from "src/modules/tools/common/toolFoldersSlice";
@@ -10,9 +10,11 @@ import { useAppDispatch, useAppSelector } from "src/store/store";
 
 interface AddToolDialogProps {
   onCreated: (toolId: string) => void;
-  children: ReactNode;
+  children?: ReactNode;
   defaultFolderId?: string | null;
   triggerClassName?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type AddToolValues = {
@@ -21,10 +23,15 @@ type AddToolValues = {
   folderId: string;
 };
 
-export function AddToolDialog({ onCreated, children, defaultFolderId = null, triggerClassName = "inline-flex w-full" }: AddToolDialogProps) {
+export function AddToolDialog({ onCreated, children, defaultFolderId = null, triggerClassName = "inline-flex w-full", open: openProp, onOpenChange }: AddToolDialogProps) {
   const dispatch = useAppDispatch();
   const folders = useAppSelector((s) => s.toolFolders.folders) as ToolFolderWithTools[];
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    onOpenChange?.(next);
+    if (openProp === undefined) setUncontrolledOpen(next);
+  };
   const [loading, setLoading] = useState(false);
   const form = useForm<AddToolValues>({ defaultValues: { label: "", description: "", folderId: defaultFolderId ?? "" }, mode: "onSubmit" });
   const rootError = form.formState.errors.root?.message;
@@ -99,9 +106,11 @@ export function AddToolDialog({ onCreated, children, defaultFolderId = null, tri
 
   return (
     <>
-      <span className={triggerClassName} onClick={() => setOpen(true)}>
-        {children}
-      </span>
+      {children ? (
+        <span className={triggerClassName} onClick={() => setOpen(true)}>
+          {children}
+        </span>
+      ) : null}
 
       <Modal
         open={open}
@@ -110,7 +119,7 @@ export function AddToolDialog({ onCreated, children, defaultFolderId = null, tri
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
               <div className="text-[14px] leading-none text-muted-foreground">
-                <AddIcon size={16} />
+                <Plus size={16} />
               </div>
             </div>
             <span className="truncate font-semibold text-foreground">New Tool</span>

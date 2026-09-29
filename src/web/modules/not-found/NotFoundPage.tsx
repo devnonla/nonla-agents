@@ -1,5 +1,4 @@
-import { Button } from "@nonla-agents/ui";
-import { HomeAngleIcon } from "@solar-icons/react/dynamic/home-angle";
+import { Button, FluentIcon } from "devnonla-ui";
 import { Link } from "react-router-dom";
 
 export default function NotFoundPage() {
@@ -16,7 +15,7 @@ export default function NotFoundPage() {
         <h1 className="mt-4 mb-2 text-[18px] font-semibold text-foreground">Page not found</h1>
         <p className="m-0 mb-8 text-[14px] leading-relaxed text-muted-foreground">The page you are looking for does not exist or has been moved.</p>
         <Link to="/">
-          <Button type="primary" icon={<HomeAngleIcon size={14} weight="BoldDuotone" />}>
+          <Button type="primary" icon={<FluentIcon name="home-24" size={14} />}>
             Back to home
           </Button>
         </Link>

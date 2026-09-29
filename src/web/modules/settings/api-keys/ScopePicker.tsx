@@ -1,5 +1,5 @@
-import { Checkbox, Input, Switch } from "@nonla-agents/ui";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
+import { Checkbox, Input, Switch } from "devnonla-ui";
+import { Search } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 
 function toggleIds(current: string[], ids: string[], checked: boolean): string[] {
@@ -68,7 +68,7 @@ export function ScopePicker<T>({
       ) : (
         <>
           <div className="flex items-center gap-2 border-b border-border p-2">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder} allowClear prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder} allowClear prefix={<Search size={14} className="text-muted-foreground" />} />
             <span className="shrink-0 text-[11px] tabular-nums text-tertiary-foreground">{selectedIds.length} selected</span>
           </div>
           <div className="max-h-55 overflow-y-auto py-1">

@@ -1,3 +1,4 @@
+import { Alert, Button, FluentIcon } from "devnonla-ui";
 import type { Agent } from "src/common/types";
 import { UserAvatar } from "src/components/UserAvatar";
 
@@ -5,12 +6,13 @@ const STARTERS = ["What can you help me with?", "Brainstorm a few ideas with me"
 
 interface ChatEmptyStateProps {
   agent: Agent;
-  onStarter: (text: string) => void;
+  onStarter?: (text: string) => void;
   disabled?: boolean;
+  missingInstruct?: boolean;
+  onAddInstruct?: () => void;
 }
 
-export function ChatEmptyState({ agent, onStarter, disabled }: ChatEmptyStateProps) {
-  const modelLabel = agent.aiModel?.split("/").pop() ?? null;
+export function ChatEmptyState({ agent, onStarter, disabled, missingInstruct, onAddInstruct }: ChatEmptyStateProps) {
   const description = agent.description?.trim() || null;
 
   return (
@@ -26,7 +28,7 @@ export function ChatEmptyState({ agent, onStarter, disabled }: ChatEmptyStatePro
         <div
           className="relative rounded-full p-0.5"
           style={{
-            background: "linear-gradient(145deg, color-mix(in oklab, var(--brand-soft) 55%, transparent), transparent 60%)",
+            background: "linear-gradient(145deg, color-mix(in oklab, var(--brand-700) 55%, transparent), transparent 60%)",
           }}
         >
           <div className="rounded-full bg-popover p-0.5">
@@ -39,35 +41,25 @@ export function ChatEmptyState({ agent, onStarter, disabled }: ChatEmptyStatePro
 
       {description ? <p className="mt-2 mb-0 max-w-90 text-[13px] leading-relaxed text-tertiary-foreground line-clamp-2">{description}</p> : <p className="mt-2 mb-0 max-w-[320px] text-[13px] leading-relaxed text-tertiary-foreground">Send a message to start working together.</p>}
 
-      {(modelLabel || agent.toolCount > 0) && (
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-quaternary-foreground">
-          {modelLabel && <span className="truncate max-w-45">{modelLabel}</span>}
-          {modelLabel && agent.toolCount > 0 && (
-            <span aria-hidden className="opacity-40">
-              ·
-            </span>
-          )}
-          {agent.toolCount > 0 && (
-            <span>
-              {agent.toolCount} {agent.toolCount === 1 ? "tool" : "tools"}
-            </span>
-          )}
+      {missingInstruct ? (
+        <div className="mt-6 w-full max-w-md text-left">
+          <Alert type="warning" showIcon title="No instructions yet" description="Add Instruct so this agent knows its personality, rules, and what to do.">
+            {onAddInstruct ? (
+              <Button size="small" className="mt-2" icon={<FluentIcon name="notebook-24" size={14} />} onClick={onAddInstruct}>
+                Add Instruct
+              </Button>
+            ) : null}
+          </Alert>
         </div>
-      )}
-
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-2 max-w-130">
-        {STARTERS.map((text) => (
-          <button
-            key={text}
-            type="button"
-            disabled={disabled}
-            onClick={() => onStarter(text)}
-            className="px-3 py-1.5 rounded-lg border border-border bg-transparent text-[12px] font-medium text-tertiary-foreground cursor-pointer transition-colors duration-150 font-[inherit] hover:border-border hover:bg-muted/60 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {text}
-          </button>
-        ))}
-      </div>
+      ) : onStarter ? (
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-2 max-w-130">
+          {STARTERS.map((text) => (
+            <Button type="default" key={text} size="small" disabled={disabled} onClick={() => onStarter(text)}>
+              {text}
+            </Button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

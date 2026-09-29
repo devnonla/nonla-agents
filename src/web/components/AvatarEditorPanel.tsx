@@ -1,5 +1,5 @@
-import { Button, ColorPicker } from "@nonla-agents/ui";
-import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
+import { Button, ColorPicker } from "devnonla-ui";
+import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Avatar from "react-nice-avatar";
 import { genConfig } from "src/components/UserAvatar";
@@ -208,7 +208,7 @@ export function AvatarEditorPanel({ avatar, name, saving, onChange }: AvatarEdit
         </div>
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <p className="text-xs text-muted-foreground m-0 leading-snug">Customize features or randomize a new look.</p>
-          <Button type="default" size="small" disabled={saving} onClick={handleRandomize} icon={<RefreshIcon size={14} className={saving ? "animate-spin" : ""} />}>
+          <Button type="default" size="small" disabled={saving} onClick={handleRandomize} icon={<RefreshCw size={14} className={saving ? "animate-spin" : ""} />}>
             Randomize
           </Button>
         </div>
@@ -228,19 +228,19 @@ export function AvatarEditorPanel({ avatar, name, saving, onChange }: AvatarEdit
 
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Face</span>
-          <ColorPicker presets={FACE_COLORS} value={config.faceColor || FACE_COLORS[0]} onChange={(c) => patch("faceColor", c)} size={22} />
+          <ColorPicker size="small" disabledAlpha value={config.faceColor || FACE_COLORS[0]} presets={[{ label: "Face", colors: [...FACE_COLORS] }]} onChange={(color) => patch("faceColor", color.toHexString())} />
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Hair color</span>
-          <ColorPicker presets={HAIR_COLORS} value={config.hairColor || HAIR_COLORS[0]} onChange={(c) => patch("hairColor", c)} size={22} />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Hair color</span>
+          <ColorPicker size="small" disabledAlpha value={config.hairColor || HAIR_COLORS[0]} presets={[{ label: "Hair", colors: [...HAIR_COLORS] }]} onChange={(color) => patch("hairColor", color.toHexString())} />
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Shirt color</span>
-          <ColorPicker presets={SHIRT_COLORS} value={config.shirtColor || SHIRT_COLORS[0]} onChange={(c) => patch("shirtColor", c)} size={22} />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Shirt color</span>
+          <ColorPicker size="small" disabledAlpha value={config.shirtColor || SHIRT_COLORS[0]} presets={[{ label: "Shirt", colors: [...SHIRT_COLORS] }]} onChange={(color) => patch("shirtColor", color.toHexString())} />
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Background</span>
-          <ColorPicker presets={BG_COLORS} value={config.bgColor || BG_COLORS[0]} onChange={(c) => patch("bgColor", c)} size={22} />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Background</span>
+          <ColorPicker size="small" disabledAlpha value={config.bgColor || BG_COLORS[0]} presets={[{ label: "Background", colors: [...BG_COLORS] }]} onChange={(color) => patch("bgColor", color.toHexString())} />
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
+import { ChevronDown } from "lucide-react";
 import { cn } from "src/common/lib/cn";
 import { ModelPicker, shortModelName } from "src/components/ModelPicker";
 import { ProviderIcon } from "src/components/ProviderIcon";
@@ -29,7 +29,7 @@ export function SelectModel({ providerId, model, onChange }: SelectModelProps) {
         >
           {selectedModel && provider && <ProviderIcon provider={provider.provider} size={14} />}
           <span className="truncate text-[12px] font-normal leading-none">{selectedModel ? shortModelName(selectedModel) : "Select model"}</span>
-          <AltArrowDownIcon size={9} className={cn("shrink-0 transition-transform duration-150", open ? "rotate-180 text-foreground" : "text-border-hover")} />
+          <ChevronDown size={9} className={cn("shrink-0 transition-transform duration-150", open ? "rotate-180 text-foreground" : "text-border-hover")} />
         </button>
       )}
     />

@@ -1,5 +1,4 @@
-import { Button } from "@nonla-agents/ui";
-import { SuitcaseIcon } from "@solar-icons/react/dynamic/suitcase";
+import { Button, FluentIcon } from "devnonla-ui";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ensureLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
@@ -21,8 +20,8 @@ export function MissingProviderCallout() {
     <section role="status" aria-labelledby="missing-provider-title" className="relative mb-6 flex flex-col gap-4 overflow-hidden rounded-xl border border-border bg-accent p-4 pl-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-brand" />
       <div className="flex min-w-0 items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand-soft">
-          <SuitcaseIcon size={18} />
+        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand-700">
+          <FluentIcon name="briefcase-24" size={18} />
         </span>
         <div className="min-w-0">
           <p id="missing-provider-title" className="m-0 text-sm font-semibold text-foreground">
@@ -31,7 +30,7 @@ export function MissingProviderCallout() {
           <p className="m-0 mt-1 text-sm leading-relaxed text-muted-foreground">Agents, jobs, and tools need a model to run. Configure a provider with an API key first.</p>
         </div>
       </div>
-      <Button type="primary" className="shrink-0 self-start sm:self-center" icon={<SuitcaseIcon size={14} />} onClick={() => navigate("/settings/providers")}>
+      <Button type="primary" className="shrink-0 self-start sm:self-center" icon={<FluentIcon name="briefcase-24" size={14} />} onClick={() => navigate("/settings/providers")}>
         Add provider
       </Button>
     </section>

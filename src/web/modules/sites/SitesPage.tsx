@@ -1,7 +1,6 @@
-import { Button, EFormItemType, Empty, Modal, SchemaForm, Segmented, type TFormItemProps, Table, message } from "@nonla-agents/ui";
-import type { ColumnsType } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, EFormItemType, Empty, Popover, SchemaForm, Segmented, type TFormItemProps, message } from "devnonla-ui";
+import { Plus } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import type { Site } from "src/common/types";
@@ -11,7 +10,7 @@ import { PageShell } from "src/components/PageShell";
 import RenderIf from "src/components/RenderIf";
 import { useAppDispatch, useAppSelector } from "src/store/store";
 import { createSite, fetchSites } from "./common/sitesSlice";
-import { SITE_VISIBILITY_META, SiteNameCell, SiteOpenPublicButton, type SiteVisibility, SiteVisibilityIcon, siteVisibility } from "./components/SiteCard";
+import { SITE_VISIBILITY_META, SiteCard, type SiteVisibility, siteVisibility } from "./components/SiteCard";
 
 type VisibilityFilter = "all" | SiteVisibility;
 
@@ -42,12 +41,23 @@ const SITE_ITEMS: TFormItemProps[] = [
   },
 ];
 
-function CreateSiteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (site: Site) => void }) {
+function NewSitePopover({ children, placement = "bottomRight" }: { children: ReactNode; placement?: "bottom" | "bottomRight" }) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const prevName = useRef("");
   const form = useForm<CreateSiteValues>({ defaultValues: { name: "", slug: "" }, mode: "onSubmit" });
   const rootError = form.formState.errors.root?.message;
+
+  useEffect(() => {
+    if (!open) return;
+    prevName.current = "";
+    form.reset({ name: "", slug: "" });
+    setSaving(false);
+    const t = window.setTimeout(() => form.setFocus("name"), 150);
+    return () => window.clearTimeout(t);
+  }, [open, form]);
 
   const onSubmit = form.handleSubmit(async ({ name, slug }) => {
     const n = name.trim();
@@ -56,8 +66,8 @@ function CreateSiteDialog({ onClose, onCreated }: { onClose: () => void; onCreat
     try {
       const site = (await dispatch(createSite({ name: n, slug: s })).unwrap()) as Site;
       message.success("Site created");
-      onCreated(site);
-      onClose();
+      setOpen(false);
+      navigate(`/sites/${site.id}`);
     } catch (err: unknown) {
       form.setError("root", { message: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -66,30 +76,49 @@ function CreateSiteDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   });
 
   return (
-    <Modal open title="New site" onCancel={onClose} onOk={() => void onSubmit()} okText="Create" confirmLoading={saving} destroyOnHidden>
-      <form onSubmit={onSubmit}>
-        <SchemaForm
-          form={form}
-          items={SITE_ITEMS}
-          valuesChangeDebounce={0}
-          onValuesChange={(all) => {
-            const normalized = normalizeSlugInput(all.slug);
-            if (normalized !== all.slug) {
-              form.setValue("slug", normalized);
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      trigger="click"
+      placement={placement}
+      arrow
+      contentClassName="w-80 max-w-none p-0"
+      content={
+        <form className="flex flex-col gap-3 p-4" onSubmit={onSubmit}>
+          <p className="m-0 text-sm font-medium text-foreground">New site</p>
+          <SchemaForm
+            form={form}
+            items={SITE_ITEMS}
+            valuesChangeDebounce={0}
+            onValuesChange={(all) => {
+              const normalized = normalizeSlugInput(all.slug);
+              if (normalized !== all.slug) {
+                form.setValue("slug", normalized);
+                prevName.current = all.name;
+                return;
+              }
+              if (!all.slug || all.slug === slugify(prevName.current)) {
+                const next = slugify(all.name);
+                if (next !== all.slug) form.setValue("slug", next);
+              }
               prevName.current = all.name;
-              return;
-            }
-            if (!all.slug || all.slug === slugify(prevName.current)) {
-              const next = slugify(all.name);
-              if (next !== all.slug) form.setValue("slug", next);
-            }
-            prevName.current = all.name;
-          }}
-        />
-        <p className="-mt-2 mb-3 text-xs text-muted-foreground">Public URL: /public/sites/{"{slug}"}</p>
-        {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
-      </form>
-    </Modal>
+            }}
+          />
+          <p className="m-0 -mt-1 text-xs text-muted-foreground">Public URL: /public/sites/{"{slug}"}</p>
+          {rootError ? <p className="m-0 text-xs text-destructive">{rootError}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="text" size="medium" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="primary" size="medium" htmlType="submit" loading={saving}>
+              {saving ? "Creating…" : "Create"}
+            </Button>
+          </div>
+        </form>
+      }
+    >
+      {children}
+    </Popover>
   );
 }
 
@@ -98,7 +127,6 @@ export default function SitesPage() {
   const navigate = useNavigate();
   const items = useAppSelector((s) => s.sites.items) as Site[];
   const [loading, setLoading] = useState(items.length === 0);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all");
 
   useEffect(() => {
@@ -122,53 +150,11 @@ export default function SitesPage() {
     return items.filter((site) => siteVisibility(site) === visibilityFilter);
   }, [items, visibilityFilter]);
 
-  const columns: ColumnsType<Site> = [
-    {
-      title: "",
-      key: "visibility",
-      width: 40,
-      render: (_, site) => <SiteVisibilityIcon site={site} />,
-    },
-    {
-      title: "Name",
-      key: "name",
-      render: (_, site) => <SiteNameCell site={site} onOpen={() => navigate(`/sites/${site.id}`)} />,
-    },
-    {
-      title: "Path",
-      key: "path",
-      render: (_, site) => <span className="font-mono text-xs text-tertiary-foreground">/public/sites/{site.slug}</span>,
-    },
-    {
-      title: "",
-      key: "open",
-      width: 88,
-      align: "right",
-      render: (_, site) => <SiteOpenPublicButton site={site} />,
-    },
-  ];
-
   return (
-    <PageShell>
+    <PageShell className="pt-6">
       <MissingProviderCallout />
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Sites</h1>
-        <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialogOpen(true)}>
-          New site
-        </Button>
-      </div>
-
-      <RenderIf
-        condition={items.length > 0 || loading}
-        fallback={
-          <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No sites yet">
-            <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialogOpen(true)}>
-              New site
-            </Button>
-          </Empty>
-        }
-      >
-        <div className="mb-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <RenderIf condition={items.length > 0}>
           <Segmented
             value={visibilityFilter}
             onChange={setVisibilityFilter}
@@ -179,31 +165,50 @@ export default function SitesPage() {
               { label: "Unpublished", value: "unpublished" },
             ]}
           />
-        </div>
-        <Table
-          rowKey="id"
-          size="middle"
-          columns={columns}
-          dataSource={filtered}
-          loading={loading && items.length === 0}
-          pagination={false}
-          onRow={(site) => ({
-            onClick: () => navigate(`/sites/${site.id}`),
-            className: "cursor-pointer",
-          })}
-          locale={{
-            emptyText: <div className="py-8 text-center text-sm text-muted-foreground">No {visibilityFilter === "all" ? "" : `${SITE_VISIBILITY_META[visibilityFilter].label.toLowerCase()} `}sites</div>,
-          }}
-        />
-      </RenderIf>
+        </RenderIf>
+        <NewSitePopover>
+          <Button type="primary" className="ml-auto" icon={<Plus size={16} />}>
+            New site
+          </Button>
+        </NewSitePopover>
+      </div>
 
-      <RenderIf condition={dialogOpen}>
-        <CreateSiteDialog
-          onClose={() => setDialogOpen(false)}
-          onCreated={(site) => {
-            navigate(`/sites/${site.id}`);
-          }}
-        />
+      <RenderIf
+        condition={items.length > 0 || loading}
+        fallback={
+          <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No sites yet">
+            <NewSitePopover placement="bottom">
+              <Button type="primary" icon={<Plus size={16} />}>
+                New site
+              </Button>
+            </NewSitePopover>
+          </Empty>
+        }
+      >
+        <RenderIf condition={loading && items.length === 0}>
+          <div className="@container">
+            <div className="grid grid-cols-2 gap-3 @min-[900px]:grid-cols-3">
+              {["a", "b"].map((key) => (
+                <div key={key} className="overflow-hidden rounded-xl border border-border-subtle bg-card">
+                  <div className="mx-2 mt-2 aspect-16/10 animate-pulse rounded-lg border border-border bg-muted shadow-[0_1px_2px_rgb(0_0_0/0.05)]" />
+                  <div className="h-12" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </RenderIf>
+        <RenderIf condition={filtered.length > 0}>
+          <div className="@container">
+            <div className="grid grid-cols-2 gap-3 @min-[900px]:grid-cols-3">
+              {filtered.map((site) => (
+                <SiteCard key={site.id} site={site} onOpen={() => navigate(`/sites/${site.id}`)} />
+              ))}
+            </div>
+          </div>
+        </RenderIf>
+        <RenderIf condition={!loading && items.length > 0 && filtered.length === 0}>
+          <div className="py-8 text-center text-sm text-muted-foreground">No {SITE_VISIBILITY_META[visibilityFilter as SiteVisibility]?.label.toLowerCase() ?? ""} sites</div>
+        </RenderIf>
       </RenderIf>
     </PageShell>
   );

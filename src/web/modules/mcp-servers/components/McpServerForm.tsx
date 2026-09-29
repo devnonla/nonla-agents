@@ -1,6 +1,5 @@
-import { Button, EFormItemType, Input, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, EFormItemType, Input, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { McpServer } from "src/common/types";
@@ -41,7 +40,7 @@ function HeaderRowsEditor({ value, onChange }: { value: HeaderRow[]; onChange: (
             type="text"
             size="small"
             danger
-            icon={<TrashBinMinimalisticIcon size={14} />}
+            icon={<X size={14} />}
             onClick={() => {
               const next = rows.filter((_, i) => i !== index);
               onChange(next.length === 0 ? [newRow()] : next);
@@ -50,7 +49,7 @@ function HeaderRowsEditor({ value, onChange }: { value: HeaderRow[]; onChange: (
           />
         </div>
       ))}
-      <Button type="default" size="small" icon={<AddCircleIcon size={14} />} onClick={() => onChange([...rows, newRow()])} className="self-start bg-white/70">
+      <Button type="default" size="small" icon={<Plus size={14} />} onClick={() => onChange([...rows, newRow()])} className="self-start bg-white/70">
         Add header
       </Button>
     </div>

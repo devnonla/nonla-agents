@@ -1,32 +1,19 @@
-import { Button, Dropdown, EFormItemType, Input, Modal, Popover, SchemaForm, Segmented, Switch, type TFormItemProps, message } from "@nonla-agents/ui";
-import type { MenuProps } from "@nonla-agents/ui";
-import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
-import { CodeSquareIcon } from "@solar-icons/react/dynamic/code-square";
-import { EyeIcon } from "@solar-icons/react/dynamic/eye";
-import { LinkIcon } from "@solar-icons/react/dynamic/link";
-import { LockIcon } from "@solar-icons/react/dynamic/lock";
-import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, EFormItemType, FluentIcon, Input, Modal, Popover, SchemaForm, Switch, type TFormItemProps, message } from "devnonla-ui";
+import { RefreshCw } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "src/common/api";
-import { SettingKey } from "src/common/enum";
-import type { ToolActionEvent } from "src/common/hooks/useAssistantStreaming";
 import type { Site, SiteSourceFile } from "src/common/types";
 import { normalizeSlugInput, slugify } from "src/common/utils/slug";
+import { AgentSidePanel } from "src/components/AgentSidePanel";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
-import { FluentIcon } from "src/components/FluentIcon";
 import RenderIf from "src/components/RenderIf";
-import { getSettingValues } from "src/modules/settings/common/settingsApi";
 import { capturePreviewIframe } from "../common/capturePreviewIframe";
 import { sitesApi } from "../common/sitesApi";
-import { SiteAgentPanel } from "../components/SiteAgentPanel";
+import { SiteAgentPanel } from "./components/SiteAgentPanel";
 import { SiteCodeEditor, type SiteCodeEditorHandle } from "./components/SiteCodeEditor";
-
-type SiteViewMode = "preview" | "editor";
+import { SiteEditorHeader, type SiteViewMode } from "./components/SiteEditorHeader";
 
 type SiteSettingsValues = { name: string; slug: string };
 
@@ -101,36 +88,6 @@ function SiteSettingsModal({
   );
 }
 
-function SiteViewToggle({ value, onChange }: { value: SiteViewMode; onChange: (v: SiteViewMode) => void }) {
-  return (
-    <Segmented
-      size="small"
-      value={value}
-      onChange={onChange}
-      options={[
-        {
-          value: "preview",
-          label: (
-            <span className="inline-flex items-center gap-1.5">
-              <EyeIcon size={14} />
-              Preview
-            </span>
-          ),
-        },
-        {
-          value: "editor",
-          label: (
-            <span className="inline-flex items-center gap-1.5">
-              <CodeSquareIcon size={14} />
-              Editor
-            </span>
-          ),
-        },
-      ]}
-    />
-  );
-}
-
 function BrowserChrome({
   url,
   trailing,
@@ -146,7 +103,7 @@ function BrowserChrome({
     <div className={`flex min-h-0 flex-1 flex-col overflow-hidden bg-card ${className ?? "rounded-xl border border-border"}`}>
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border bg-background/90 px-2.5 py-1">
-          <LockIcon size={11} className="shrink-0 text-muted-foreground" />
+          <FluentIcon name="lock-closed-24" size={11} className="shrink-0 text-muted-foreground" />
           <span className="truncate font-mono text-[12px] leading-none text-tertiary-foreground">{url}</span>
         </div>
         {trailing}
@@ -165,9 +122,6 @@ export default function SiteEditorPage() {
   const [site, setSite] = useState<Site | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [providerId, setProviderId] = useState<string | undefined>();
-  const [model, setModel] = useState("");
-  const [panelResizing, setPanelResizing] = useState(false);
   const [localPassword, setLocalPassword] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -176,6 +130,7 @@ export default function SiteEditorPage() {
   const [discarding, setDiscarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentGenerating, setAgentGenerating] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(true);
   const [previewEpoch, setPreviewEpoch] = useState(0);
   const [previewAuthReady, setPreviewAuthReady] = useState(false);
   const [viewMode, setViewMode] = useState<SiteViewMode>("preview");
@@ -275,12 +230,14 @@ export default function SiteEditorPage() {
     };
   }, [id, navigate, reload]);
 
-  useEffect(() => {
-    void getSettingValues([SettingKey.SiteAssistantProvider, SettingKey.SiteAssistantModel]).then((s) => {
-      setProviderId(s[SettingKey.SiteAssistantProvider] || undefined);
-      setModel(s[SettingKey.SiteAssistantModel] ?? "");
-    });
-  }, []);
+  const applyServerState = useCallback(
+    (s: Site) => {
+      setSite(s);
+      schedulePreviewReload();
+      setFilesEpoch((n) => n + 1);
+    },
+    [schedulePreviewReload],
+  );
 
   const handleApprove = async (file?: SiteSourceFile) => {
     if (!id) return;
@@ -313,15 +270,6 @@ export default function SiteEditorPage() {
       throw err;
     } finally {
       setDiscarding(false);
-    }
-  };
-
-  const onToolAction = (event: ToolActionEvent) => {
-    if (event.type !== "tool-result") return;
-    if (event.toolName === "edit_site_files" || event.toolName === "edit_ui" || event.toolName === "edit_styles" || event.toolName === "edit_backend") {
-      void reload();
-      schedulePreviewReload();
-      setFilesEpoch((n) => n + 1);
     }
   };
 
@@ -388,30 +336,14 @@ export default function SiteEditorPage() {
     });
   };
 
-  const menuItems: MenuProps["items"] = [
-    {
-      key: "edit",
-      label: "Edit name",
-      icon: <PenNewSquareIcon size={14} />,
-      onClick: () => setSettingsOpen(true),
-    },
-    { type: "divider" },
-    {
-      key: "delete",
-      label: "Delete",
-      danger: true,
-      icon: <TrashBinMinimalisticIcon size={14} />,
-      onClick: handleDelete,
-    },
-  ];
-
   const publicAccessControl = (
     <Popover
       trigger="click"
       placement="bottomRight"
+      contentClassName="w-80 p-3"
       content={
-        <div className="flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-3 p-1">
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 p-3">
+        <div className="flex w-full flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-3">
             <div className="min-w-0">
               <p className="m-0 text-sm font-semibold text-foreground">Public access</p>
               <p className="m-0 mt-0.5 text-xs leading-5 text-muted-foreground">{site.isPublished ? "Anyone with the link can view this site." : "Publish this site to make it available at a public URL."}</p>
@@ -429,8 +361,8 @@ export default function SiteEditorPage() {
             <div className="rounded-xl border border-border bg-background/60 p-3">
               <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Live URL</span>
               <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-2.5 py-2">
-                <LinkIcon size={14} className="shrink-0 text-primary" />
-                <a href={publicLink} target="_blank" rel="noreferrer" className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-primary no-underline">
+                <FluentIcon name="link-24" size={14} className="shrink-0 text-primary" />
+                <a href={publicLink} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-medium text-primary no-underline">
                   {publicLink}
                 </a>
                 <Button size="small" onClick={() => void handleCopyLink()} className="shrink-0">
@@ -471,117 +403,91 @@ export default function SiteEditorPage() {
   );
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <header className="flex min-h-14 shrink-0 items-center gap-3 border-b border-border px-4">
-        <Link to="/sites" className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Back to sites">
-          <AltArrowLeftIcon size={18} />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <p className="m-0 mb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Site editor</p>
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-sm font-semibold">{site.name}</h1>
-            <RenderIf condition={!!site.draftDirty}>
-              <span className="shrink-0 rounded-full bg-brand/12 px-2 py-0.5 text-[11px] font-medium leading-none text-brand-soft">Draft changes</span>
-            </RenderIf>
-          </div>
-        </div>
-        <SiteViewToggle value={viewMode} onChange={(v) => void handleViewModeChange(v)} />
-        <div className="flex items-center">
-          <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
-            <Button type="text" icon={<MenuDotsIcon size={16} weight="Bold" />} aria-label="Site menu" />
-          </Dropdown>
-        </div>
-      </header>
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      <SiteEditorHeader title={site.name} draftDirty={!!site.draftDirty} viewMode={viewMode} onViewModeChange={(v) => void handleViewModeChange(v)} onEditName={() => setSettingsOpen(true)} onDelete={handleDelete} agentOpen={agentOpen} onToggleAgent={() => setAgentOpen((v) => !v)} />
 
       <RenderIf condition={settingsOpen}>
         <SiteSettingsModal site={site} onClose={() => setSettingsOpen(false)} onSaved={setSite} />
       </RenderIf>
 
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <div className="relative flex min-w-0 flex-1 flex-col">
-          {viewMode === "preview" ? (
-            <BrowserChrome
-              url={previewLabel}
-              className="rounded-none border-0 md:border-r md:border-border"
-              trailing={
-                <div className="flex shrink-0 items-center gap-0.5">
-                  {publicAccessControl}
-                  <Button size="small" type="text" loading={previewLoading} icon={<RefreshIcon size={14} />} onClick={runPreview} aria-label="Refresh preview" />
-                </div>
-              }
-            >
-              <div className="relative flex min-h-0 flex-1 flex-col">
-                <iframe ref={previewIframeRef} key={previewEpoch} title="preview" className="min-h-0 flex-1 w-full bg-white" style={{ pointerEvents: panelResizing ? "none" : undefined }} src={previewSrc} onLoad={onPreviewLoad} />
-                <RenderIf condition={previewLoading}>
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/50 text-sm text-muted-foreground backdrop-blur-[1px]">Loading preview…</div>
-                </RenderIf>
-                {site.draftDirty && !agentGenerating ? (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
-                    <div className="pointer-events-auto">
-                      <DraftReviewBar
-                        changedFiles={["app.tsx"]}
-                        onApprove={() => void handleApprove().catch(() => undefined)}
-                        onDiscard={() => void handleDiscard().catch(() => undefined)}
-                        approving={approving}
-                        discarding={discarding}
-                        discardConfirm={{
-                          title: "Discard draft?",
-                          description: "Reset draft to production. Unpublished changes will be lost.",
-                        }}
-                        approveConfirm={{
-                          title: "Approve draft?",
-                          description: "Publish draft to production. This replaces the current live site.",
-                        }}
-                      />
-                    </div>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex h-full min-h-0 min-w-0 flex-col">
+            {viewMode === "preview" ? (
+              <BrowserChrome
+                url={previewLabel}
+                className="rounded-none border-0"
+                trailing={
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    {publicAccessControl}
+                    <Button size="small" type="text" loading={previewLoading} icon={<RefreshCw size={14} />} onClick={runPreview} aria-label="Refresh preview" />
                   </div>
-                ) : null}
-              </div>
-            </BrowserChrome>
-          ) : (
-            <SiteCodeEditor
-              ref={codeEditorRef}
-              siteId={site.id}
-              reloadToken={filesEpoch}
-              onSiteUpdated={setSite}
-              review={
-                site.draftDirty && !agentGenerating
-                  ? {
-                      onApprove: (file) => handleApprove(file),
-                      onDiscard: (file) => handleDiscard(file),
-                      approving,
-                      discarding,
-                    }
-                  : null
-              }
-            />
-          )}
+                }
+              >
+                <div className="relative flex min-h-0 flex-1 flex-col">
+                  <iframe ref={previewIframeRef} key={previewEpoch} title="preview" className="min-h-0 w-full flex-1 bg-white" src={previewSrc} onLoad={onPreviewLoad} />
+                  <RenderIf condition={previewLoading}>
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/50 text-sm text-muted-foreground backdrop-blur-[1px]">Loading preview…</div>
+                  </RenderIf>
+                  {site.draftDirty && !agentGenerating ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-3">
+                      <div className="pointer-events-auto">
+                        <DraftReviewBar
+                          changedFiles={["app.tsx"]}
+                          onApprove={() => void handleApprove().catch(() => undefined)}
+                          onDiscard={() => void handleDiscard().catch(() => undefined)}
+                          approving={approving}
+                          discarding={discarding}
+                          discardConfirm={{
+                            title: "Discard draft?",
+                            description: "Reset draft to production. Unpublished changes will be lost.",
+                          }}
+                          approveConfirm={{
+                            title: "Approve draft?",
+                            description: "Publish draft to production. This replaces the current live site.",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </BrowserChrome>
+            ) : (
+              <SiteCodeEditor
+                ref={codeEditorRef}
+                siteId={site.id}
+                reloadToken={filesEpoch}
+                onSiteUpdated={setSite}
+                review={
+                  site.draftDirty && !agentGenerating
+                    ? {
+                        onApprove: (file) => handleApprove(file),
+                        onDiscard: (file) => handleDiscard(file),
+                        approving,
+                        discarding,
+                      }
+                    : null
+                }
+              />
+            )}
+          </div>
         </div>
 
-        <SiteAgentPanel
-          providerId={providerId}
-          model={model}
-          streamUrl={`/api/sites/${site.id}/agent/stream`}
-          onToolAction={onToolAction}
-          onModelChange={(pid, m) => {
-            setProviderId(pid);
-            setModel(m);
-            void apiClient.patch("/api/settings", {
-              [SettingKey.SiteAssistantProvider]: pid,
-              [SettingKey.SiteAssistantModel]: m,
-            });
-          }}
-          onResizeDraggingChange={setPanelResizing}
-          onGeneratingChange={setAgentGenerating}
-          onBeforeSend={async () => {
-            if (viewMode !== "editor") return;
-            try {
-              await codeEditorRef.current?.flush({ quiet: true });
-            } catch {
-              /* still send so the agent can fix unsaved editor errors */
-            }
-          }}
-        />
+        <AgentSidePanel open={agentOpen}>
+          <SiteAgentPanel
+            siteId={site.id}
+            onServerSync={applyServerState}
+            onGeneratingChange={setAgentGenerating}
+            onBeforeSend={async () => {
+              if (viewMode !== "editor") return;
+              try {
+                await codeEditorRef.current?.flush({ quiet: true });
+              } catch {
+                /* still send so the agent can fix unsaved editor errors */
+              }
+            }}
+          />
+        </AgentSidePanel>
       </div>
     </div>
   );

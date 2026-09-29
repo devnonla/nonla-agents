@@ -1,9 +1,5 @@
-import { Button, Dropdown, Modal, message } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { DatabaseIcon } from "@solar-icons/react/dynamic/database";
-import { MenuDotsIcon } from "@solar-icons/react/dynamic/menu-dots";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, Dropdown, FluentIcon, Modal, message } from "devnonla-ui";
+import { Ellipsis, Pencil, Plus, X } from "lucide-react";
 import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
 import { useAppTimezone } from "src/common/hooks/useAppTimezone";
 import { cn } from "src/common/lib/cn";
@@ -119,8 +115,9 @@ export function TableRowsPanel({ tableId, columns }: TableRowsPanelProps) {
 
   const saveCell = async (row: DatatableRow, col: DatatableColumn, nextValue: unknown) => {
     const prevValue = row.data?.[col.name];
+    const keepOpen = col.type === "text" || col.type === "json";
     if (cellValuesEqual(prevValue, nextValue)) {
-      stopEditing();
+      if (!keepOpen) stopEditing();
       return;
     }
     const optimistic: DatatableRow = {
@@ -128,13 +125,15 @@ export function TableRowsPanel({ tableId, columns }: TableRowsPanelProps) {
       data: { ...row.data, [col.name]: nextValue },
     };
     setRows((prev) => prev.map((r) => (r.id === row.id ? optimistic : r)));
-    stopEditing();
+    if (!keepOpen) stopEditing();
     try {
       const updated = await datatablesApi.updateRow(row.id, { [col.name]: nextValue });
       setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
+      if (keepOpen) stopEditing();
     } catch (err: unknown) {
       setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
       message.error(err instanceof Error ? err.message : String(err));
+      if (keepOpen) throw err;
     }
   };
 
@@ -245,7 +244,7 @@ export function TableRowsPanel({ tableId, columns }: TableRowsPanelProps) {
                       editing={editingCell?.rowId === row.id && editingCell?.colId === col.id}
                       timeZone={timeZone}
                       onStartEdit={() => setEditingCell({ rowId: row.id, colId: col.id })}
-                      onCommit={(next) => void saveCell(row, col, next)}
+                      onCommit={(next) => saveCell(row, col, next)}
                       onCancel={stopEditing}
                       tryCellAction={tryCellAction}
                     />
@@ -257,7 +256,7 @@ export function TableRowsPanel({ tableId, columns }: TableRowsPanelProps) {
                           {
                             key: "edit",
                             label: "Edit",
-                            icon: <PenNewSquareIcon size={14} />,
+                            icon: <Pencil size={14} />,
                             onClick: () => setRowDialog(row),
                           },
                           { type: "divider" },
@@ -265,14 +264,14 @@ export function TableRowsPanel({ tableId, columns }: TableRowsPanelProps) {
                             key: "delete",
                             label: "Delete",
                             danger: true,
-                            icon: <TrashBinMinimalisticIcon size={14} />,
+                            icon: <X size={14} />,
                             onClick: () => setDeletingRow(row),
                           },
                         ],
                       }}
                       trigger={["click"]}
                     >
-                      <Button type="text" size="small" icon={<MenuDotsIcon size={14} weight="Bold" />} />
+                      <Button type="text" size="small" icon={<Ellipsis size={14} />} />
                     </Dropdown>
                   </div>
                 </div>
@@ -287,17 +286,17 @@ export function TableRowsPanel({ tableId, columns }: TableRowsPanelProps) {
         >
           <div className="flex h-full min-h-60 flex-col items-center justify-center px-8 py-16">
             <span className="mb-3 flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-              <DatabaseIcon size={24} weight="BoldDuotone" />
+              <FluentIcon name="database-24" size={24} />
             </span>
             <p className="m-0 text-sm font-medium text-foreground">No properties yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Open Schema editor to add properties for this table</p>
+            <p className="mt-1 text-sm text-muted-foreground">Hover the active table tab and click edit to add properties</p>
           </div>
         </RenderIf>
       </div>
 
       <RenderIf condition={showStatusBar}>
         <div className="absolute inset-x-0 bottom-0 z-10 flex h-8 items-center justify-between gap-3 border-t border-border-subtle bg-card px-3">
-          <Button type="text" size="small" disabled={loading || columns.length === 0} icon={<AddCircleIcon size={14} />} onClick={() => setRowDialog("create")} className="text-muted-foreground">
+          <Button type="text" size="small" disabled={loading || columns.length === 0} icon={<Plus size={14} />} onClick={() => setRowDialog("create")} className="text-muted-foreground">
             Add new row
           </Button>
           <span className="text-xs tabular-nums text-muted-foreground">

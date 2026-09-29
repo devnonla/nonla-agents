@@ -1,6 +1,6 @@
-import { chatMarkdownComponents } from "@nonla-agents/ui";
-import type { ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
+import { chatMarkdownComponents } from "devnonla-ui";
+import { type ReactNode, useMemo } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const previewRootClass =
@@ -31,16 +31,19 @@ const previewComponents = {
 interface MarkdownPreviewProps {
   content: string;
   empty?: ReactNode;
+  components?: Components;
 }
 
-export function MarkdownPreview({ content, empty }: MarkdownPreviewProps) {
+export function MarkdownPreview({ content, empty, components }: MarkdownPreviewProps) {
+  const merged = useMemo(() => (components ? { ...previewComponents, ...components } : previewComponents), [components]);
+
   if (!content.trim()) {
     return empty ?? <p className="m-0 text-sm text-muted-foreground">This file is empty.</p>;
   }
 
   return (
     <div className={previewRootClass}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={previewComponents}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={merged}>
         {content}
       </ReactMarkdown>
     </div>

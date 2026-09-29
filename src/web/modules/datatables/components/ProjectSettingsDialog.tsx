@@ -1,5 +1,5 @@
-import { Button, EFormItemType, Modal, Popconfirm, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, EFormItemType, Modal, Popconfirm, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -84,7 +84,7 @@ export function ProjectSettingsDialog({
         <p className="m-0 text-[11px] font-medium text-muted-foreground">Danger zone</p>
         <p className="mb-3 mt-1 text-xs text-tertiary-foreground">Permanently delete this project and all of its tables and rows.</p>
         <Popconfirm title={`Delete "${project.name}"?`} description="All tables and rows in this project will be deleted." okText="Delete" okType="danger" cancelText="Cancel" onConfirm={() => void handleDelete()}>
-          <Button size="small" danger loading={deleting} disabled={saving} icon={<TrashBinMinimalisticIcon size={14} />}>
+          <Button size="small" danger loading={deleting} disabled={saving} icon={<X size={14} />}>
             Delete project
           </Button>
         </Popconfirm>

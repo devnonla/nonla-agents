@@ -1,8 +1,8 @@
+import { Sidebar, type SidebarItemType } from "devnonla-ui";
 import { useEffect } from "react";
-import { NavLink, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { PageShell } from "src/components/PageShell";
 import RenderIf from "src/components/RenderIf";
-import { cn } from "src/lib/utils";
 import { fetchLlmProviders } from "src/modules/llm-providers/common/llmProvidersSlice";
 import { useAppDispatch } from "src/store/store";
 
@@ -29,6 +29,12 @@ const TAB_TITLES: Record<SettingsTab, string> = {
   "api-keys": "API Keys",
   users: "Users",
 };
+
+const SIDEBAR_ITEMS: SidebarItemType[] = SETTINGS_TABS.map((tab) => ({
+  key: tab.key,
+  label: tab.label,
+  icon: tab.icon,
+}));
 
 function useActiveTab(): SettingsTab | null {
   const { pathname } = useLocation();
@@ -66,23 +72,19 @@ export default function SettingsPage() {
   return (
     <PageShell className="h-full min-h-0 overflow-hidden pt-0 pb-0 px-0" contentClassName="max-w-none h-full min-h-0">
       <div className="flex h-full min-h-0">
-        <aside className="h-full w-56 shrink-0 overflow-y-auto overscroll-contain border-r border-white/30 bg-white/20">
-          <div className="px-4 pb-3 pt-5">
-            <h1 className="m-0 text-base font-semibold leading-tight text-foreground">Settings</h1>
-            <p className="mt-1 mb-0 text-[12px] leading-snug text-muted-foreground">Timezone, models, and access.</p>
-          </div>
-          <nav aria-label="Settings" className="flex flex-col gap-0.5 px-2 pb-4">
-            {SETTINGS_TABS.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <NavLink key={tab.key} to={`/settings/${tab.key}`} className={({ isActive }) => cn("flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium no-underline transition-colors", isActive ? "bg-white/70 text-foreground" : "text-muted-foreground hover:bg-white/40 hover:text-foreground")}>
-                  <Icon size={16} weight="BoldDuotone" className="shrink-0" />
-                  {tab.label}
-                </NavLink>
-              );
-            })}
-          </nav>
-        </aside>
+        <Sidebar
+          aria-label="Settings"
+          className="w-56 shrink-0 border-r border-white/30 bg-white/20"
+          header={
+            <div className="px-4 pb-3 pt-5">
+              <h1 className="m-0 text-base font-semibold leading-tight text-foreground">Settings</h1>
+              <p className="mt-1 mb-0 text-[12px] leading-snug text-muted-foreground">Timezone, models, and access.</p>
+            </div>
+          }
+          items={SIDEBAR_ITEMS}
+          selectedKey={activeTab}
+          onSelect={({ key }) => navigate(`/settings/${key}`)}
+        />
 
         <section className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 pt-5">
           <RenderIf condition={activeTab !== "providers"}>

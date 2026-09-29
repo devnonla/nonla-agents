@@ -9,5 +9,5 @@ interface PasswordGateProps {
 }
 
 export function PasswordGate({ agentName, onSubmit, authError, verifying }: PasswordGateProps) {
-  return <PublicUnlockScreen icon={<UserAvatar name={agentName} size={72} className="shrink-0" />} title={agentName} description="Enter password to continue" error={authError} verifying={verifying} onSubmit={onSubmit} />;
+  return <PublicUnlockScreen icon={<UserAvatar name={agentName} size={48} className="shrink-0" />} title={agentName} description="Enter password to continue" error={authError} verifying={verifying} onSubmit={onSubmit} />;
 }

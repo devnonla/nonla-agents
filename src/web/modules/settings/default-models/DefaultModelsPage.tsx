@@ -1,4 +1,4 @@
-import { message } from "@nonla-agents/ui";
+import { message } from "devnonla-ui";
 import { useCallback, useEffect, useState } from "react";
 import { SettingKey } from "src/common/enum";
 import { ModelPicker } from "src/components/ModelPicker";

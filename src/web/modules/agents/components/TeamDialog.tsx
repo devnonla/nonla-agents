@@ -1,6 +1,5 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { deleteTeam, updateTeam } from "src/modules/agents/common/teamsSlice";
@@ -83,7 +82,7 @@ export function TeamDialog({ open, onClose, team }: TeamDialogProps) {
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
             <div className="text-[14px] leading-none text-muted-foreground">
-              <PenNewSquareIcon size={16} />
+              <Pencil size={16} />
             </div>
           </div>
           <span className="truncate font-semibold text-foreground">Edit Team</span>
@@ -96,7 +95,7 @@ export function TeamDialog({ open, onClose, team }: TeamDialogProps) {
               size="medium"
               danger
               disabled={deleting || saving}
-              icon={<TrashBinTrashIcon size={14} />}
+              icon={<X size={14} />}
               onClick={() => {
                 Modal.confirm({
                   title: "Delete team?",

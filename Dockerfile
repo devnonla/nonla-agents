@@ -23,7 +23,6 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY src/server/package.json src/server/
 COPY src/web/package.json src/web/
-COPY src/nonla-ui/package.json src/nonla-ui/
 
 # Install all dependencies (including devDependencies for build)
 # Use BuildKit cache mount to persist bun's download cache across builds
@@ -88,7 +87,6 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/bun.lock ./
 COPY --from=builder /app/src/server/package.json ./src/server/
 COPY --from=builder /app/src/web/package.json ./src/web/
-COPY --from=builder /app/src/nonla-ui/package.json ./src/nonla-ui/
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --production --frozen-lockfile
 

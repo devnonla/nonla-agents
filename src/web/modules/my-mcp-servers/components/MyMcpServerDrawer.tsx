@@ -1,12 +1,5 @@
-import { Button, Drawer, Empty, Input, Popconfirm, Switch, message } from "@nonla-agents/ui";
-import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
-import { ClipboardCheckIcon } from "@solar-icons/react/dynamic/clipboard-check";
-import { CpuIcon } from "@solar-icons/react/dynamic/cpu";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { RefreshCircleIcon } from "@solar-icons/react/dynamic/refresh-circle";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
+import { Button, Drawer, Empty, FluentIcon, Input, Popconfirm, Switch, message } from "devnonla-ui";
+import { Pencil, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "src/common/api";
 import { cn } from "src/common/lib/cn";
@@ -128,34 +121,34 @@ export function MyMcpServerDrawer({
           <div className="flex h-full min-h-0 flex-col">
             <div className="shrink-0 border-b border-border-subtle px-5 pb-4 pt-5">
               <div className="flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-edge-mcp/12 text-edge-mcp">
-                  <CpuIcon weight="BoldDuotone" size={20} />
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-link/12 text-link">
+                  <FluentIcon name="board-24" size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="m-0 truncate text-lg font-semibold text-foreground">{s.name}</h2>
                   <div className="mt-1.5 flex items-center gap-1.5">
                     <p className="m-0 min-w-0 flex-1 truncate font-mono text-[11px] text-tertiary-foreground">{url}</p>
                     <button type="button" onClick={() => void copy(url, "url")} className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none" aria-label="Copy URL">
-                      {copied === "url" ? <ClipboardCheckIcon size={13} /> : <ClipboardIcon size={13} />}
+                      {copied === "url" ? <FluentIcon name="clipboard-task-24" size={13} /> : <FluentIcon name="clipboard-24" size={13} />}
                     </button>
                   </div>
                 </div>
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold", s.isActive ? "bg-edge-mcp/12 text-edge-mcp" : "bg-muted text-muted-foreground")}>
-                  <span className={cn("size-1.5 rounded-full", s.isActive ? "bg-edge-mcp motion-safe:animate-pulse" : "bg-muted-foreground/50")} />
+                <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold", s.isActive ? "bg-link/12 text-link" : "bg-muted text-muted-foreground")}>
+                  <span className={cn("size-1.5 rounded-full", s.isActive ? "bg-link motion-safe:animate-pulse" : "bg-muted-foreground/50")} />
                   {s.isActive ? "Active" : "Off"}
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
-                  <WidgetIcon size={12} />
+                  <FluentIcon name="apps-24" size={12} />
                   {tools.length} tool{tools.length === 1 ? "" : "s"}
                 </span>
                 <div className="ml-auto flex items-center gap-1">
                   <Switch size="small" checked={s.isActive} disabled={toggling} onChange={(checked) => void handleToggle(checked)} />
-                  <Button type="text" size="small" icon={<PenNewSquareIcon size={14} />} onClick={() => onEdit(detail ?? s)} />
+                  <Button type="text" size="small" icon={<Pencil size={14} />} onClick={() => onEdit(detail ?? s)} />
                   <Popconfirm title={`Delete ${s.name}?`} description="Clients using this URL and token will stop working." okText="Delete" okType="danger" onConfirm={() => void handleDelete()} styles={{ root: { width: 280 } }}>
-                    <Button type="text" size="small" danger icon={<TrashBinMinimalisticIcon size={14} />} />
+                    <Button type="text" size="small" danger icon={<X size={14} />} />
                   </Popconfirm>
                 </div>
               </div>
@@ -171,12 +164,12 @@ export function MyMcpServerDrawer({
                 <SnippetMini value={claude} copied={copied === "claude"} onCopy={() => void copy(claude, "claude")} />
               </div>
               <p className="m-0 text-[11px] leading-relaxed text-tertiary-foreground">Token is shown only once at create/rotate. Paste it into the Bearer header, then keep this file private.</p>
-              <Button icon={<RefreshCircleIcon size={14} />} loading={rotating} onClick={() => void handleRotate()}>
+              <Button icon={<RefreshCw size={14} />} loading={rotating} onClick={() => void handleRotate()}>
                 Rotate token
               </Button>
 
               <RenderIf condition={tools.length > 0}>
-                <Input prefix={<MagnifierIcon size={13} className="text-muted-foreground" />} value={toolQuery} onChange={(e) => setToolQuery(e.target.value)} placeholder="Find tools…" className="h-8! text-sm" allowClear />
+                <Input prefix={<Search size={13} className="text-muted-foreground" />} value={toolQuery} onChange={(e) => setToolQuery(e.target.value)} placeholder="Find tools…" className="h-8! text-sm" allowClear />
               </RenderIf>
 
               <RenderIf
@@ -203,7 +196,7 @@ export function MyMcpServerDrawer({
               >
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                    <WidgetIcon size={18} />
+                    <FluentIcon name="apps-24" size={18} />
                   </div>
                   <p className="m-0 text-sm font-medium text-foreground">No tools yet</p>
                   <p className="mt-1 m-0 text-xs text-muted-foreground">Edit this server and pick custom tools to expose.</p>
@@ -222,7 +215,7 @@ function SnippetMini({ value, copied, onCopy }: { value: string; copied: boolean
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-start justify-between gap-1">
         <pre className="m-0 min-w-0 flex-1 overflow-auto px-3 py-2 font-mono text-[10px] leading-relaxed text-foreground">{value}</pre>
-        <Button type="text" size="small" className="mt-1 mr-1" icon={copied ? <ClipboardCheckIcon size={13} /> : <ClipboardIcon size={13} />} onClick={onCopy} />
+        <Button type="text" size="small" className="mt-1 mr-1" icon={copied ? <FluentIcon name="clipboard-task-24" size={13} /> : <FluentIcon name="clipboard-24" size={13} />} onClick={onCopy} />
       </div>
     </div>
   );

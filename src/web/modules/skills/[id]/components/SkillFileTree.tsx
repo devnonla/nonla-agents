@@ -1,10 +1,5 @@
-import { EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { BookBookmarkIcon } from "@solar-icons/react/dynamic/book-bookmark";
-import { DocumentTextIcon } from "@solar-icons/react/dynamic/document-text";
-import { FileTextIcon } from "@solar-icons/react/dynamic/file-text";
-import { FolderIcon } from "@solar-icons/react/dynamic/folder";
-import { TrashBinTrashIcon } from "@solar-icons/react/dynamic/trash-bin-trash";
+import { EFormItemType, FluentIcon, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "src/common/lib/cn";
@@ -12,20 +7,15 @@ import type { SkillReference } from "src/common/types";
 import { slugify } from "src/common/utils/slug";
 
 export type SkillEditorFile = { kind: "skill"; path: "SKILL.md" } | { kind: "reference"; path: string; refId: string; name: string };
+export type SkillFileMark = "new" | "modified";
 
 interface SkillFileTreeProps {
   references: SkillReference[];
   selected: SkillEditorFile;
-  dirtyPaths: Set<string>;
-  draftPaths: Set<string>;
+  fileMarks: Record<string, SkillFileMark>;
   onSelect: (file: SkillEditorFile) => void;
   onCreateReference: (body: { name: string; title: string }) => Promise<void>;
-  onDeleteReference: (refId: string) => Promise<void>;
 }
-
-const PANEL_DEFAULT = 220;
-const PANEL_MIN = 160;
-const PANEL_MAX = 420;
 
 type RefValues = { title: string; name: string };
 
@@ -54,38 +44,13 @@ const REF_ITEMS: TFormItemProps[] = [
   },
 ];
 
-export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, onSelect, onCreateReference, onDeleteReference }: SkillFileTreeProps) {
+export function SkillFileTree({ references, selected, fileMarks, onSelect, onCreateReference }: SkillFileTreeProps) {
   const sortedRefs = useMemo(() => [...references].sort((a, b) => a.name.localeCompare(b.name)), [references]);
-  const [width, setWidth] = useState(PANEL_DEFAULT);
-  const [isDragging, setIsDragging] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const form = useForm<RefValues>({ defaultValues: { title: "", name: "" }, mode: "onSubmit" });
   const rootError = form.formState.errors.root?.message;
   const nameTouched = useRef(false);
-  const dragRef = useRef({ active: false, startX: 0, startW: 0 });
-
-  const handleDragMouseMove = (e: MouseEvent) => {
-    if (!dragRef.current.active) return;
-    const dx = e.clientX - dragRef.current.startX;
-    setWidth(Math.min(PANEL_MAX, Math.max(PANEL_MIN, dragRef.current.startW + dx)));
-  };
-
-  const handleDragMouseUp = () => {
-    if (!dragRef.current.active) return;
-    dragRef.current.active = false;
-    setIsDragging(false);
-    document.removeEventListener("mousemove", handleDragMouseMove);
-    document.removeEventListener("mouseup", handleDragMouseUp);
-  };
-
-  const startDrag = (e: React.MouseEvent) => {
-    e.preventDefault();
-    dragRef.current = { active: true, startX: e.clientX, startW: width };
-    setIsDragging(true);
-    document.addEventListener("mousemove", handleDragMouseMove);
-    document.addEventListener("mouseup", handleDragMouseUp);
-  };
 
   const openCreate = () => {
     nameTouched.current = false;
@@ -112,37 +77,24 @@ export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, on
     }
   });
 
-  const handleDelete = (ref: SkillReference) => {
-    Modal.confirm({
-      title: `Delete "${ref.name}.md"?`,
-      content: "This action cannot be undone.",
-      okText: "Delete",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        await onDeleteReference(ref.id);
-        message.success("Reference deleted");
-      },
-    });
-  };
-
   return (
-    <div className="flex h-full min-h-0 shrink-0">
-      <aside className="flex h-full min-h-0 flex-col bg-card" style={{ width }}>
+    <>
+      <aside className="flex h-full min-h-0 w-full flex-col bg-card">
         <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
-          <BookBookmarkIcon size={14} weight="BoldDuotone" className="shrink-0 text-edge-skill" />
+          <FluentIcon name="book-24" size={14} className="shrink-0 text-warn" />
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">Files</span>
           <button type="button" onClick={openCreate} className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="Add reference" aria-label="Add reference">
-            <AddCircleIcon size={14} />
+            <Plus size={14} />
           </button>
         </div>
 
         <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-1.5 text-[13px] font-medium">
-          <TreeRow active={selected.kind === "skill"} dirty={dirtyPaths.has("SKILL.md")} aiDraft={draftPaths.has("SKILL.md")} onClick={() => onSelect({ kind: "skill", path: "SKILL.md" })} icon={<FileTextIcon size={14} weight="BoldDuotone" className="shrink-0 opacity-90" />} title="SKILL.md">
+          <TreeRow active={selected.kind === "skill"} mark={fileMarks["SKILL.md"]} onClick={() => onSelect({ kind: "skill", path: "SKILL.md" })} icon={<FluentIcon name="document-text-24" size={14} className="shrink-0 opacity-90" />} title="SKILL.md">
             SKILL.md
           </TreeRow>
 
           <div className="mt-1 flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-muted-foreground">
-            <FolderIcon size={14} className="shrink-0 opacity-80" />
+            <FluentIcon name="document-folder-24" size={14} className="shrink-0 opacity-80" />
             <span className="truncate">references/</span>
           </div>
 
@@ -157,35 +109,18 @@ export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, on
                   key={ref.id}
                   indent
                   active={selected.kind === "reference" && selected.refId === ref.id}
-                  dirty={dirtyPaths.has(path)}
-                  aiDraft={draftPaths.has(path)}
+                  mark={fileMarks[path]}
                   onClick={() => onSelect({ kind: "reference", path, refId: ref.id, name: ref.name })}
-                  icon={<DocumentTextIcon size={14} className="shrink-0 opacity-75" />}
+                  icon={<FluentIcon name="document-text-24" size={14} className="shrink-0 opacity-75" />}
                   title={label}
-                  action={
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(ref);
-                      }}
-                      className="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                      title="Delete reference"
-                      aria-label={`Delete ${label}`}
-                    >
-                      <TrashBinTrashIcon size={12} />
-                    </button>
-                  }
                 >
-                  <span className="font-mono text-[12px] font-medium">{label}</span>
+                  <span className="text-[13px] font-medium">{label}</span>
                 </TreeRow>
               );
             })
           )}
         </nav>
       </aside>
-
-      <div onMouseDown={startDrag} className={cn("z-10 h-full w-px shrink-0 cursor-col-resize transition-colors duration-150", isDragging ? "bg-brand/60" : "bg-border hover:bg-brand/40")} />
 
       <Modal open={createOpen} title="New reference" onCancel={() => setCreateOpen(false)} onOk={() => void onCreate()} okText="Create" confirmLoading={creating} destroyOnHidden>
         <form onSubmit={onCreate}>
@@ -203,7 +138,7 @@ export function SkillFileTree({ references, selected, dirtyPaths, draftPaths, on
           {rootError ? <p className="mb-0 text-sm text-destructive">{rootError}</p> : null}
         </form>
       </Modal>
-    </div>
+    </>
   );
 }
 
@@ -211,32 +146,28 @@ function TreeRow({
   children,
   icon,
   active,
-  dirty,
-  aiDraft,
+  mark,
   indent,
   title,
-  action,
   onClick,
 }: {
   children: ReactNode;
   icon: ReactNode;
   active?: boolean;
-  dirty?: boolean;
-  aiDraft?: boolean;
+  mark?: SkillFileMark;
   indent?: boolean;
   title?: string;
-  action?: ReactNode;
   onClick: () => void;
 }) {
   return (
-    <div className={cn("group flex w-full items-center gap-0.5 py-0.5 pr-1.5 transition-colors", indent ? "pl-7" : "pl-2", active ? "bg-accent text-brand-soft" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground")}>
+    <div className={cn("flex w-full items-center gap-0.5 py-0.5 pr-1.5 transition-colors", indent ? "pl-7" : "pl-2", active ? "bg-accent" : "hover:bg-muted/40", active ? "text-brand-700" : "text-muted-foreground hover:text-foreground")}>
       <button type="button" onClick={onClick} title={title} className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 py-1 text-left">
         {icon}
-        <span className="min-w-0 flex-1 truncate tracking-tight">{children}</span>
-        {aiDraft && <span className="shrink-0 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-brand-soft bg-accent">AI</span>}
-        {dirty && !aiDraft && <span className="size-1.5 shrink-0 rounded-full bg-brand-soft" />}
+        <span className={cn("min-w-0 flex-1 truncate tracking-tight", mark === "new" && "text-success", mark === "modified" && "text-warn")}>{children}</span>
       </button>
-      {action}
+      <span className="flex w-3 shrink-0 items-center justify-center" title={mark === "new" ? "New file" : mark === "modified" ? "Modified" : undefined}>
+        {mark ? <span className={cn("size-1.5 rounded-full", mark === "new" ? "bg-success" : "bg-warn")} /> : null}
+      </span>
     </div>
   );
 }

@@ -1,11 +1,5 @@
-import { Button, EFormItemType, Input, Modal, SchemaForm, Skeleton, type TFormItemProps, Tag, message } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { KeyIcon } from "@solar-icons/react/dynamic/key";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
-import { SuitcaseIcon } from "@solar-icons/react/dynamic/suitcase";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, EFormItemType, FluentIcon, Input, Modal, SchemaForm, Skeleton, type TFormItemProps, Tag, message } from "devnonla-ui";
+import { Pencil, Plus, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";
@@ -162,7 +156,7 @@ function ProviderFormDialog({ editId, onClose }: ProviderFormDialogProps) {
       title={
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
-            <div className="text-[14px] leading-none text-muted-foreground">{isEdit ? <PenNewSquareIcon size={16} /> : <SuitcaseIcon size={16} />}</div>
+            <div className="text-[14px] leading-none text-muted-foreground">{isEdit ? <Pencil size={16} /> : <FluentIcon name="briefcase-24" size={16} />}</div>
           </div>
           <span className="truncate font-semibold text-foreground">{isEdit ? "Edit Provider" : "Add Provider"}</span>
         </div>
@@ -233,7 +227,7 @@ function DeleteProviderDialog({ provider, onClose }: DeleteProviderDialogProps) 
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
             <div className="text-[14px] leading-none text-muted-foreground">
-              <TrashBinMinimalisticIcon size={16} />
+              <X size={16} />
             </div>
           </div>
           <span className="truncate font-semibold text-foreground">Delete Provider</span>
@@ -340,7 +334,7 @@ function ModelsDialog({ provider, onClose }: ModelsDialogProps) {
             <Button type="text" size="medium" onClick={onClose}>
               Close
             </Button>
-            <Button type="default" size="medium" loading={refreshing} icon={<RefreshIcon />} onClick={handleRefresh}>
+            <Button type="default" size="medium" loading={refreshing} icon={<RefreshCw size={16} />} onClick={handleRefresh}>
               Sync
             </Button>
           </div>
@@ -349,7 +343,7 @@ function ModelsDialog({ provider, onClose }: ModelsDialogProps) {
     >
       <div className="flex flex-col gap-3 px-5 py-4">
         <div className="relative">
-          <MagnifierIcon size={14} className="pointer-events-none absolute left-2.5 top-1/2 z-1 -translate-y-1/2 text-muted-foreground" />
+          <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 z-1 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search models…" className="pl-8" autoFocus />
         </div>
 
@@ -413,7 +407,7 @@ function ProviderCard({ provider, refreshing, onRefresh, onViewModels, onEdit, o
       </div>
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-1.5">
-          <KeyIcon size={12} className="shrink-0 text-muted-foreground" />
+          <FluentIcon name="person-key-24" size={12} className="shrink-0 text-muted-foreground" />
           <code className="min-w-0 truncate font-mono text-xs text-tertiary-foreground">{masked}</code>
         </div>
         <div className="flex items-center justify-between gap-2">
@@ -423,13 +417,13 @@ function ProviderCard({ provider, refreshing, onRefresh, onViewModels, onEdit, o
                 {modelCount} model{modelCount !== 1 ? "s" : ""}
               </Tag>
             </button>
-            <Button type="text" size="small" loading={refreshing} icon={<RefreshIcon />} onClick={onRefresh}>
+            <Button type="text" size="small" loading={refreshing} icon={<RefreshCw size={16} />} onClick={onRefresh}>
               Sync
             </Button>
           </div>
           <div className="flex items-center gap-0.5">
-            <Button type="text" size="small" icon={<PenNewSquareIcon />} onClick={onEdit} aria-label="Edit provider" />
-            <Button type="text" size="small" icon={<TrashBinMinimalisticIcon />} onClick={onDelete} aria-label="Delete provider" className="text-destructive! hover:text-destructive!" />
+            <Button type="text" size="small" icon={<Pencil size={16} />} onClick={onEdit} aria-label="Edit provider" />
+            <Button type="text" size="small" icon={<X size={16} />} onClick={onDelete} aria-label="Delete provider" className="text-destructive! hover:text-destructive!" />
           </div>
         </div>
       </div>
@@ -465,7 +459,7 @@ export function ProvidersPage() {
     <div>
       <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">LLM Providers</h1>
-        <Button id="settings-add-provider" type="primary" icon={<AddIcon size={16} />} onClick={() => setShowAddDialog(true)}>
+        <Button id="settings-add-provider" type="primary" icon={<Plus size={16} />} onClick={() => setShowAddDialog(true)}>
           Add Provider
         </Button>
       </div>

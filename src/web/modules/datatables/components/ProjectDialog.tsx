@@ -1,4 +1,4 @@
-import { EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
+import { EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { DatatableProject } from "src/common/types";

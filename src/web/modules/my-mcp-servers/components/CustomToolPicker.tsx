@@ -1,5 +1,5 @@
-import { Checkbox, Input } from "@nonla-agents/ui";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
+import { Checkbox, Input } from "devnonla-ui";
+import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { AgentTool, ToolFolder } from "src/common/types";
@@ -72,7 +72,7 @@ export function CustomToolPicker({
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border p-2">
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find custom tools…" allowClear prefix={<MagnifierIcon size={14} className="text-muted-foreground" />} />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find custom tools…" allowClear prefix={<Search size={14} className="text-muted-foreground" />} />
         <span className="shrink-0 text-[11px] tabular-nums text-tertiary-foreground">{selectedIds.length} selected</span>
       </div>
       <div className="max-h-60 overflow-y-auto py-1">

@@ -1,5 +1,5 @@
-import { Button, Input } from "@nonla-agents/ui";
-import { Logout2Icon } from "@solar-icons/react/dynamic/logout-2";
+import { Button, Input } from "devnonla-ui";
+import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient, clearAuthToken, getRefreshToken } from "src/common/api";
@@ -28,7 +28,7 @@ export default function ProfilePage() {
     <PageShell>
       <div className="mb-2 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-foreground">Profile Settings</h1>
-        <Button icon={<Logout2Icon size={14} />} onClick={handleLogout}>
+        <Button icon={<LogOut size={14} />} onClick={handleLogout}>
           Log out
         </Button>
       </div>

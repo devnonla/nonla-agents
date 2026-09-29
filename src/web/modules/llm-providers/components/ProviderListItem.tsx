@@ -1,7 +1,5 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
-import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
-import { AltArrowUpIcon } from "@solar-icons/react/dynamic/alt-arrow-up";
-import { RefreshIcon } from "@solar-icons/react/dynamic/refresh";
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps } from "devnonla-ui";
+import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -154,7 +152,7 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-muted-foreground">{expanded ? <AltArrowUpIcon className="w-3.5 h-3.5" /> : <AltArrowDownIcon className="w-3.5 h-3.5" />}</span>
+          <span className="text-muted-foreground">{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
         </div>
       </button>
 
@@ -165,7 +163,7 @@ export function ProviderListItem({ item }: ProviderListItemProps) {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-bold text-muted-foreground">Models{models.length > 0 ? ` (${models.length})` : ""}</span>
-              <Button type="text" size="small" loading={refreshing} icon={<RefreshIcon size={11} />} onClick={handleRefreshModels}>
+              <Button type="text" size="small" loading={refreshing} icon={<RefreshCw size={11} />} onClick={handleRefreshModels}>
                 Refresh
               </Button>
             </div>

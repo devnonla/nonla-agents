@@ -1,9 +1,5 @@
-import { Alert, Button, Empty, Popconfirm, SearchInput, Segmented, message } from "@nonla-agents/ui";
-import { ClipboardIcon } from "@solar-icons/react/dynamic/clipboard";
-import { ClipboardCheckIcon } from "@solar-icons/react/dynamic/clipboard-check";
-import { RefreshCircleIcon } from "@solar-icons/react/dynamic/refresh-circle";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
+import { Alert, Button, Empty, FluentIcon, Popconfirm, SearchInput, Segmented, message } from "devnonla-ui";
+import { RefreshCw, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "src/common/api";
 import { cn } from "src/common/lib/cn";
@@ -124,23 +120,23 @@ export function McpServerDetail({
           <div className="mt-1.5 flex items-center gap-1.5">
             <p className="m-0 min-w-0 flex-1 truncate font-mono text-[12px] text-muted-foreground">{server.url}</p>
             <button type="button" onClick={() => handleCopyUrl(server.url)} className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-white/50 hover:text-foreground focus-visible:outline-none" aria-label="Copy URL">
-              {copiedUrl ? <ClipboardCheckIcon size={13} /> : <ClipboardIcon size={13} />}
+              {copiedUrl ? <FluentIcon name="clipboard-task-24" size={13} /> : <FluentIcon name="clipboard-24" size={13} />}
             </button>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold", tone === "live" && "bg-brand/15 text-brand-soft", tone === "error" && "bg-destructive/12 text-destructive", tone === "off" && "bg-white/70 text-foreground")}>
-            <span className={cn("size-1.5 rounded-full", tone === "live" && "bg-brand-soft motion-safe:animate-pulse", tone === "error" && "bg-destructive", tone === "off" && "bg-muted-foreground")} />
+          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold", tone === "live" && "bg-brand/15 text-brand-700", tone === "error" && "bg-destructive/12 text-destructive", tone === "off" && "bg-white/70 text-foreground")}>
+            <span className={cn("size-1.5 rounded-full", tone === "live" && "bg-brand-700 motion-safe:animate-pulse", tone === "error" && "bg-destructive", tone === "off" && "bg-muted-foreground")} />
             {tone === "live" ? "Live" : tone === "error" ? "Error" : "Off"}
           </span>
           <RenderIf condition={!server.lastSyncError}>
             <span className="inline-flex items-center gap-1 text-[12px] tabular-nums text-muted-foreground">
-              <WidgetIcon size={12} />
+              <FluentIcon name="apps-24" size={12} />
               {toolCountOf(server)} tool{toolCountOf(server) === 1 ? "" : "s"}
             </span>
           </RenderIf>
-          <Button type="default" size="small" className="ml-auto" icon={<RefreshCircleIcon size={14} className={syncing ? "animate-spin" : ""} />} loading={syncing} disabled={!server.isActive} onClick={() => void handleSync()}>
+          <Button type="default" size="small" className="ml-auto" icon={<RefreshCw size={14} className={syncing ? "animate-spin" : ""} />} loading={syncing} disabled={!server.isActive} onClick={() => void handleSync()}>
             Sync
           </Button>
         </div>
@@ -195,7 +191,7 @@ export function McpServerDetail({
             >
               <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
                 <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                  <WidgetIcon size={18} />
+                  <FluentIcon name="apps-24" size={18} />
                 </div>
                 <p className="m-0 text-sm font-medium text-foreground">No tools yet</p>
                 <p className="mt-1 m-0 text-xs text-muted-foreground">Sync this server to pull its tool catalog.</p>
@@ -215,7 +211,7 @@ export function McpServerDetail({
           />
           <div className="mt-8 border-t border-white/40 pt-4">
             <Popconfirm title={`Delete ${server.name}?`} description="Agents using tools from this server will lose those assignments." okText="Delete" okType="danger" onConfirm={() => void handleDelete()} styles={{ root: { width: 280 } }}>
-              <Button type="default" danger icon={<TrashBinMinimalisticIcon size={14} />}>
+              <Button type="default" danger icon={<X size={14} />}>
                 Delete
               </Button>
             </Popconfirm>

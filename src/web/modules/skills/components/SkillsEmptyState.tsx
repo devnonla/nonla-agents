@@ -1,4 +1,4 @@
-import { Empty } from "@nonla-agents/ui";
+import { Empty } from "devnonla-ui";
 import type { ReactNode } from "react";
 
 export function SkillsEmptyState({ children }: { children?: ReactNode }) {

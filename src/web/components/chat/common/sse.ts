@@ -7,7 +7,7 @@
  * Legacy aliases (`chunk`, `thinking`) are normalized for older servers.
  */
 
-export type AgentSseEvent =
+type AgentSseEvent =
   | { type: "text-delta"; text: string }
   | { type: "thinking-delta"; text: string }
   | { type: "tool-call"; toolCallId?: string; toolName: string; toolLabel?: string; toolIcon?: string | null; input: unknown }
@@ -24,10 +24,10 @@ export interface AgentSseCallbacks {
   onError: (error: string) => void | Promise<void>;
 }
 
-export type ParseSseResult = "done" | "error" | "aborted" | "connection-lost";
+type ParseSseResult = "done" | "error" | "aborted" | "connection-lost";
 
 /** Normalize raw JSON into a canonical AgentSseEvent (or null if unknown). */
-export function normalizeSseEvent(raw: Record<string, unknown>): AgentSseEvent | null {
+function normalizeSseEvent(raw: Record<string, unknown>): AgentSseEvent | null {
   const type = raw.type;
   // Keep-alive from server (Bun idleTimeout / proxies) — ignore
   if (type === "ping") return null;

@@ -1,64 +1,52 @@
-import { Button, Drawer, EFormItemType, Popconfirm, SchemaForm, type TFormItemProps, Tag, message } from "@nonla-agents/ui";
-import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
-import { DisketteIcon } from "@solar-icons/react/dynamic/diskette";
-import { HistoryIcon } from "@solar-icons/react/dynamic/history";
-import { PlayIcon } from "@solar-icons/react/dynamic/play";
-import { SettingsIcon } from "@solar-icons/react/dynamic/settings";
-import { StopCircleIcon } from "@solar-icons/react/dynamic/stop-circle";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, FluentIcon, WindowHeader, message } from "devnonla-ui";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useNavigate, useParams } from "react-router-dom";
-import { apiClient } from "src/common/api";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { wsClient } from "src/common/api/wsClient";
-import { SettingKey } from "src/common/enum";
-import type { ToolActionEvent } from "src/common/hooks/useAssistantStreaming";
+import { cn } from "src/common/lib/cn";
 import type { Job, JobRun } from "src/common/types";
+import { AgentSidePanel, AgentToggleButton } from "src/components/AgentSidePanel";
 import { DraftReviewBar } from "src/components/DraftReviewBar";
-import { FluentIcon } from "src/components/FluentIcon";
 import { type EditorInstance, MonacoDiffEditor, MonacoEditor } from "src/components/MonacoEditor";
-import { getSettingValues } from "src/modules/settings/common/settingsApi";
-import { CodingAgentPanel } from "src/modules/tools/[id]/components/CodingAgentPanel";
+import { WindowHeaderBackButton } from "src/components/WindowHeaderBackButton";
 import { jobsApi } from "../common/jobsApi";
 import { type JobSchedule, buildJobCrons, formatJobSchedulesLabel, jobIsScheduled, parseJobSchedules, validateJobSchedules } from "../common/schedule";
-import { JobRunsPanel } from "../components/JobRunsPanel";
-import { JobSchedulesEditor } from "../components/JobSchedulesEditor";
+import { JobAgentPanel } from "./components/JobAgentPanel";
+import { type JobSettingsSection, JobSettingsView } from "./components/JobSettingsView";
 
 export default function JobEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const settingsOpen = pathname.endsWith("/settings");
 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingSchedules, setSavingSchedules] = useState(false);
   const [running, setRunning] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [schedulesOpen, setSchedulesOpen] = useState(false);
-  const [runsOpen, setRunsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<JobSettingsSection>("general");
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [schedules, setSchedules] = useState<JobSchedule[]>([]);
   const [timeoutMs, setTimeoutMs] = useState(300_000);
-  const settingsForm = useForm<{ name: string; description: string; timeoutMs: number }>({
-    defaultValues: { name: "", description: "", timeoutMs: 300_000 },
-    mode: "onSubmit",
-  });
 
   const [localCode, setLocalCode] = useState("");
   const [savedCode, setSavedCode] = useState("");
-  const [codeDraft, setCodeDraft] = useState<string | null>(null);
   const codeRef = useRef(localCode);
   codeRef.current = localCode;
+  const savedCodeRef = useRef(savedCode);
+  savedCodeRef.current = savedCode;
+  const [codeDraft, setCodeDraft] = useState<string | null>(null);
   const editorRef = useRef<EditorInstance | null>(null);
   const loadedIdRef = useRef<string | null>(null);
 
   const [runs, setRuns] = useState<JobRun[]>([]);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
-  const [providerId, setProviderId] = useState<string | undefined>();
-  const [model, setModel] = useState("");
+  const [agentGenerating, setAgentGenerating] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(true);
 
   const isDirty = localCode !== savedCode;
   const schedulesDirty = buildJobCrons(schedules) !== (job?.cron ?? "");
@@ -104,13 +92,6 @@ export default function JobEditPage() {
   }, [id, loadRuns]);
 
   useEffect(() => {
-    void getSettingValues([SettingKey.JobAssistantProvider, SettingKey.JobAssistantModel]).then((vals) => {
-      if (vals[SettingKey.JobAssistantProvider]) setProviderId(vals[SettingKey.JobAssistantProvider]);
-      if (vals[SettingKey.JobAssistantModel]) setModel(vals[SettingKey.JobAssistantModel]);
-    });
-  }, []);
-
-  useEffect(() => {
     if (!id) return;
     const unsubJob = wsClient.on<Partial<Job> & { id: string }>("jobs:updated", (payload) => {
       if (payload.id !== id) return;
@@ -137,7 +118,6 @@ export default function JobEditPage() {
       setRuns((prev) => [payload, ...prev.filter((r) => r.id !== payload.id)]);
       if (payload.status === "running") {
         setActiveRunId(payload.id);
-        setRunsOpen(true);
       }
     });
 
@@ -162,6 +142,18 @@ export default function JobEditPage() {
     };
   }, [id, activeRunId]);
 
+  const applyServerState = useCallback((j: Job) => {
+    setJob(j);
+    setName(j.name);
+    setDescription(j.description ?? "");
+    setTimeoutMs(j.timeoutMs);
+    const published = j.code;
+    const localWasClean = codeRef.current === savedCodeRef.current;
+    setSavedCode(published);
+    if (localWasClean) setLocalCode(published);
+    setCodeDraft(j.draftCode && j.draftCode !== published ? j.draftCode : null);
+  }, []);
+
   const handleSaveCode = async () => {
     if (!id) return;
     setSaving(true);
@@ -179,39 +171,7 @@ export default function JobEditPage() {
     }
   };
 
-  useEffect(() => {
-    if (!settingsOpen) return;
-    settingsForm.reset({ name, description, timeoutMs });
-  }, [settingsOpen, name, description, timeoutMs, settingsForm]);
-
-  const SETTINGS_ITEMS: TFormItemProps[] = [
-    {
-      type: EFormItemType.Input,
-      name: "name",
-      label: "Name",
-      colSpan: 12,
-      rules: {
-        required: "Name is required",
-        validate: (value) => (typeof value === "string" && value.trim() ? true : "Name is required"),
-      },
-    },
-    {
-      type: EFormItemType.Textarea,
-      name: "description",
-      label: "Description",
-      colSpan: 12,
-      options: { rows: 3 },
-    },
-    {
-      type: EFormItemType.Number,
-      name: "timeoutMs",
-      label: "Timeout (ms)",
-      colSpan: 12,
-      options: { min: 1000, step: 1000 },
-    },
-  ];
-
-  const handleSaveSettings = settingsForm.handleSubmit(async (values) => {
+  const handleSaveSettings = async (values: { name: string; description: string; timeoutMs: number }) => {
     if (!id) return;
     setSaving(true);
     try {
@@ -225,13 +185,12 @@ export default function JobEditPage() {
       setDescription(updated.description ?? "");
       setTimeoutMs(updated.timeoutMs);
       message.success("Saved");
-      setSettingsOpen(false);
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
-  });
+  };
 
   const handleSaveSchedules = async () => {
     if (!id) return;
@@ -263,7 +222,6 @@ export default function JobEditPage() {
     try {
       const run = await jobsApi.run(id);
       setActiveRunId(run.id);
-      setRunsOpen(true);
       setRuns((prev) => [run, ...prev.filter((r) => r.id !== run.id)]);
       message.success("Run started");
     } catch (err: unknown) {
@@ -297,27 +255,6 @@ export default function JobEditPage() {
     }
   };
 
-  const handleToolAction = (event: ToolActionEvent) => {
-    if (event.toolName === "edit_code" && event.type === "tool-result") {
-      let out: { ok?: boolean; current_code?: string } | null = null;
-      if (typeof event.output === "string") {
-        try {
-          out = JSON.parse(event.output) as { ok?: boolean; current_code?: string };
-        } catch {
-          out = null;
-        }
-      } else if (event.output && typeof event.output === "object") {
-        out = event.output as { ok?: boolean; current_code?: string };
-      }
-      if (out?.ok && typeof out.current_code === "string" && out.current_code !== codeRef.current) {
-        setCodeDraft(out.current_code);
-      }
-    }
-    if (event.toolName === "run_current_job") {
-      setRunsOpen(true);
-    }
-  };
-
   if (loading) {
     return <div className="flex h-full items-center justify-center bg-background text-sm text-muted-foreground">Loading…</div>;
   }
@@ -331,212 +268,153 @@ export default function JobEditPage() {
     );
   }
 
+  const showDiff = codeDraft !== null && codeDraft !== localCode && !agentGenerating;
+  const reviewBar = showDiff ? (
+    <DraftReviewBar
+      onApprove={() => {
+        const draft = codeDraft;
+        if (!draft) return;
+        setLocalCode(draft);
+        setSavedCode(draft);
+        setCodeDraft(null);
+        if (id) void jobsApi.update(id, { code: draft });
+      }}
+      onDiscard={() => {
+        setCodeDraft(null);
+        if (id) void jobsApi.update(id, { code: localCode });
+      }}
+    />
+  ) : isDirty ? (
+    <DraftReviewBar
+      approving={saving}
+      onApprove={() => void handleSaveCode()}
+      onDiscard={() => setLocalCode(savedCode)}
+      discardConfirm={{
+        title: "Discard changes?",
+        description: "Reset the editor to the last saved version. Unsaved edits will be lost.",
+      }}
+    />
+  ) : null;
+
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border-subtle bg-card px-4">
-        <button type="button" onClick={() => navigate("/jobs")} className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none" title="Back" aria-label="Back to Jobs">
-          <AltArrowLeftIcon size={16} />
-        </button>
-
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center">
-            <FluentIcon name="calendar-clock-24" size={20} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="m-0 truncate text-[13px] font-semibold leading-none text-foreground">{name || job.name}</h1>
-              <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-none ${isOn ? "bg-success/15 text-success" : "bg-muted text-tertiary-foreground"}`}>
-                <span className={`size-1.5 rounded-full ${isOn ? "bg-success" : "bg-quaternary-foreground"}`} />
-                {isOn ? "On" : "Off"}
-              </span>
-            </div>
-            <p className="m-0 mt-1 truncate text-[11px] leading-none text-tertiary-foreground">{scheduleLabel}</p>
-          </div>
-          {isDirty && !saving ? (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 text-xs font-medium text-brand-soft">
-              <span className="size-1.5 animate-pulse rounded-full bg-brand-soft" />
-              Unsaved
+    <div className={cn("flex h-full flex-col overflow-hidden", settingsOpen ? "bg-transparent" : "bg-background")}>
+      <WindowHeader
+        left={
+          <div className="flex min-w-0 items-center gap-2">
+            <WindowHeaderBackButton to={settingsOpen ? `/jobs/${id}` : "/jobs"} label={settingsOpen ? "Back to job" : "Back to Jobs"} />
+            <FluentIcon name="calendar-clock-24" size={16} className="shrink-0" />
+            <span className="min-w-0 max-w-48 truncate text-[12px] font-semibold leading-none text-foreground/90">{name || job.name}</span>
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-none ${isOn ? "bg-success/15 text-success" : "bg-muted text-tertiary-foreground"}`}>
+              <span className={`size-1.5 rounded-full ${isOn ? "bg-success" : "bg-quaternary-foreground"}`} />
+              {isOn ? "On" : "Off"}
             </span>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Button
-            size="small"
-            icon={<FluentIcon name="calendar-clock-24" size={16} />}
-            onClick={() => {
-              setSchedules(parseJobSchedules(job.cron));
-              setSchedulesOpen(true);
-            }}
-          >
-            Schedules
-          </Button>
-          <Button size="small" icon={<SettingsIcon size={14} weight="BoldDuotone" />} onClick={() => setSettingsOpen(true)}>
-            Settings
-          </Button>
-          {activeRunId ? (
-            <Button size="small" danger icon={<StopCircleIcon size={14} weight="BoldDuotone" />} onClick={() => void handleCancelRun()}>
-              Stop
-            </Button>
-          ) : null}
-          <Button size="small" icon={<HistoryIcon size={14} weight="BoldDuotone" />} onClick={() => setRunsOpen(true)}>
-            Runs
-          </Button>
-          {activeRunId ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 text-[11px] font-medium text-brand-soft">
-              <span className="size-1.5 animate-pulse rounded-full bg-brand-soft" />
-              Live
-            </span>
-          ) : null}
-          <Button type="primary" size="small" icon={!saving ? <DisketteIcon size={14} weight="BoldDuotone" /> : undefined} loading={saving} disabled={!isDirty && !saving} onClick={() => void handleSaveCode()}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-          {codeDraft !== null && codeDraft !== localCode ? (
-            <>
-              <div className="absolute inset-0">
-                <MonacoDiffEditor
-                  language="typescript"
-                  original={localCode}
-                  modified={codeDraft}
-                  options={{ fontSize: 13, renderSideBySide: false, renderIndicators: false }}
-                  onMount={(editor) => {
-                    editor.getOriginalEditor().updateOptions({ lineNumbers: "off" });
-                  }}
-                />
-              </div>
-              <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
-                <DraftReviewBar
-                  onApprove={() => {
-                    const draft = codeDraft;
-                    setLocalCode(draft);
-                    setSavedCode(draft);
-                    setCodeDraft(null);
-                    if (id) void jobsApi.update(id, { code: draft });
-                  }}
-                  onDiscard={() => {
-                    setCodeDraft(null);
-                    if (id) void jobsApi.update(id, { code: localCode });
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="absolute inset-0">
-              <MonacoEditor
-                language="typescript"
-                value={localCode}
-                onChange={(v) => setLocalCode(v ?? "")}
-                onMount={(editor) => {
-                  editorRef.current = editor;
-                }}
-                onSave={() => void handleSaveCode()}
-                options={{ fontSize: 13, tabSize: 2 }}
-                height="100%"
-              />
-            </div>
-          )}
-        </div>
-
-        <CodingAgentPanel
-          providerId={providerId}
-          model={model}
-          streamUrl={`/api/jobs/${id}/coding/stream`}
-          assistantLabel="Nonla Job Developer"
-          onToolAction={handleToolAction}
-          onModelChange={(pid, m) => {
-            setProviderId(pid);
-            setModel(m);
-            void apiClient.patch("/api/settings", {
-              [SettingKey.JobAssistantProvider]: pid,
-              [SettingKey.JobAssistantModel]: m,
-            });
-          }}
-        />
-      </div>
-
-      <Drawer
-        title={
-          <div className="flex items-center gap-2">
-            <span>Schedules</span>
-            {schedulesDirty ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 text-[11px] font-medium text-brand-soft">
-                <span className="size-1.5 animate-pulse rounded-full bg-brand-soft" />
-                Unsaved
-              </span>
-            ) : null}
+            <span className="hidden min-w-0 truncate text-[11px] leading-none text-tertiary-foreground md:inline">{scheduleLabel}</span>
           </div>
         }
-        open={schedulesOpen}
-        onClose={() => {
-          setSchedules(parseJobSchedules(job.cron));
-          setSchedulesOpen(false);
-        }}
-        size={480}
-      >
-        <p className="mb-4 mt-0 text-sm text-muted-foreground">{jobIsScheduled(buildJobCrons(schedules)) ? "Job runs on these schedules." : "Add a schedule to turn this job on. Clear all to turn it off."}</p>
-        <JobSchedulesEditor value={schedules} onChange={setSchedules} />
-        <Button type="primary" size="small" block className="mt-4" loading={savingSchedules} disabled={!schedulesDirty && !savingSchedules} onClick={() => void handleSaveSchedules()}>
-          Save schedules
-        </Button>
-      </Drawer>
-
-      <Drawer title="Job settings" open={settingsOpen} onClose={() => setSettingsOpen(false)} size={480}>
-        <form onSubmit={handleSaveSettings}>
-          <SchemaForm form={settingsForm} items={SETTINGS_ITEMS} />
-          <Button htmlType="submit" type="primary" block className="mt-2" loading={saving}>
-            Save settings
-          </Button>
-        </form>
-
-        <div className="mt-8 border-t border-border-subtle pt-4">
-          <p className="m-0 text-[11px] font-medium text-muted-foreground">Danger zone</p>
-          <p className="mb-3 mt-1 text-xs text-tertiary-foreground">Permanently remove this job and its run history.</p>
-          <Popconfirm title="Delete this job?" description="This cannot be undone." okText="Delete" okType="danger" onConfirm={() => void handleDelete()}>
-            <Button size="small" danger icon={<TrashBinMinimalisticIcon size={14} />}>
-              Delete job
-            </Button>
-          </Popconfirm>
-        </div>
-      </Drawer>
-
-      <Drawer
-        title={
-          <div className="flex items-center gap-2">
-            <span>Runs</span>
+        right={
+          <div className="flex shrink-0 items-center gap-1.5">
             {activeRunId ? (
-              <Tag color="processing" className="m-0 text-[10px]">
-                live
-              </Tag>
-            ) : null}
-            <span className="text-xs font-normal text-muted-foreground">{runs.length} total</span>
-          </div>
-        }
-        extra={
-          <div className="flex items-center gap-2">
-            {activeRunId ? (
-              <Button size="small" danger icon={<StopCircleIcon size={14} weight="BoldDuotone" />} onClick={() => void handleCancelRun()}>
+              <Button size="small" danger icon={<X size={14} />} onClick={() => void handleCancelRun()}>
                 Stop
               </Button>
             ) : null}
-            <Button type="primary" size="small" icon={<PlayIcon size={14} weight="BoldDuotone" />} loading={running} onClick={() => void handleRun()}>
-              Run
-            </Button>
+            <button
+              type="button"
+              onClick={() => navigate(settingsOpen ? `/jobs/${id}` : `/jobs/${id}/settings`)}
+              aria-pressed={settingsOpen}
+              aria-label={settingsOpen ? "Close settings" : "Job settings"}
+              title="Settings"
+              className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-md border-0 transition-colors", settingsOpen ? "bg-brand/15 text-brand-700 hover:bg-brand/20" : "bg-transparent text-muted-foreground hover:bg-black/6 hover:text-foreground")}
+            >
+              <FluentIcon name="settings-24" size={14} />
+            </button>
+            {settingsOpen ? null : <AgentToggleButton open={agentOpen} onClick={() => setAgentOpen((v) => !v)} />}
           </div>
         }
-        open={runsOpen}
-        onClose={() => setRunsOpen(false)}
-        placement="bottom"
-        size="100%"
-        styles={{ body: { padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" } }}
-        destroyOnHidden={false}
-      >
-        <JobRunsPanel runs={runs} activeRunId={activeRunId} onCancelRun={(runId) => void handleCancelRun(runId)} />
-      </Drawer>
+      />
+
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        <div className={cn("flex min-h-0 min-w-0 flex-1 overflow-hidden", settingsOpen && "hidden")}>
+          <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="relative h-full min-h-0 min-w-0 overflow-hidden">
+              {showDiff && codeDraft != null ? (
+                <div className="absolute inset-0">
+                  <MonacoDiffEditor
+                    language="typescript"
+                    original={localCode}
+                    modified={codeDraft}
+                    options={{ fontSize: 13, renderSideBySide: false, renderIndicators: false }}
+                    onMount={(editor) => {
+                      editor.getOriginalEditor().updateOptions({ lineNumbers: "off" });
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="absolute inset-0">
+                  <MonacoEditor
+                    language="typescript"
+                    value={localCode}
+                    onChange={(v) => setLocalCode(v ?? "")}
+                    onMount={(editor) => {
+                      editorRef.current = editor;
+                    }}
+                    onSave={() => void handleSaveCode()}
+                    options={{ fontSize: 13, tabSize: 2 }}
+                    height="100%"
+                  />
+                </div>
+              )}
+
+              {reviewBar ? <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">{reviewBar}</div> : null}
+            </div>
+          </div>
+
+          <AgentSidePanel open={agentOpen}>
+            <JobAgentPanel
+              jobId={id!}
+              onServerSync={applyServerState}
+              onGeneratingChange={setAgentGenerating}
+              onRunStarted={() => {
+                setSettingsSection("activities");
+              }}
+              onBeforeSend={async () => {
+                if (!isDirty || !id) return;
+                try {
+                  const updated = await jobsApi.update(id, { code: localCode });
+                  applyServerState(updated);
+                } catch {
+                  /* still send */
+                }
+              }}
+            />
+          </AgentSidePanel>
+        </div>
+        {settingsOpen ? (
+          <div className="absolute inset-0 flex min-h-0">
+            <JobSettingsView
+              section={settingsSection}
+              onSectionChange={setSettingsSection}
+              name={name}
+              description={description}
+              timeoutMs={timeoutMs}
+              savingGeneral={saving}
+              onSaveGeneral={handleSaveSettings}
+              onDelete={() => void handleDelete()}
+              schedules={schedules}
+              onSchedulesChange={setSchedules}
+              onDiscardSchedules={() => setSchedules(parseJobSchedules(job.cron))}
+              schedulesDirty={schedulesDirty}
+              savingSchedules={savingSchedules}
+              onSaveSchedules={() => void handleSaveSchedules()}
+              runs={runs}
+              activeRunId={activeRunId}
+              running={running}
+              onRun={() => void handleRun()}
+              onCancelRun={(runId) => void handleCancelRun(runId)}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,11 +1,11 @@
-import { Button, EFormItemType, SchemaForm, type TFormItemProps } from "@nonla-agents/ui";
+import { Button, DesktopStage, EFormItemType, MeadowWallpaper, SchemaForm, type TFormItemProps } from "devnonla-ui";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import meadowWallpaper from "src/assets/bg.jpg";
 import { apiClient, clearAuthToken, getAuthToken, setAuthToken } from "src/common/api";
 import type { User } from "src/common/types";
 import { AppLogo } from "src/components/AppLogo";
-import { MeadowShell } from "src/components/desktop/MeadowShell";
 
 type LoginValues = {
   username: string;
@@ -90,31 +90,34 @@ export default function LoginPage() {
   if (checking) return null;
 
   return (
-    <MeadowShell>
-      <div className="relative w-full max-w-sm animate-fadeIn overflow-hidden rounded-md border border-border bg-card shadow-(--elevated-shadow)">
-        <div className="flex items-center gap-2 h-8 px-3 bg-background border-b border-border/35">
-          <AppLogo size={16} />
-          <span className="text-[13px] font-semibold text-foreground">Sign in</span>
-        </div>
-        <div className="p-6">
-          <div className="flex flex-col gap-1.5 pb-6">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground">Enter your credentials to open the desk.</p>
+    <DesktopStage>
+      <MeadowWallpaper src={meadowWallpaper} />
+      <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto p-6">
+        <div className="relative w-full max-w-sm animate-fadeIn overflow-hidden rounded-md border border-border bg-card shadow-(--elevated-shadow)">
+          <div className="flex items-center gap-2 h-8 px-3 bg-background border-b border-border/35">
+            <AppLogo size={16} />
+            <span className="text-[13px] font-semibold text-foreground">Sign in</span>
           </div>
+          <div className="p-6">
+            <div className="flex flex-col gap-1.5 pb-6">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Welcome back</h2>
+              <p className="text-sm text-muted-foreground">Enter your credentials to open the desk.</p>
+            </div>
 
-          <form onSubmit={onSubmit}>
-            <SchemaForm form={form} items={ITEMS} />
-            {rootError ? (
-              <div role="alert" className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
-                <p className="text-xs font-medium text-destructive">{rootError}</p>
-              </div>
-            ) : null}
-            <Button htmlType="submit" type="primary" size="large" block loading={loading}>
-              Sign in
-            </Button>
-          </form>
+            <form onSubmit={onSubmit}>
+              <SchemaForm form={form} items={ITEMS} />
+              {rootError ? (
+                <div role="alert" className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
+                  <p className="text-xs font-medium text-destructive">{rootError}</p>
+                </div>
+              ) : null}
+              <Button htmlType="submit" type="primary" size="large" block loading={loading}>
+                Sign in
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
-    </MeadowShell>
+    </DesktopStage>
   );
 }

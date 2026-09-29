@@ -1,8 +1,6 @@
-import { Button, Table } from "@nonla-agents/ui";
-import type { ColumnsType } from "@nonla-agents/ui";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { UserPlusIcon } from "@solar-icons/react/dynamic/user-plus";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
+import { Button, FluentIcon, Table } from "devnonla-ui";
+import type { ColumnsType } from "devnonla-ui";
+import { Pencil } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "src/common/api";
 import type { User } from "src/common/types";
@@ -62,7 +60,7 @@ export function UsersPage() {
       key: "actions",
       width: 56,
       align: "right",
-      render: (_, user) => <Button type="text" size="small" icon={<PenNewSquareIcon />} onClick={() => setEditUser(user)} aria-label={`Edit ${user.username}`} className="inline-flex items-center justify-center size-7! px-0!" />,
+      render: (_, user) => <Button type="text" size="small" icon={<Pencil size={16} />} onClick={() => setEditUser(user)} aria-label={`Edit ${user.username}`} className="inline-flex items-center justify-center size-7! px-0!" />,
     },
   ];
 
@@ -80,7 +78,7 @@ export function UsersPage() {
             </>
           </RenderIf>
         </div>
-        <Button id="settings-add-user" type="primary" icon={<UserPlusIcon size={14} />} onClick={() => setShowCreate(true)}>
+        <Button id="settings-add-user" type="primary" icon={<FluentIcon name="person-add-24" size={14} />} onClick={() => setShowCreate(true)}>
           Add User
         </Button>
       </div>
@@ -95,13 +93,13 @@ export function UsersPage() {
           emptyText: (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
               <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-foreground [&_svg:not([class*='size-'])]:size-6">
-                <UsersGroupTwoRoundedIcon />
+                <FluentIcon name="people-community-24" />
               </div>
               <div>
                 <div className="text-base font-medium text-foreground">No users yet</div>
                 <div className="mt-1 text-sm text-muted-foreground">Invite teammates and assign roles to share this workspace.</div>
               </div>
-              <Button type="primary" size="small" icon={<UserPlusIcon size={12} />} onClick={() => setShowCreate(true)}>
+              <Button type="primary" size="small" icon={<FluentIcon name="person-add-24" size={12} />} onClick={() => setShowCreate(true)}>
                 Add User
               </Button>
             </div>

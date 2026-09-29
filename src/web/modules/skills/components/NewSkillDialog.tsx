@@ -1,6 +1,6 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
-import { type ReactNode, useEffect, useState } from "react";
+import { Button, EFormItemType, Popover, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import type { Skill } from "src/common/types";
@@ -40,7 +40,7 @@ const ITEMS: TFormItemProps[] = [
 
 const EMPTY: NewSkillValues = { name: "", description: "" };
 
-export function NewSkillDialog({ children }: { children: ReactNode }) {
+export function NewSkillDialog() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -81,42 +81,32 @@ export function NewSkillDialog({ children }: { children: ReactNode }) {
   });
 
   return (
-    <>
-      <span className="inline-flex" onClick={() => setOpen(true)}>
-        {children}
-      </span>
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      trigger="click"
+      placement="bottomRight"
+      arrow
+      contentClassName="w-96 max-w-none p-0"
+      content={
+        <form className="flex flex-col gap-3 p-4" onSubmit={onSubmit}>
+          <SchemaForm form={form} items={ITEMS} />
+          {rootError ? <div className="pl-0.5 text-xs leading-snug text-destructive">{rootError}</div> : null}
 
-      <Modal
-        open={open}
-        onCancel={handleClose}
-        title={
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
-              <div className="text-[14px] leading-none text-muted-foreground">
-                <AddIcon size={16} />
-              </div>
-            </div>
-            <span className="truncate font-semibold text-foreground">New skill</span>
-          </div>
-        }
-        width={420}
-        destroyOnHidden
-        footer={
-          <div className="flex justify-end gap-2.5">
+          <div className="flex justify-end gap-2">
             <Button type="text" size="medium" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="primary" size="medium" htmlType="submit" form="new-skill-form" loading={saving}>
+            <Button type="primary" size="medium" htmlType="submit" loading={saving}>
               {saving ? "Creating…" : "Create"}
             </Button>
           </div>
-        }
-      >
-        <form id="new-skill-form" className="pt-4" onSubmit={onSubmit}>
-          <SchemaForm form={form} items={ITEMS} />
-          {rootError ? <div className="mt-4 pl-2.75 text-xs leading-snug text-destructive">{rootError}</div> : null}
         </form>
-      </Modal>
-    </>
+      }
+    >
+      <Button type="primary" icon={<Plus size={16} />}>
+        New skill
+      </Button>
+    </Popover>
   );
 }

@@ -1,4 +1,4 @@
-import { message } from "@nonla-agents/ui";
+import { message } from "devnonla-ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { FluentIcon } from "src/components/FluentIcon";

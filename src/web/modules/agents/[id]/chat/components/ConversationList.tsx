@@ -1,6 +1,5 @@
-import { ChatRoundIcon } from "@solar-icons/react/dynamic/chat-round";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { SidebarMinimalisticIcon } from "@solar-icons/react/dynamic/sidebar-minimalistic";
+import { OverlayScroll } from "devnonla-ui";
+import { PanelLeftClose } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import type { AgentConversation } from "src/common/types";
 import { deleteConversation } from "src/modules/agents/common/chatSlice";
@@ -9,13 +8,11 @@ import { useAgentDetailContext } from "../../common/agentDetailContext";
 import { ConversationItem } from "./ConversationItem";
 
 interface ConversationListProps {
-  onNewChat: () => void;
   onSelectConversation: (convId: string) => void;
   onCloseSidebar: () => void;
-  width?: number;
 }
 
-export function ConversationList({ onNewChat, onSelectConversation, onCloseSidebar, width = 260 }: ConversationListProps) {
+export function ConversationList({ onSelectConversation, onCloseSidebar }: ConversationListProps) {
   const dispatch = useAppDispatch();
   const { agent } = useAgentDetailContext();
   const conversations = useAppSelector((s) => s.chat.conversations);
@@ -32,37 +29,27 @@ export function ConversationList({ onNewChat, onSelectConversation, onCloseSideb
   );
 
   const handleDelete = useCallback(
-    async (e: React.MouseEvent, convId: string) => {
+    (e: React.MouseEvent, convId: string) => {
+      e.preventDefault();
       e.stopPropagation();
-      await dispatch(deleteConversation(convId));
+      void dispatch(deleteConversation(convId));
     },
     [dispatch],
   );
 
   return (
-    <div className="flex flex-col h-full bg-card shrink-0 overflow-hidden" style={{ width }}>
-      <div className="flex items-center gap-1 px-2 pt-2 pb-1 shrink-0">
-        <button type="button" onClick={onNewChat} className="flex-1 flex items-center gap-2.5 min-w-0 px-2.5 py-2 rounded-lg text-[13px] font-medium text-foreground bg-muted/70 hover:bg-muted border-none cursor-pointer transition-colors font-[inherit]">
-          <PenNewSquareIcon size={15} className="shrink-0" />
-          <span className="truncate">New chat</span>
-        </button>
-        <button type="button" onClick={onCloseSidebar} className="flex items-center justify-center size-8 shrink-0 rounded-lg border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors" aria-label="Close sidebar" title="Close sidebar">
-          <SidebarMinimalisticIcon size={16} />
+    <div className="flex h-full min-h-0 flex-col bg-background/50">
+      <div className="flex shrink-0 items-center justify-between gap-1 px-2 pt-2 pb-1">
+        <span className="px-2.5 text-[12px] font-medium text-muted-foreground">Chats</span>
+        <button type="button" onClick={onCloseSidebar} className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Close sidebar" title="Close sidebar">
+          <PanelLeftClose className="text-muted-foreground" strokeWidth={1.5} size={16} />
         </button>
       </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto py-1 px-1 space-y-px">
-        {agentConversations.length === 0 && (
-          <div className="flex flex-col items-center gap-2 py-8 text-center px-3">
-            <ChatRoundIcon size={18} className="text-muted-foreground opacity-40" />
-            <span className="text-[11px] text-muted-foreground">No conversations yet</span>
-          </div>
-        )}
-
-        {agentConversations.map((conv) => (
-          <ConversationItem key={conv.id} conversation={conv} isActive={conv.id === activeConversationId} onSelect={handleSelect} onDelete={handleDelete} />
-        ))}
-      </div>
+      <OverlayScroll className="min-h-0 flex-1" innerClassName="px-2 pb-6">
+        <nav aria-label="Chats">
+          {agentConversations.length === 0 ? <p className="px-2 py-4 text-sm text-muted-foreground">No conversations yet</p> : agentConversations.map((conv) => <ConversationItem key={conv.id} conversation={conv} isActive={conv.id === activeConversationId} onSelect={handleSelect} onDelete={handleDelete} />)}
+        </nav>
+      </OverlayScroll>
     </div>
   );
 }

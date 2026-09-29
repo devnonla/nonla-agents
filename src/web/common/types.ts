@@ -38,7 +38,7 @@ export interface Agent extends AgentListItem {
 
 export type NewAgent = Partial<Agent> & { name: string };
 
-// ─── Agent Memory Graph ──────────────────────────────────────────────────────
+// ─── Agent Memory ────────────────────────────────────────────────────────────
 
 export interface MemoryNode {
   id: string;

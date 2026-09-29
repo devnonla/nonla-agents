@@ -1,21 +1,15 @@
-import { ContextMenu } from "@nonla-agents/ui";
-import { AddIcon } from "@solar-icons/react/dynamic/add";
+import { ContextMenu, DesktopIcon, MeadowDesktop as UiMeadowDesktop, ensureFluentIcons } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import meadowWallpaper from "src/assets/desktop-meadow.jpg";
+import { useNavigate } from "react-router-dom";
+import meadowWallpaper from "src/assets/bg.jpg";
 import type { AgentListItem } from "src/common/types";
 import { UserAvatar } from "src/components/UserAvatar";
 import type { TeamWithMembers } from "src/modules/agents/common/teamsSlice";
 import { NewAgentDialog } from "src/modules/agents/components/NewAgentDialog";
 import { agentMenuItems } from "src/modules/agents/components/agentMenuItems";
-import { ensureFluentIcons } from "src/modules/tools/common/iconify";
 import { useAppDispatch, useAppSelector } from "src/store/store";
-import { MEADOW_MENU_SURFACE } from "./AgentsMenu";
-import { DesktopIcon } from "./DesktopIcon";
-import { pathIsAgent } from "./nav";
-
-export function MeadowWallpaper() {
-  return <img src={meadowWallpaper} alt="" draggable={false} className="absolute inset-0 size-full object-cover object-center pointer-events-none select-none" />;
-}
+import { DESKTOP_HOME, isDesktopHome, pathIsAgent } from "./nav";
 
 function sortAgents(agents: AgentListItem[]) {
   return [...agents].sort((a, b) => {
@@ -27,29 +21,45 @@ function sortAgents(agents: AgentListItem[]) {
 
 function AgentMedia({ avatar, name, active }: { avatar: string | null; name: string; active: boolean }) {
   return (
-    <span className={`size-11 overflow-hidden rounded-full ring-2 filter-[drop-shadow(0_2px_3px_rgba(0,0,0,0.5))] ${active ? "ring-brand" : "ring-white/85"}`}>
-      <UserAvatar avatar={avatar} name={name} size={44} />
+    <span className={`mb-1.5 size-12 overflow-hidden rounded-full ring-2 filter-[drop-shadow(0_2px_3px_rgba(0,0,0,0.5))] ${active ? "ring-brand" : "ring-white/85"}`}>
+      <UserAvatar avatar={avatar} name={name} size={48} />
     </span>
   );
 }
 
 function HireMedia() {
   return (
-    <span className="flex size-11 items-center justify-center rounded-full border-2 border-dashed border-white/75 text-white filter-[drop-shadow(0_1px_2px_rgba(0,0,0,0.45))]">
-      <AddIcon size={20} />
+    <span className="mb-1.5 flex size-12 items-center justify-center rounded-full border-2 border-dashed border-white/75 text-white filter-[drop-shadow(0_1px_2px_rgba(0,0,0,0.45))]">
+      <Plus size={22} />
     </span>
   );
 }
 
-function AgentIcon({ agent, pathname, onOpen }: { agent: AgentListItem; pathname: string; onOpen: (to: string) => void }) {
+function AgentIcon({
+  agent,
+  pathname,
+  onOpen,
+  onDismissWindow,
+}: {
+  agent: AgentListItem;
+  pathname: string;
+  onOpen: (to: string) => void;
+  onDismissWindow: () => void;
+}) {
   const dispatch = useAppDispatch();
   const teams = useAppSelector((s) => s.teams.teams) as TeamWithMembers[];
   const active = pathIsAgent(pathname, agent.id);
-  const items = useMemo(() => agentMenuItems({ agent, teams, dispatch, onOpen: () => onOpen(`/agents/${agent.id}`) }), [agent, dispatch, onOpen, teams]);
+  const items = useMemo(() => agentMenuItems({ agent, teams, dispatch, onOpen: () => onOpen(`/agents/${agent.id}/config`) }), [agent, dispatch, onOpen, teams]);
 
   return (
-    <ContextMenu overlayClassName={`${MEADOW_MENU_SURFACE} rounded-2xl`} menu={{ items, style: { minWidth: 180 } }}>
-      <span className="inline-flex">
+    <ContextMenu
+      overlayClassName="rounded-2xl"
+      menu={{ items, style: { minWidth: 180 } }}
+      onOpenChange={(open) => {
+        if (open) onDismissWindow();
+      }}
+    >
+      <span className="inline-flex px-1 py-1.5">
         <DesktopIcon label={agent.name} active={active} onClick={() => onOpen(`/agents/${agent.id}`)} media={<AgentMedia avatar={agent.avatar} name={agent.name} active={active} />} />
       </span>
     </ContextMenu>
@@ -59,7 +69,9 @@ function AgentIcon({ agent, pathname, onOpen }: { agent: AgentListItem; pathname
 function HireIcon({ defaultTeamId }: { defaultTeamId?: string | null }) {
   return (
     <NewAgentDialog defaultTeamId={defaultTeamId}>
-      <DesktopIcon label="New Agent" media={<HireMedia />} />
+      <span className="inline-flex px-1 py-1.5">
+        <DesktopIcon label="New Agent" media={<HireMedia />} />
+      </span>
     </NewAgentDialog>
   );
 }
@@ -73,6 +85,7 @@ export function MeadowDesktop({
   onOpen: (to: string) => void;
   selectedTeamId: string | null;
 }) {
+  const navigate = useNavigate();
   useEffect(() => {
     void ensureFluentIcons();
   }, []);
@@ -85,20 +98,16 @@ export function MeadowDesktop({
     return sortAgents(list);
   }, [agents, selectedTeamId, teams]);
 
-  return (
-    <div className="absolute inset-0 bg-[#4f7a32]">
-      <MeadowWallpaper />
+  const dismissWindow = () => {
+    if (!isDesktopHome(pathname)) navigate(DESKTOP_HOME);
+  };
 
-      <div className="absolute left-0 right-0 top-10.5 bottom-0 z-20">
-        <nav aria-label="Agents" className="absolute inset-0 overflow-auto px-3 pt-8 pb-3">
-          <div className="flex h-full flex-col flex-wrap content-start gap-x-2 gap-y-3">
-            {visibleAgents.map((agent) => (
-              <AgentIcon key={agent.id} agent={agent} pathname={pathname} onOpen={onOpen} />
-            ))}
-            <HireIcon defaultTeamId={selectedTeamId} />
-          </div>
-        </nav>
-      </div>
-    </div>
+  return (
+    <UiMeadowDesktop src={meadowWallpaper}>
+      {visibleAgents.map((agent) => (
+        <AgentIcon key={agent.id} agent={agent} pathname={pathname} onOpen={onOpen} onDismissWindow={dismissWindow} />
+      ))}
+      <HireIcon defaultTeamId={selectedTeamId} />
+    </UiMeadowDesktop>
   );
 }

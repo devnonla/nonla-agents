@@ -1,6 +1,4 @@
-import { Switch } from "@nonla-agents/ui";
-import { CpuIcon } from "@solar-icons/react/dynamic/cpu";
-import { WidgetIcon } from "@solar-icons/react/dynamic/widget";
+import { FluentIcon, Switch } from "devnonla-ui";
 import { cn } from "src/common/lib/cn";
 import type { MyMcpServer } from "src/common/types";
 import RenderIf from "src/components/RenderIf";
@@ -37,8 +35,8 @@ export function MyMcpServerCard({
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-edge-mcp/12 text-edge-mcp">
-          <CpuIcon weight="BoldDuotone" size={20} />
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-link/12 text-link">
+          <FluentIcon name="board-24" size={20} />
         </div>
         <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <Switch size="small" checked={server.isActive} disabled={toggling} onChange={onToggleActive} aria-label={server.isActive ? "Disable" : "Enable"} />
@@ -55,7 +53,7 @@ export function MyMcpServerCard({
 
       <div className="mt-5">
         <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
-          <WidgetIcon size={12} />
+          <FluentIcon name="apps-24" size={12} />
           {tools} tool{tools === 1 ? "" : "s"}
         </span>
       </div>

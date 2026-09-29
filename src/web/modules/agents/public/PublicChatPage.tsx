@@ -1,22 +1,22 @@
-import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { SidebarMinimalisticIcon } from "@solar-icons/react/dynamic/sidebar-minimalistic";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AgentChatbox, type AgentMessage as ChatUiMessage, DesktopStage, DesktopWindow, MeadowWallpaper } from "devnonla-ui";
+import { Pencil } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import meadowWallpaper from "src/assets/bg.jpg";
 import { wsClient } from "src/common/api/wsClient";
-import { useAgentRunner } from "src/common/hooks/useAgent";
-import { useChatStreaming } from "src/common/hooks/useChatStreaming";
-import { useStreamResume } from "src/common/hooks/useStreamResume";
 import type { AgentMessage } from "src/common/types";
-import { InputArea } from "src/components/chat/_components/InputArea";
-import { MessageList } from "src/components/chat/_components/MessageList";
-import { useAutoScroll } from "src/components/chat/hooks/useAutoScroll";
-import { ChatEmptyState, ChatSidebar, ErrorScreen, HIDDEN_TOOL_NAMES, LoadingScreen, PasswordGate, getFingerprint, toDisplayMsg } from "./components";
+import { UserAvatar } from "src/components/UserAvatar";
+import { toChatUiMessage } from "src/modules/agents/common/chatMessageMap";
+import { ErrorScreen, HIDDEN_TOOL_NAMES, HistoryPopover, LoadingScreen, PasswordGate, getFingerprint } from "./components";
 import type { ConvMeta, PublicAgent } from "./components";
 
-const SIDEBAR_DEFAULT = 300;
-const SIDEBAR_MIN = 180;
-const SIDEBAR_MAX = 420;
+const STARTERS = ["What can you help me with?", "Brainstorm a few ideas with me", "Walk me through how you work"] as const;
+
+const headerBtnClass = "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground transition-colors hover:bg-black/6 hover:text-foreground";
+
+function mapPublicMessages(rows: AgentMessage[]): ChatUiMessage[] {
+  return rows.map(toChatUiMessage).filter((m) => !(m.role === "tool-call" && m.toolName && HIDDEN_TOOL_NAMES.has(m.toolName)));
+}
 
 export default function PublicChatPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,157 +34,107 @@ export default function PublicChatPage() {
 
   const [conversations, setConversations] = useState<ConvMeta[]>([]);
   const [processingConvIds, setProcessingConvIds] = useState<Set<string>>(new Set());
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
-  const [isResizing, setIsResizing] = useState(false);
 
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const { run, running, cancel } = useAgentRunner();
+  const [chatKey, setChatKey] = useState(() => `draft-${Date.now()}`);
+  const [initialMessages, setInitialMessages] = useState<ChatUiMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [windowExpanded, setWindowExpanded] = useState(false);
+  const [windowKey, setWindowKey] = useState(0);
 
-  const [isScrolledUp, setIsScrolledUp] = useState(false);
-  const { scrollRef, scrollToBottom } = useAutoScroll({ onScrolledUpChange: setIsScrolledUp });
-  const resizing = useRef(false);
-  const resizeStartX = useRef(0);
-  const resizeStartW = useRef(0);
+  const conversationIdRef = useRef(conversationId);
+  conversationIdRef.current = conversationId;
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
+  const passwordRef = useRef(enteredPassword);
+  passwordRef.current = enteredPassword;
+  const processingConvIdsRef = useRef(processingConvIds);
+  processingConvIdsRef.current = processingConvIds;
 
   const agentId = agent?.id;
 
-  const onResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      resizing.current = true;
-      resizeStartX.current = e.clientX;
-      resizeStartW.current = sidebarWidth;
-      setIsResizing(true);
-    },
-    [sidebarWidth],
-  );
+  const HISTORY_PAGE = 30;
 
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!resizing.current) return;
-      const dx = e.clientX - resizeStartX.current;
-      setSidebarWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, resizeStartW.current + dx)));
-    };
-    const onUp = () => {
-      if (!resizing.current) return;
-      resizing.current = false;
-      setIsResizing(false);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
+  const refreshConversations = useCallback(async (aId: string) => {
+    const fp = getFingerprint();
+    const res = await fetch(`/api/public/agents/${aId}/conversations?fp=${encodeURIComponent(fp)}&limit=${HISTORY_PAGE}&offset=0`);
+    if (!res.ok) return [] as ConvMeta[];
+    const data = (await res.json()) as { items: ConvMeta[]; hasMore: boolean };
+    setConversations(data.items ?? []);
+    return data.items ?? [];
   }, []);
 
-  const refreshConversations = async (aId: string) => {
-    const fp = getFingerprint();
-    const res = await fetch(`/api/public/agents/${aId}/conversations?fp=${fp}`);
-    if (res.ok) {
-      const data: ConvMeta[] = await res.json();
-      setConversations(data);
-      return data;
-    }
-    return [];
-  };
-
-  const refreshConversationsRef = useRef(refreshConversations);
-  refreshConversationsRef.current = refreshConversations;
-
-  const fetchMessages = useCallback(
-    async (convId: string) => {
-      if (!agentId) return [];
+  const loadHistoryPage = useCallback(
+    async (offset: number) => {
+      if (!agentId) return { items: [] as ConvMeta[], hasMore: false };
       const fp = getFingerprint();
-      const res = await fetch(`/api/public/agents/${agentId}/conversations/${convId}?fp=${fp}`);
-      if (!res.ok) return [];
-      const data = (await res.json()) as { messages?: AgentMessage[] };
-      return data.messages ?? [];
+      const res = await fetch(`/api/public/agents/${agentId}/conversations?fp=${encodeURIComponent(fp)}&limit=${HISTORY_PAGE}&offset=${offset}`);
+      if (!res.ok) return { items: [] as ConvMeta[], hasMore: false };
+      const data = (await res.json()) as { items: ConvMeta[]; hasMore: boolean };
+      const items = data.items ?? [];
+      setConversations((prev) => (offset === 0 ? items : [...prev, ...items.filter((c) => !prev.some((p) => p.id === c.id))]));
+      return { items, hasMore: !!data.hasMore };
     },
     [agentId],
   );
 
-  const markProcessing = useCallback((cId: string) => {
-    setProcessingConvIds((prev) => {
-      const next = new Set(prev);
-      next.add(cId);
-      return next;
-    });
-  }, []);
-
-  const unmarkProcessing = useCallback((cId: string) => {
-    setProcessingConvIds((prev) => {
-      const next = new Set(prev);
-      next.delete(cId);
-      return next;
-    });
-  }, []);
-
-  const messageFilter = useCallback((m: { role: string; toolName?: string }) => !(m.role === "tool-call" && m.toolName && HIDDEN_TOOL_NAMES.has(m.toolName)), []);
-
-  const markTerminalRef = useRef<(convId: string) => void>(() => {});
-  const handleConnectionLostRef = useRef<() => void>(() => {});
-
-  const handleConversationDone = useCallback(
-    async (convId: string) => {
-      markTerminalRef.current(convId);
-      unmarkProcessing(convId);
-      if (agentId) refreshConversationsRef.current(agentId);
-    },
-    [unmarkProcessing, agentId],
-  );
-
-  const handleConversationError = useCallback(
-    async (convId: string, error?: string) => {
-      if (error === "Connection lost") {
-        handleConnectionLostRef.current();
-        if (agentId) {
-          const convs = await refreshConversationsRef.current(agentId);
-          const stillRunning = convs.some((c) => c.id === convId && c.status === "running");
-          if (!stillRunning) unmarkProcessing(convId);
-        }
+  const loadConversation = useCallback(async (aId: string, convId: string) => {
+    setChatLoading(true);
+    try {
+      const fp = getFingerprint();
+      const res = await fetch(`/api/public/agents/${aId}/conversations/${convId}?fp=${encodeURIComponent(fp)}`);
+      if (!res.ok) {
+        setInitialMessages([]);
         return;
       }
-      markTerminalRef.current(convId);
-      unmarkProcessing(convId);
-      if (agentId) refreshConversationsRef.current(agentId);
+      const data = (await res.json()) as { messages?: AgentMessage[] };
+      setInitialMessages(mapPublicMessages(data.messages ?? []));
+    } finally {
+      setChatLoading(false);
+    }
+  }, []);
+
+  const switchConversation = useCallback(
+    async (aId: string, convId: string) => {
+      setConversationId(convId);
+      conversationIdRef.current = convId;
+      setChatKey(convId);
+      navigate(`/chat/${aId}?conv=${convId}`, { replace: true });
+      await loadConversation(aId, convId);
     },
-    [unmarkProcessing, agentId],
+    [navigate, loadConversation],
   );
 
-  const { setMessages, streamingContent, thinkingContent, clearStreamingState, buildSSECallbacks, loadMessages, liveMessages } = useChatStreaming({
-    toDisplayMsg,
-    messageFilter,
-    fetchMessages,
-    onConversationDone: handleConversationDone,
-    onConversationError: handleConversationError,
-  });
+  const newConversation = useCallback(
+    (aId: string) => {
+      setConversationId(null);
+      conversationIdRef.current = null;
+      setInitialMessages([]);
+      setChatKey(`draft-${Date.now()}`);
+      navigate(`/chat/${aId}`, { replace: true });
+    },
+    [navigate],
+  );
 
-  const isServerRunning = Boolean(conversationId && processingConvIds.has(conversationId));
-  const streamConnectOptions = useMemo(() => (agentId ? { fingerprint: getFingerprint(), agentId } : undefined), [agentId]);
-
-  const { markTerminal, handleConnectionLost } = useStreamResume({
-    running,
-    conversationId,
-    isServerRunning,
-    buildSSECallbacks,
-    loadMessages,
-    connectOptions: streamConnectOptions,
-  });
-  markTerminalRef.current = markTerminal;
-  handleConnectionLostRef.current = handleConnectionLost;
-
-  useLayoutEffect(() => {
-    if (isScrolledUp) return;
-    scrollToBottom();
-  }, [liveMessages.length, streamingContent, thinkingContent, isScrolledUp, scrollToBottom]);
+  const deleteConversation = useCallback(
+    async (aId: string, convId: string) => {
+      const fp = getFingerprint();
+      await fetch(`/api/public/agents/${aId}/conversations/${convId}?fp=${encodeURIComponent(fp)}`, { method: "DELETE" });
+      const convs = await refreshConversations(aId);
+      if (convId !== conversationIdRef.current) return;
+      const next = convs.find((c) => c.id !== convId);
+      if (next) await switchConversation(aId, next.id);
+      else newConversation(aId);
+    },
+    [refreshConversations, switchConversation, newConversation],
+  );
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-
-    (async () => {
+    void (async () => {
       try {
         const res = await fetch(`/api/public/agents/${id}`);
         const data = await res.json();
@@ -192,31 +142,24 @@ export default function PublicChatPage() {
           setError(data.message || "Unavailable");
           return;
         }
-
         setAgent(data);
-
         if (!data.requiresPassword) {
           setIsAuthenticated(true);
           return;
         }
-
         const savedToken = localStorage.getItem(`public_auth_${id}`);
-        if (savedToken) {
-          try {
-            const tokenRes = await fetch(`/api/public/agents/${id}/verify-token`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token: savedToken }),
-            });
-            const tokenData = await tokenRes.json();
-            if (tokenData.valid) {
-              setIsAuthenticated(true);
-            } else {
-              localStorage.removeItem(`public_auth_${id}`);
-            }
-          } catch {
-            localStorage.removeItem(`public_auth_${id}`);
-          }
+        if (!savedToken) return;
+        try {
+          const tokenRes = await fetch(`/api/public/agents/${id}/verify-token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: savedToken }),
+          });
+          const tokenData = await tokenRes.json();
+          if (tokenData.valid) setIsAuthenticated(true);
+          else localStorage.removeItem(`public_auth_${id}`);
+        } catch {
+          localStorage.removeItem(`public_auth_${id}`);
         }
       } catch {
         setError("Unable to connect to server.");
@@ -226,99 +169,126 @@ export default function PublicChatPage() {
     })();
   }, [id]);
 
-  const switchConversation = async (aId: string, cId: string) => {
-    const fp = getFingerprint();
-    setMessages([]);
-    clearStreamingState();
-    setConversationId(cId);
-    navigate(`/chat/${aId}?conv=${cId}`, { replace: true });
-    const res = await fetch(`/api/public/agents/${aId}/conversations/${cId}?fp=${fp}`);
-    if (res.ok) {
-      const data = await res.json();
-      setMessages(data.messages ?? []);
-    }
-  };
-
-  const deleteConversation = async (aId: string, cId: string) => {
-    const fp = getFingerprint();
-    await fetch(`/api/public/agents/${aId}/conversations/${cId}?fp=${fp}`, {
-      method: "DELETE",
-    });
-    const convs = await refreshConversations(aId);
-    if (cId === conversationId) {
-      const next = convs.find((c) => c.id !== cId);
-      if (next) {
-        await switchConversation(aId, next.id);
-      } else {
-        await newConversation(aId);
-      }
-    }
-  };
-
-  const newConversation = (aId: string) => {
-    if (running) return;
-    setConversationId(null);
-    setMessages([]);
-    clearStreamingState();
-    navigate(`/chat/${aId}`, { replace: true });
-  };
-
   useEffect(() => {
     if (!isAuthenticated || !agentId) return;
-    (async () => {
-      const convs = await refreshConversations(agentId);
+    void (async () => {
       const urlConvId = searchParams.get("conv");
-      const target = urlConvId ? convs.find((c) => c.id === urlConvId) : null;
-      if (target) {
-        await switchConversation(agentId, target.id);
-      } else if (urlConvId) {
-        newConversation(agentId);
-      } else if (convs.length > 0) {
-        await switchConversation(agentId, convs[0].id);
-      } else {
-        newConversation(agentId);
+      const convs = await refreshConversations(agentId);
+      if (urlConvId) {
+        // URL conv may be beyond the first page — open it directly
+        await switchConversation(agentId, urlConvId);
+        return;
       }
+      if (convs.length > 0) await switchConversation(agentId, convs[0].id);
+      else newConversation(agentId);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on auth / agent ready
   }, [isAuthenticated, agentId]);
 
   useEffect(() => {
-    if (!conversationId) return;
-    const unsubs: (() => void)[] = [];
+    return wsClient.on<{ id: string; status: string }>("conversations:updated", (payload) => {
+      setProcessingConvIds((prev) => {
+        const next = new Set(prev);
+        if (payload.status === "running") next.add(payload.id);
+        else next.delete(payload.id);
+        return next;
+      });
+      setConversations((prev) => prev.map((c) => (c.id === payload.id ? { ...c, status: payload.status as ConvMeta["status"] } : c)));
+    });
+  }, []);
 
-    unsubs.push(
-      wsClient.on<AgentMessage>("messages:created", (msg) => {
-        if (msg.conversationId !== conversationId) return;
-        if (msg.role === "tool" && msg.content === "") return;
-        setMessages((prev) => {
-          const filtered = prev.filter((m) => !(m.id.startsWith("optimistic-") && m.role === msg.role && m.content === msg.content));
-          return [...filtered, msg];
+  useEffect(() => {
+    const runningIds = new Set(conversations.filter((c) => c.status === "running").map((c) => c.id));
+    setProcessingConvIds((prev) => {
+      const same = prev.size === runningIds.size && [...runningIds].every((x) => prev.has(x));
+      return same ? prev : runningIds;
+    });
+  }, [conversations]);
+
+  const ensureConversation = useCallback(async () => {
+    const convId = conversationIdRef.current;
+    const current = agentRef.current;
+    if (!current) throw new Error("Agent unavailable");
+    if (convId) return convId;
+
+    const fp = getFingerprint();
+    const res = await fetch(`/api/public/agents/${current.id}/conversations?fp=${encodeURIComponent(fp)}`, { method: "POST" });
+    if (!res.ok) throw new Error("Could not create conversation");
+    const data = (await res.json()) as { conversationId?: string };
+    const createdId = data.conversationId;
+    if (!createdId) throw new Error("Could not create conversation");
+
+    conversationIdRef.current = createdId;
+    setConversationId(createdId);
+    navigate(`/chat/${current.id}?conv=${createdId}`, { replace: true });
+    void refreshConversations(current.id);
+    return createdId;
+  }, [navigate, refreshConversations]);
+
+  const send = useCallback(
+    async ({ text, signal }: { text: string; signal: AbortSignal }) => {
+      const current = agentRef.current;
+      if (!current) throw new Error("Agent unavailable");
+      const convId = await ensureConversation();
+      const fp = getFingerprint();
+      const token = localStorage.getItem(`public_auth_${current.id}`) ?? undefined;
+      setProcessingConvIds((prev) => new Set(prev).add(convId));
+
+      return fetch(`/api/public/agents/${current.id}/conversations/${convId}/chat?fp=${encodeURIComponent(fp)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          password: passwordRef.current || undefined,
+          token,
+        }),
+        signal,
+      });
+    },
+    [ensureConversation],
+  );
+
+  const resume = useCallback(async ({ signal }: { signal: AbortSignal }) => {
+    const convId = conversationIdRef.current;
+    const current = agentRef.current;
+    if (!convId || !current) return null;
+    const conv = conversationsRef.current.find((c) => c.id === convId);
+    if (conv?.status !== "running" && !processingConvIdsRef.current.has(convId)) return null;
+
+    const fp = getFingerprint();
+    const res = await fetch(`/api/public/agents/${current.id}/conversations/${convId}/stream?fp=${encodeURIComponent(fp)}`, {
+      method: "GET",
+      headers: { Accept: "text/event-stream" },
+      signal,
+    });
+    return res.ok && res.body ? res : null;
+  }, []);
+
+  const onGeneratingChange = useCallback(
+    (generating: boolean) => {
+      const convId = conversationIdRef.current;
+      const current = agentRef.current;
+      if (generating) {
+        if (convId) setProcessingConvIds((prev) => new Set(prev).add(convId));
+        return;
+      }
+      if (convId) {
+        setProcessingConvIds((prev) => {
+          const next = new Set(prev);
+          next.delete(convId);
+          return next;
         });
-        if (msg.role === "user" && agentId) {
-          refreshConversations(agentId);
-        }
-      }),
-    );
-
-    unsubs.push(
-      wsClient.on<AgentMessage>("messages:updated", (msg) => {
-        if (msg.conversationId !== conversationId) return;
-        setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m)));
-      }),
-    );
-
-    return () => {
-      for (const u of unsubs) u();
-    };
-  }, [conversationId, agentId, setMessages]);
+      }
+      if (current) void refreshConversations(current.id);
+    },
+    [refreshConversations],
+  );
 
   const verifyPassword = async (password: string) => {
     if (!password || !agent) return;
-
     setEnteredPassword(password);
     setVerifying(true);
     setAuthError("");
-
     try {
       const res = await fetch(`/api/public/agents/${agent.id}/verify`, {
         method: "POST",
@@ -339,151 +309,87 @@ export default function PublicChatPage() {
     }
   };
 
-  useEffect(() => {
-    return wsClient.on<{ id: string; status: string }>("conversations:updated", (payload) => {
-      if (payload.status === "running") {
-        markProcessing(payload.id);
-      } else {
-        unmarkProcessing(payload.id);
-      }
-    });
-  }, [markProcessing, unmarkProcessing]);
-
-  useEffect(() => {
-    const runningIds = new Set(conversations.filter((c) => c.status === "running").map((c) => c.id));
-    setProcessingConvIds((prev) => {
-      const isSame = prev.size === runningIds.size && [...runningIds].every((id) => prev.has(id));
-      return isSame ? prev : runningIds;
-    });
-  }, [conversations]);
-
-  const handleCancel = useCallback(() => {
-    if (conversationId) markTerminal(conversationId);
-    cancel();
-  }, [cancel, conversationId, markTerminal]);
-
-  const handleSend = async (text: string) => {
-    if (!agent || running) return;
-
-    let convId = conversationId;
-
-    if (!convId) {
-      const fp = getFingerprint();
-      const res = await fetch(`/api/public/agents/${agent.id}/conversations?fp=${fp}`, {
-        method: "POST",
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      convId = data.conversationId;
-      if (!convId) return;
-      setConversationId(convId);
-      navigate(`/chat/${agent.id}?conv=${convId}`, { replace: true });
-      await refreshConversations(agent.id);
-    }
-
-    const optimisticMsg: any = {
-      id: `optimistic-${Date.now()}`,
-      role: "user",
-      content: text,
-      conversationId: convId,
-      createdAt: new Date(),
-    };
-    setMessages((prev) => [...prev, optimisticMsg]);
-    clearStreamingState();
-    scrollToBottom({ force: true });
-
-    const mockAgent: any = { id: agent.id, name: agent.name };
-
-    markProcessing(convId);
-
-    const savedToken = localStorage.getItem(`public_auth_${agent.id}`) ?? undefined;
-
-    const callbacks = buildSSECallbacks(convId);
-    run({
-      agent: mockAgent,
-      conversationId: convId,
-      userMessage: text,
-      password: enteredPassword || undefined,
-      token: savedToken,
-      fingerprint: getFingerprint(),
-      ...callbacks,
-    });
-  };
-
   if (loading) return <LoadingScreen />;
-
   if (error) return <ErrorScreen error={error} />;
-
   if (!isAuthenticated && agent?.requiresPassword) {
     return <PasswordGate agentName={agent.name} onSubmit={verifyPassword} authError={authError} verifying={verifying} />;
   }
-
   if (!agent) return <ErrorScreen error="Agent unavailable" />;
 
   return (
-    <div
-      className="flex h-screen w-full overflow-hidden bg-background"
-      style={{
-        fontFamily: "var(--font-family-chat)",
-        userSelect: isResizing ? "none" : undefined,
-        cursor: isResizing ? "col-resize" : undefined,
-      }}
-    >
-      {sidebarOpen && (
-        <>
-          <ChatSidebar
-            agent={agent}
-            width={sidebarWidth}
-            conversations={conversations}
-            conversationId={conversationId}
-            processingConvIds={processingConvIds}
-            onCloseSidebar={() => setSidebarOpen(false)}
-            onNewConversation={() => agentId && newConversation(agentId)}
-            onSwitchConversation={(convId) => agentId && switchConversation(agentId, convId)}
-            onDeleteConversation={(convId) => agentId && deleteConversation(agentId, convId)}
-          />
-          <div onMouseDown={onResizeStart} className={["w-px shrink-0 h-full cursor-col-resize z-10 transition-colors duration-150", isResizing ? "bg-primary/50" : "bg-border hover:bg-primary/40"].join(" ")} />
-        </>
-      )}
-
-      <div className="@container relative flex flex-col flex-1 min-w-0 h-full bg-popover">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-48"
-          style={{
-            background: "radial-gradient(ellipse 80% 100% at 50% 0%, color-mix(in oklab, var(--muted) 55%, transparent), transparent)",
-          }}
-        />
-
-        {!sidebarOpen && (
-          <div className="absolute top-2 left-2 z-20 flex items-center gap-0.5">
-            <button type="button" onClick={() => setSidebarOpen(true)} className="flex items-center justify-center size-8 rounded-lg border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors" aria-label="Open sidebar" title="Open sidebar">
-              <SidebarMinimalisticIcon size={16} />
-            </button>
-            <button type="button" onClick={() => agentId && newConversation(agentId)} className="flex items-center justify-center size-8 rounded-lg border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors" aria-label="New chat" title="New chat">
-              <PenNewSquareIcon size={15} />
-            </button>
-          </div>
-        )}
-
-        <div className={["relative flex-1 min-h-0 flex flex-col", !sidebarOpen ? "@max-[900px]:pt-10" : ""].join(" ")}>
-          <MessageList messages={liveMessages} generating={running} assistantLabel={agent.name} emptyStateContent={<ChatEmptyState agent={agent} onStarter={(text) => void handleSend(text)} disabled={running} />} scrollContainerRef={scrollRef} pinToBottom={!isScrolledUp} padEnd />
-          {isScrolledUp && (
+    <DesktopStage>
+      <MeadowWallpaper src={meadowWallpaper} />
+      <DesktopWindow
+        key={windowKey}
+        title={
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <UserAvatar avatar={agent.avatar} name={agent.name} size={16} className="shrink-0" />
+            <span className="min-w-0 truncate text-xs font-semibold leading-none text-foreground/90">{agent.name}</span>
+          </span>
+        }
+        right={
+          <div className="flex items-center gap-0.5">
+            <HistoryPopover
+              conversationId={conversationId}
+              processingConvIds={processingConvIds}
+              onLoadPage={loadHistoryPage}
+              onSelect={(convId) => {
+                if (agentId) void switchConversation(agentId, convId);
+              }}
+              onDelete={async (convId) => {
+                if (agentId) await deleteConversation(agentId, convId);
+              }}
+            />
             <button
               type="button"
-              onClick={() => scrollToBottom({ force: true })}
-              className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center justify-center size-8 rounded-full border border-border bg-muted text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              aria-label="Scroll to bottom"
+              aria-label="New chat"
+              title="New chat"
+              className={headerBtnClass}
+              onClick={() => {
+                if (agentId) newConversation(agentId);
+              }}
             >
-              <AltArrowDownIcon size={14} />
+              <Pencil size={14} />
             </button>
+          </div>
+        }
+        persistKey="public-chat"
+        expanded={windowExpanded}
+        onClose={() => setWindowKey((k) => k + 1)}
+        onToggleExpand={() => setWindowExpanded((v) => !v)}
+        scroll={false}
+      >
+        <div className="@container relative flex h-full min-w-0 flex-col overflow-hidden bg-popover">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-48"
+            style={{
+              background: "radial-gradient(ellipse 80% 100% at 50% 0%, color-mix(in oklab, var(--muted) 55%, transparent), transparent)",
+            }}
+          />
+
+          {chatLoading ? (
+            <div className="relative flex min-h-0 flex-1 items-center justify-center">
+              <span className="animate-pulse text-[12px] text-muted-foreground">Loading...</span>
+            </div>
+          ) : (
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <AgentChatbox
+                key={chatKey}
+                className="bg-transparent"
+                initialMessages={initialMessages}
+                send={send}
+                resume={resume}
+                onGeneratingChange={onGeneratingChange}
+                name={agent.name}
+                description={agent.description || undefined}
+                avatar={<UserAvatar avatar={agent.avatar} name={agent.name} size={64} />}
+                starters={[...STARTERS]}
+                placeholder={`Message ${agent.name}...`}
+              />
+            </div>
           )}
         </div>
-
-        <div className="relative shrink-0 w-full max-w-190 mx-auto">
-          <div className="pointer-events-none absolute -top-6 left-0 right-0 h-6 bg-linear-to-t from-popover to-transparent" />
-          <InputArea placeholder={`Message ${agent.name}...`} generating={running} onSend={handleSend} onCancel={handleCancel} hideConfig autoFocus focusSignal={conversationId} />
-        </div>
-      </div>
-    </div>
+      </DesktopWindow>
+    </DesktopStage>
   );
 }

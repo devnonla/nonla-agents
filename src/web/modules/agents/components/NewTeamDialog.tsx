@@ -1,5 +1,4 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
+import { Button, EFormItemType, FluentIcon, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { type TeamWithMembers, createTeam } from "src/modules/agents/common/teamsSlice";
@@ -84,7 +83,7 @@ export function NewTeamDialog({ children, open: openProp, onOpenChange, onCreate
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-field-sm w-field-sm shrink-0 items-center justify-center rounded-lg bg-muted/60">
               <div className="text-[14px] leading-none text-muted-foreground">
-                <UsersGroupTwoRoundedIcon size={16} />
+                <FluentIcon name="people-community-24" size={16} />
               </div>
             </div>
             <span className="truncate font-semibold text-foreground">New Team</span>

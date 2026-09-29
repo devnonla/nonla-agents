@@ -1,6 +1,6 @@
-import { DatePicker, Dropdown } from "@nonla-agents/ui";
-import type { MenuProps } from "@nonla-agents/ui";
-import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from "react";
+import { DatePicker, Dropdown, EditableInput, message } from "devnonla-ui";
+import type { MenuProps } from "devnonla-ui";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { DatatableColumn } from "src/common/types";
 import { DATETIME_PICKER_FORMAT, fromPickerDate, toPickerDate } from "src/common/utils/date";
@@ -24,27 +24,12 @@ export function EditableCell({
   editing: boolean;
   timeZone: string;
   onStartEdit: () => void;
-  onCommit: (next: unknown) => void;
+  onCommit: (next: unknown) => void | Promise<void>;
   onCancel: () => void;
   tryCellAction: () => boolean;
 }) {
-  const [draft, setDraft] = useState("");
   const [selectOpen, setSelectOpen] = useState(false);
   const committedRef = useRef(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (!editing || col.type === "select" || col.type === "datetime" || col.type === "number") return;
-    committedRef.current = false;
-    setDraft(valueToDraft(col, value));
-    const id = requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (!el) return;
-      el.focus();
-      el.select();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [editing, col.id, col.type, value]);
 
   useEffect(() => {
     if (!editing || (col.type !== "datetime" && col.type !== "number")) return;
@@ -59,25 +44,6 @@ export function EditableCell({
       return;
     }
     onCommit(next);
-  };
-
-  const commitDraft = () => finish(draftToValue(col, draft));
-
-  const onKeyDown = (e: ReactKeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      committedRef.current = true;
-      onCancel();
-      return;
-    }
-    if (e.key === "Enter" && col.type !== "json") {
-      e.preventDefault();
-      commitDraft();
-    }
-    if (e.key === "Enter" && col.type === "json" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      commitDraft();
-    }
   };
 
   if (col.type === "boolean") {
@@ -186,22 +152,42 @@ export function EditableCell({
     );
   }
 
-  if (editing) {
-    const isJson = col.type === "json";
+  if (col.type === "text" || col.type === "json") {
     return (
-      <div className="relative z-30 h-9 min-w-0 border-r border-border-subtle">
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitDraft}
-          onKeyDown={onKeyDown}
-          rows={isJson ? 4 : 1}
-          inputMode={col.type === "number" ? "decimal" : undefined}
-          className={cn(
-            "absolute left-0 top-0 z-30 w-[calc(100%+20px)] min-w-[calc(100%+20px)] resize rounded-md bg-muted px-2 text-sm text-foreground shadow-panel outline-none placeholder:text-quaternary-foreground",
-            isJson ? "min-h-24 py-2 font-mono text-[12px] leading-5" : "h-9 min-h-9 overflow-hidden py-1.5 leading-5",
-          )}
+      <div
+        className="flex h-9 min-w-0 cursor-pointer items-center border-r border-border-subtle px-2 transition-colors hover:bg-muted/40"
+        onClick={() => {
+          if (editing || !tryCellAction()) return;
+          onStartEdit();
+        }}
+      >
+        <EditableInput
+          display={formatCellValue(col, value, timeZone)}
+          editing={editing}
+          onStartEdit={() => {
+            if (!tryCellAction()) return;
+            onStartEdit();
+          }}
+          onCancelEdit={onCancel}
+          initialValue={valueToDraft(col, value)}
+          placeholder={col.name}
+          type={col.type === "json" ? "textarea" : "text"}
+          editLabel={`Edit ${col.name}`}
+          minWidth={col.type === "json" ? 320 : 240}
+          allowEmpty
+          onSave={async (draft) => {
+            if (col.type === "json" && draft.trim()) {
+              try {
+                JSON.parse(draft);
+              } catch {
+                message.error("Invalid JSON");
+                throw new Error("Invalid JSON");
+              }
+            }
+            const next = draftToValue(col, draft);
+            if (cellValuesEqual(value, next)) return;
+            await onCommit(next);
+          }}
         />
       </div>
     );

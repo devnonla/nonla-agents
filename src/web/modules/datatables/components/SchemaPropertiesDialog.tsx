@@ -1,7 +1,5 @@
-import { Button, Input, Modal, Popconfirm, Select, Switch, message } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
-import { RestartIcon } from "@solar-icons/react/dynamic/restart";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
+import { Button, Input, Modal, Popconfirm, Select, Switch, message } from "devnonla-ui";
+import { Plus, RefreshCw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "src/common/lib/cn";
 import type { DatatableColumn, DatatableColumnType, DatatableTable } from "src/common/types";
@@ -119,7 +117,7 @@ function FieldLabel({ children, changed }: { children: React.ReactNode; changed?
   return (
     <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
       <span>{children}</span>
-      {changed ? <span className="rounded bg-brand/15 px-1 py-px text-[10px] font-semibold normal-case tracking-normal text-brand-soft">edited</span> : null}
+      {changed ? <span className="rounded bg-brand/15 px-1 py-px text-[10px] font-semibold normal-case tracking-normal text-brand-700">edited</span> : null}
     </div>
   );
 }
@@ -342,7 +340,7 @@ export function SchemaPropertiesDialog({
               danger
               disabled={saving || deleting}
               loading={deleting}
-              icon={<TrashBinMinimalisticIcon size={14} />}
+              icon={<X size={14} />}
               onClick={() => {
                 Modal.confirm({
                   title: `Delete table "${tableName}"?`,
@@ -400,30 +398,30 @@ export function SchemaPropertiesDialog({
             <section key={draft.id} className={cn("rounded-lg border bg-card transition-colors", markedDelete ? "border-destructive/35 bg-destructive/4" : dirty ? "border-brand/45 shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_20%,transparent)]" : "border-border-subtle")}>
               <header className={cn("flex items-center justify-between gap-3 border-b px-4 py-2.5", markedDelete ? "border-destructive/20 bg-destructive/6" : dirty ? "border-brand/20 bg-brand/5" : "border-border-subtle bg-secondary/60")}>
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums", markedDelete ? "bg-destructive/15 text-destructive" : dirty ? "bg-brand/15 text-brand-soft" : "bg-muted text-muted-foreground")}>{index + 1}</span>
+                  <span className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums", markedDelete ? "bg-destructive/15 text-destructive" : dirty ? "bg-brand/15 text-brand-700" : "bg-muted text-muted-foreground")}>{index + 1}</span>
                   <div className={cn("min-w-0 truncate text-sm font-semibold", markedDelete ? "text-muted-foreground line-through decoration-destructive/60" : "text-foreground")}>{draft.name || "unnamed"}</div>
                   {markedDelete ? (
                     <span className="shrink-0 rounded-full bg-destructive/15 px-2 py-0.5 text-[11px] font-medium text-destructive">Will be deleted</span>
                   ) : isNew ? (
-                    <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-medium text-brand-soft">New</span>
+                    <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-medium text-brand-700">New</span>
                   ) : dirty ? (
-                    <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-medium text-brand-soft">Modified</span>
+                    <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-medium text-brand-700">Modified</span>
                   ) : null}
                 </div>
 
                 {markedDelete ? (
                   <button type="button" title="Undo delete" onClick={() => handleUndoDelete(draft.id)} className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
-                    <RestartIcon size={13} />
+                    <RefreshCw size={13} />
                     Undo
                   </button>
                 ) : isNew ? (
                   <button type="button" title="Remove" onClick={() => handleMarkDelete(draft.id)} className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
-                    <TrashBinMinimalisticIcon size={14} />
+                    <X size={14} />
                   </button>
                 ) : (
                   <Popconfirm title={`Delete ${draft.name || "this property"}?`} description="It will be removed when you save. Existing row values will be lost." okText="Mark delete" okButtonProps={{ danger: true }} onConfirm={() => handleMarkDelete(draft.id)}>
                     <button type="button" title="Mark for deletion" className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
-                      <TrashBinMinimalisticIcon size={14} />
+                      <X size={14} />
                     </button>
                   </Popconfirm>
                 )}
@@ -478,7 +476,7 @@ export function SchemaPropertiesDialog({
           );
         })}
 
-        <Button type="dashed" block icon={<AddCircleIcon size={14} />} onClick={handleAddProperty} className="h-10!">
+        <Button type="dashed" block icon={<Plus size={14} />} onClick={handleAddProperty} className="h-10!">
           Add property
         </Button>
 

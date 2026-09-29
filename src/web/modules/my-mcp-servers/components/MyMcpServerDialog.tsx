@@ -1,4 +1,4 @@
-import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
+import { Button, EFormItemType, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";

@@ -1,9 +1,4 @@
-import { BotIcon } from "@solar-icons/react/dynamic/bot";
-import { ChatRoundIcon } from "@solar-icons/react/dynamic/chat-round";
-import { GlobalIcon } from "@solar-icons/react/dynamic/global";
-import { PlugCircleIcon } from "@solar-icons/react/dynamic/plug-circle";
-import { ProgrammingIcon } from "@solar-icons/react/dynamic/programming";
-import { UsersGroupTwoRoundedIcon } from "@solar-icons/react/dynamic/users-group-two-rounded";
+import { FluentIcon } from "devnonla-ui";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Agent } from "src/common/types";
@@ -24,22 +19,15 @@ const JUMPS = [
     to: "/agents",
     title: "Agents",
     blurb: "Build, prompt, and publish your crew.",
-    icon: BotIcon,
-    tone: "text-brand-soft",
+    icon: "bot-24",
+    tone: "text-brand-700",
   },
   {
     to: "/tools",
     title: "Tools",
-    blurb: "Wire capabilities agents can call.",
-    icon: ProgrammingIcon,
+    blurb: "Custom JS tools and connected MCP servers.",
+    icon: "code-24",
     tone: "text-link",
-  },
-  {
-    to: "/mcp-servers",
-    title: "MCP servers",
-    blurb: "Connect external tool servers.",
-    icon: PlugCircleIcon,
-    tone: "text-warn",
   },
 ] as const;
 
@@ -79,22 +67,22 @@ export default function DashboardPage() {
 
         <div className="mt-7 flex flex-wrap gap-2">
           <button type="button" onClick={() => navigate("/agents")} className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-background/60 px-3 py-2 text-sm text-foreground transition-colors hover:border-brand/40 hover:bg-accent cursor-pointer">
-            <BotIcon size={16} className="text-brand-soft" />
+            <FluentIcon name="bot-24" size={16} className="text-brand-700" />
             <span className="font-medium">{agents.length}</span>
             <span className="text-muted-foreground">agents</span>
           </button>
           <button type="button" onClick={() => navigate("/agents")} className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-background/60 px-3 py-2 text-sm text-foreground transition-colors hover:border-brand/40 hover:bg-accent cursor-pointer">
-            <ChatRoundIcon size={16} className="text-success" />
+            <FluentIcon name="chat-24" size={16} className="text-success" />
             <span className="font-medium">{runningCount}</span>
             <span className="text-muted-foreground">running</span>
           </button>
           <div className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-background/60 px-3 py-2 text-sm text-foreground">
-            <GlobalIcon size={16} className="text-link" />
+            <FluentIcon name="globe-24" size={16} className="text-link" />
             <span className="font-medium">{publishedCount}</span>
             <span className="text-muted-foreground">published</span>
           </div>
           <div className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-background/60 px-3 py-2 text-sm text-foreground">
-            <UsersGroupTwoRoundedIcon size={16} className="text-warn" />
+            <FluentIcon name="people-community-24" size={16} className="text-warn" />
             <span className="font-medium">{teams.length}</span>
             <span className="text-muted-foreground">teams</span>
           </div>
@@ -108,13 +96,13 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {JUMPS.map(({ to, title, blurb, icon: Icon, tone }) => (
+          {JUMPS.map(({ to, title, blurb, icon, tone }) => (
             <button key={to} type="button" onClick={() => navigate(to)} className="group flex flex-col items-start gap-4 rounded-xl border border-border-subtle bg-card px-5 py-5 text-left transition-colors duration-150 hover:border-brand/35 hover:bg-secondary cursor-pointer">
               <span className={`flex size-9 items-center justify-center rounded-lg bg-muted ${tone}`}>
-                <Icon size={18} />
+                <FluentIcon name={icon} size={18} />
               </span>
               <span className="flex min-w-0 flex-col gap-1">
-                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-brand-soft">{title}</span>
+                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-brand-700">{title}</span>
                 <span className="text-xs leading-relaxed text-muted-foreground">{blurb}</span>
               </span>
             </button>

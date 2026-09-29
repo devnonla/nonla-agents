@@ -1,5 +1,5 @@
-import { Button, Empty, Modal, Spin, message } from "@nonla-agents/ui";
-import { AddCircleIcon } from "@solar-icons/react/dynamic/add-circle";
+import { Button, Empty, Modal, message } from "devnonla-ui";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DatatableProject } from "src/common/types";
@@ -36,9 +36,12 @@ export default function DatatablesPage() {
 
   return (
     <PageShell>
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Datatables</h1>
-        <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialog("create")}>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="m-0 text-xl font-semibold leading-tight text-foreground">Datatables</h1>
+          <p className="mt-1 mb-0 text-[13px] text-muted-foreground">Structured tables agents can query.</p>
+        </div>
+        <Button type="primary" icon={<Plus size={16} />} onClick={() => setDialog("create")}>
           New project
         </Button>
       </div>
@@ -47,19 +50,36 @@ export default function DatatablesPage() {
         condition={items.length > 0 || loading}
         fallback={
           <Empty className="rounded-2xl border border-dashed border-border px-5 py-16" description="No projects yet">
-            <Button type="primary" icon={<AddCircleIcon size={16} />} onClick={() => setDialog("create")}>
+            <Button type="primary" icon={<Plus size={16} />} onClick={() => setDialog("create")}>
               New project
             </Button>
           </Empty>
         }
       >
-        <Spin spinning={loading && items.length === 0}>
-          <div className="flex flex-col gap-3">
-            {items.map((project) => (
-              <ProjectCard key={project.id} project={project} onOpen={() => navigate(`/datatables/${project.id}`)} onRename={() => setDialog(project)} onDelete={() => setDeleting(project)} />
+        <RenderIf
+          condition={loading && items.length === 0}
+          fallback={
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {items.map((project) => (
+                <ProjectCard key={project.id} project={project} onOpen={() => navigate(`/datatables/${project.id}`)} onRename={() => setDialog(project)} onDelete={() => setDeleting(project)} />
+              ))}
+            </div>
+          }
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {["a", "b", "c", "d"].map((key) => (
+              <div key={key} className="h-27 animate-pulse rounded-xl border border-border-subtle bg-card px-4 py-3.5">
+                <div className="flex gap-3">
+                  <div className="size-9 rounded-lg bg-muted" />
+                  <div className="flex-1 space-y-2 pt-1">
+                    <div className="h-4 w-1/3 rounded bg-muted" />
+                    <div className="h-3 w-16 rounded bg-muted/70" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
-        </Spin>
+        </RenderIf>
       </RenderIf>
 
       <RenderIf condition={dialog !== null}>

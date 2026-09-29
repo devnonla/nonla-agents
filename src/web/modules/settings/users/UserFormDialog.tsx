@@ -1,8 +1,5 @@
-import { Button, EFormItemType, Input, Modal, SchemaForm, type TFormItemProps, message } from "@nonla-agents/ui";
-import { PenNewSquareIcon } from "@solar-icons/react/dynamic/pen-new-square";
-import { RestartIcon } from "@solar-icons/react/dynamic/restart";
-import { TrashBinMinimalisticIcon } from "@solar-icons/react/dynamic/trash-bin-minimalistic";
-import { UserPlusIcon } from "@solar-icons/react/dynamic/user-plus";
+import { Button, EFormItemType, FluentIcon, Input, Modal, SchemaForm, type TFormItemProps, message } from "devnonla-ui";
+import { Pencil, RefreshCw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { apiClient } from "src/common/api";
@@ -144,7 +141,7 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
     }
   };
 
-  const icon = isEdit ? <PenNewSquareIcon size={16} /> : <UserPlusIcon size={16} />;
+  const icon = isEdit ? <Pencil size={16} /> : <FluentIcon name="person-add-24" size={16} />;
 
   return (
     <Modal
@@ -166,7 +163,7 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
                 size="medium"
                 danger
                 disabled={deleting}
-                icon={<TrashBinMinimalisticIcon size={14} />}
+                icon={<X size={14} />}
                 onClick={() => {
                   Modal.confirm({
                     title: "Delete user?",
@@ -206,7 +203,7 @@ export function UserFormDialog({ user, onClose, onSaved }: UserFormProps) {
             <RenderIf condition={!generatedPassword}>
               <div className="flex gap-2">
                 <Input type="text" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Leave blank to auto-generate" className="flex-1" />
-                <Button size="small" icon={<RestartIcon size={12} />} onClick={handleResetPassword} loading={resetting}>
+                <Button size="small" icon={<RefreshCw size={12} />} onClick={handleResetPassword} loading={resetting}>
                   Reset
                 </Button>
               </div>
