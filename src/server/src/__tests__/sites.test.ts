@@ -540,7 +540,7 @@ export default function App() {
 
     const approveRes = await authRequest(app, token, "POST", `/api/sites/${site.id}/approve`, { file: "app.tsx" });
     expect(approveRes.status).toBe(200);
-    const prodPkg = JSON.parse(readFileSync(`${dataDir}/sites/${site.id}/prod/package.json`, "utf8")) as { dependencies?: Record<string, string> };
+    const prodPkg = JSON.parse(readFileSync(`${dataDir}/sites/${site.id}/package.json`, "utf8")) as { dependencies?: Record<string, string> };
     expect(prodPkg.dependencies?.nanoid).toBeTruthy();
 
     await authRequest(app, token, "DELETE", `/api/sites/${site.id}`);
