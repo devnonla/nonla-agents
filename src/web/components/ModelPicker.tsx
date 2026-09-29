@@ -1,6 +1,6 @@
 import type { TooltipPlacement } from "devnonla-ui";
-import { ChevronDown, ChevronLeft, Search } from "lucide-react";
 import { Popover, controlHeightVar, controlRadiusVar, getSizeTokens } from "devnonla-ui";
+import { ChevronDown, ChevronLeft, Search } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmProvider } from "src/common/types";
 import { ProviderIcon } from "src/components/ProviderIcon";
