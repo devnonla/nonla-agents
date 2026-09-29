@@ -3,6 +3,27 @@ import { builtinModules } from "node:module";
 
 const NODE_BUILTINS = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
 
+/** Unscoped or @scope/name — rejects interpolations like `${raw}` that bun add cannot parse. */
+const NPM_PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/i;
+
+function isNpmPackageName(name: string): boolean {
+  return name.length > 0 && name.length <= 214 && NPM_PACKAGE_NAME.test(name);
+}
+
+/** Drop optional @version / @tag (`sharp@0.33.0`, `@scope/pkg@1`). */
+function stripNpmVersion(spec: string): string {
+  const s = spec.trim();
+  if (s.startsWith("@")) {
+    const slash = s.indexOf("/");
+    if (slash < 0) return s;
+    const rest = s.slice(slash + 1);
+    const at = rest.indexOf("@");
+    return at < 0 ? s : s.slice(0, slash + 1 + at);
+  }
+  const at = s.indexOf("@");
+  return at < 0 ? s : s.slice(0, at);
+}
+
 /** npm package name from an import specifier, or null for relative / builtin / platform modules. */
 export function packageNameFromSpecifier(spec: string): string | null {
   const trimmed = spec.trim();
@@ -11,11 +32,12 @@ export function packageNameFromSpecifier(spec: string): string | null {
   if (trimmed.startsWith("@")) {
     const [scope, name] = trimmed.split("/");
     if (!scope || !name) return null;
-    return `${scope}/${name}`;
+    const pkg = `${scope}/${name}`;
+    return isNpmPackageName(pkg) ? pkg : null;
   }
   const base = trimmed.split("/")[0] ?? "";
   if (!base || NODE_BUILTINS.has(base)) return null;
-  return base;
+  return isNpmPackageName(base) ? base : null;
 }
 
 /**
@@ -31,13 +53,19 @@ export function detectPackages(code: string): string[] {
 
     const standalone = t.match(/^\/\/\s*bun:\s*(.+)/i);
     if (standalone) {
-      for (const p of standalone[1].split(/[\s,]+/).filter(Boolean)) bunOverrides.add(p);
+      for (const p of standalone[1].split(/[\s,]+/).filter(Boolean)) {
+        const name = packageNameFromSpecifier(stripNpmVersion(p));
+        if (name) bunOverrides.add(name);
+      }
       continue;
     }
 
     const inline = t.match(/\/\/\s*bun:\s*(.+)/i);
     if (inline) {
-      for (const p of inline[1].split(/[\s,]+/).filter(Boolean)) bunOverrides.add(p);
+      for (const p of inline[1].split(/[\s,]+/).filter(Boolean)) {
+        const name = packageNameFromSpecifier(stripNpmVersion(p));
+        if (name) bunOverrides.add(name);
+      }
     }
 
     const codePart = t.replace(/\/\/.*$/, "").trim();

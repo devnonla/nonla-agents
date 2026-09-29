@@ -1,6 +1,6 @@
 /**
  * run_js — Builtin tool: evaluate a JavaScript snippet in an isolated Bun child.
- * Code is passed via stdin (not written to disk). No TypeScript, no npm install.
+ * Code is fed via a temp stdin file (not a pipe). No TypeScript, no npm install.
  * Long runs detach via the shared background-task soft-wait (no local wall-clock kill).
  */
 
@@ -9,7 +9,7 @@ import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
 import { bgTaskRegistry } from "../../../modules/tools/common/bg-task-registry.js";
-import { ensureWritableDir, sandboxChildEnv, wrapForSandbox } from "../../sandbox/index.js";
+import { ensureWritableDir, readCapturedOutput, sandboxChildEnv, spawnCaptured, unlinkCaptured, wrapForSandbox } from "../../sandbox/index.js";
 import { tmpDir } from "../../utils/data-dir.js";
 
 const MAX_CODE_CHARS = 64_000;
@@ -106,11 +106,43 @@ function parsePayload(stdout: string, stderr: string): RunJsResult {
   });
 }
 
+function stripJsComments(code: string): string {
+  return code
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "")
+    .trim();
+}
+
+function returnedStringLiteral(stripped: string): string | null {
+  const m = stripped.match(/^return\s+(`[\s\S]*`|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')\s*;?\s*$/);
+  if (!m) return null;
+  const lit = m[1];
+  if (lit.startsWith("`") && lit.includes("${")) return null;
+  return lit.slice(1, -1);
+}
+
+/** Comments-only, or comments + `return "notes"`, or a long English sentence — not a computation. */
+function isPlanningOnlySnippet(code: string): boolean {
+  const hadComments = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/.test(code);
+  const stripped = stripJsComments(code);
+  if (!stripped) return true;
+  const inner = returnedStringLiteral(stripped);
+  if (inner == null) return false;
+  if (hadComments) return true;
+  return inner.length > 48 && /\s/.test(inner);
+}
+
 function validateCode(rawCode: string): { code: string } | RunJsResult {
   const code = stripFences(rawCode);
   if (!code) return { ok: false, error: "code is empty" };
   if (code.length > MAX_CODE_CHARS) {
     return { ok: false, error: `code must be ≤${MAX_CODE_CHARS} characters` };
+  }
+  if (isPlanningOnlySnippet(code)) {
+    return {
+      ok: false,
+      error: "run_js is for computing a value from data, not for planning or notes. Write the plan in chat; call run_js only when you need a calculated result.",
+    };
   }
   return { code };
 }
@@ -124,13 +156,15 @@ type SpawnedJs = {
 
 async function spawnJs(code: string): Promise<SpawnedJs> {
   const sandboxDir = ensureWritableDir(`${tmpDir()}/run-js-${crypto.randomUUID()}`);
+  const stdinPath = `${sandboxDir}/stdin.js`;
   try {
+    await Bun.write(stdinPath, code);
     const argv = await wrapForSandbox([process.execPath, "-e", HARNESS], {
       cwd: sandboxDir,
       writablePaths: [sandboxDir],
     });
 
-    const proc = Bun.spawn(argv, {
+    const captured = await spawnCaptured(argv, {
       cwd: sandboxDir,
       env: sandboxChildEnv({
         TMPDIR: sandboxDir,
@@ -139,35 +173,27 @@ async function spawnJs(code: string): Promise<SpawnedJs> {
         BUN_INSTALL: `${sandboxDir}/.bun`,
         BUN_RUNTIME_TRANSPILER_CACHE_PATH: `${sandboxDir}/.bun-cache`,
       }),
-      stdin: new Blob([code]),
-      stdout: "pipe",
-      stderr: "pipe",
+      stdinPath,
     });
 
     let killTimer: ReturnType<typeof setTimeout> | undefined;
     const kill = () => {
-      try {
-        proc.kill();
-      } catch {
-        /* ignore */
-      }
-      killTimer = setTimeout(() => {
-        try {
-          proc.kill("SIGKILL");
-        } catch {
-          /* ignore */
-        }
-      }, KILL_GRACE_MS);
+      captured.kill();
+      killTimer = setTimeout(() => captured.kill("SIGKILL"), KILL_GRACE_MS);
     };
 
-    const done = Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]).then(([stdout, stderr]) => parsePayload(stdout, stderr));
+    const done = captured.exited.then(async () => {
+      const { stdout, stderr } = await readCapturedOutput(captured);
+      return parsePayload(stdout, stderr);
+    });
 
     return {
-      pid: proc.pid,
+      pid: captured.pid,
       kill,
       done,
       cleanup: () => {
         if (killTimer) clearTimeout(killTimer);
+        void unlinkCaptured(captured);
         try {
           rmSync(sandboxDir, { recursive: true, force: true });
         } catch {
@@ -277,7 +303,8 @@ export async function runJsWithSoftWait(
 
 const DESCRIPTION = `Run a JavaScript snippet in an isolated Bun process (in-memory, not saved).
 JavaScript only — no TypeScript, no npm packages. Use \`return\` for the value (e.g. return 1+2).
-console.log is captured. Use for calculation, parsing, or transforming data.
+console.log is captured. Use ONLY to compute a result from concrete data (math, parse JSON, regex, transform a string you already have).
+Do NOT use for planning, API sketches, comments, notes, or thinking out loud — write those in chat.
 If it takes longer than ~2 minutes it returns status "running" with a taskId — use background_tasks (await/get/cancel).`;
 
 export type MakeRunJsToolOptions = {
@@ -313,7 +340,7 @@ export function makeRunJsTool(options: MakeRunJsToolOptions = {}): StructuredToo
 export const TOOL_DEF = {
   toolName: "run_js",
   toolLabel: "Run JS",
-  description: "Run a JavaScript snippet in memory (isolated Bun process). Use return for the result. No TypeScript, no npm packages. Long runs detach to background_tasks.",
+  description: "Run a JavaScript snippet in memory (isolated Bun process). Use return for the result. For calculations/parsing only — not planning. No TypeScript, no npm packages. Long runs detach to background_tasks.",
   parameters: {
     type: "object",
     properties: {

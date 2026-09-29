@@ -6,14 +6,16 @@
  * throws `EBADF: bad file descriptor, posix_spawn`. Inherited stdio uses fds
  * 0/1/2 (always below the cap); the shell then redirects to files via `open()`.
  *
- * stdin is redirected from /dev/null so untrusted children do not share the TTY.
+ * stdin is redirected from /dev/null (or `stdinPath`) so untrusted children do not share the TTY.
  */
 
+import { closeSync, openSync, readSync, statSync } from "node:fs";
 import { tmpDir } from "../utils/data-dir.js";
 
-const REDIRECT = 'exec "$@" < /dev/null > "$NL_SPAWN_STDOUT" 2> "$NL_SPAWN_STDERR"';
+const REDIRECT = 'exec "$@" < "$NL_SPAWN_STDIN" > "$NL_SPAWN_STDOUT" 2> "$NL_SPAWN_STDERR"';
 
 export type CapturedSpawn = {
+  pid: number;
   exited: Promise<number>;
   kill: (signal?: number | NodeJS.Signals) => void;
   stdoutPath: string;
@@ -33,6 +35,7 @@ export async function spawnCaptured(
   opts: {
     cwd?: string;
     env?: Record<string, string | undefined>;
+    stdinPath?: string;
   } = {},
 ): Promise<CapturedSpawn> {
   const id = crypto.randomUUID();
@@ -42,30 +45,37 @@ export async function spawnCaptured(
   await Bun.write(stderrPath, "");
 
   const env = envRecord(opts.env);
+  env.NL_SPAWN_STDIN = opts.stdinPath || "/dev/null";
   env.NL_SPAWN_STDOUT = stdoutPath;
   env.NL_SPAWN_STDERR = stderrPath;
 
-  const proc = Bun.spawn(["/bin/sh", "-c", REDIRECT, "nl-spawn", ...argv], {
-    cwd: opts.cwd,
-    env,
-    stdin: "inherit",
-    stdout: "inherit",
-    stderr: "inherit",
-  });
+  try {
+    const proc = Bun.spawn(["/bin/sh", "-c", REDIRECT, "nl-spawn", ...argv], {
+      cwd: opts.cwd,
+      env,
+      stdin: "inherit",
+      stdout: "inherit",
+      stderr: "inherit",
+    });
 
-  return {
-    exited: proc.exited,
-    kill: (signal?: number | NodeJS.Signals) => {
-      try {
-        if (signal === undefined) proc.kill();
-        else proc.kill(signal);
-      } catch {
-        /* already exited */
-      }
-    },
-    stdoutPath,
-    stderrPath,
-  };
+    return {
+      pid: proc.pid,
+      exited: proc.exited,
+      kill: (signal?: number | NodeJS.Signals) => {
+        try {
+          if (signal === undefined) proc.kill();
+          else proc.kill(signal);
+        } catch {
+          /* already exited */
+        }
+      },
+      stdoutPath,
+      stderrPath,
+    };
+  } catch (err) {
+    await unlinkCaptured({ stdoutPath, stderrPath });
+    throw err;
+  }
 }
 
 export async function readCapturedOutput(spawn: Pick<CapturedSpawn, "stdoutPath" | "stderrPath">): Promise<{ stdout: string; stderr: string }> {
@@ -78,6 +88,44 @@ export async function readCapturedOutput(spawn: Pick<CapturedSpawn, "stdoutPath"
       .catch(() => ""),
   ]);
   return { stdout, stderr };
+}
+
+/**
+ * Emit new bytes from a capture file until `until` settles, then flush the tail.
+ * Used for live job/tool logs without creating posix_spawn pipe FDs.
+ */
+export async function followCaptureFile(path: string, onChunk: (piece: string) => void, until: Promise<unknown>, intervalMs = 80): Promise<void> {
+  let offset = 0;
+
+  const readNew = () => {
+    try {
+      const size = statSync(path).size;
+      if (size <= offset) return;
+      const fd = openSync(path, "r");
+      try {
+        const length = size - offset;
+        const buf = Buffer.alloc(length);
+        const n = readSync(fd, buf, 0, length, offset);
+        if (n > 0) {
+          offset += n;
+          onChunk(buf.subarray(0, n).toString("utf8"));
+        }
+      } finally {
+        closeSync(fd);
+      }
+    } catch {
+      /* file not ready yet */
+    }
+  };
+
+  while (true) {
+    readNew();
+    const settled = await Promise.race([until.then(() => true as const), Bun.sleep(intervalMs).then(() => false as const)]);
+    if (settled) {
+      readNew();
+      return;
+    }
+  }
 }
 
 export async function unlinkCaptured(spawn: Partial<Pick<CapturedSpawn, "stdoutPath" | "stderrPath">>): Promise<void> {

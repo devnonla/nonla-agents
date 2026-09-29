@@ -18,6 +18,13 @@ describe("packageNameFromSpecifier", () => {
     expect(packageNameFromSpecifier("nonlaagents")).toBeNull();
     expect(packageNameFromSpecifier("@nonla-agents/runtime")).toBeNull();
   });
+
+  test("rejects interpolations and placeholders bun add cannot parse", () => {
+    expect(packageNameFromSpecifier("${raw}")).toBeNull();
+    expect(packageNameFromSpecifier("<spec>")).toBeNull();
+    expect(packageNameFromSpecifier("foo bar")).toBeNull();
+    expect(packageNameFromSpecifier("https://example.com/pkg.tgz")).toBeNull();
+  });
 });
 
 describe("detectPackages", () => {
@@ -38,5 +45,15 @@ import y from "foo"`;
     const pkgs = detectPackages(code);
     expect(pkgs).toContain("sharp");
     expect(pkgs).toContain("foo");
+  });
+
+  test("does not pass interpolations like ${raw} to bun add", () => {
+    const code = `
+import x from "\${raw}"
+import y from "cheerio"
+const sample = \`from "\${raw}"\`
+// bun: \${raw} lodash
+`;
+    expect(detectPackages(code).sort()).toEqual(["cheerio", "lodash"]);
   });
 });

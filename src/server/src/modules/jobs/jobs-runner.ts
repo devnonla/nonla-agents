@@ -1,6 +1,6 @@
 import { rmSync } from "node:fs";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
-import { rewriteSandboxTs } from "../../common/sandbox/index.js";
+import { followCaptureFile, rewriteSandboxTs, spawnCaptured, unlinkCaptured } from "../../common/sandbox/index.js";
 import { getDataDir } from "../../common/utils/data-dir.js";
 import { startNonlaagentsProxy } from "../tools/common/nonlaagents-proxy.js";
 import { type JobLogEntry, createLineBuffer } from "./common/job-logs.js";
@@ -56,24 +56,6 @@ function cleanupWorkspace(dir: string) {
   }
 }
 
-async function readStreamLive(stream: ReadableStream<Uint8Array> | null, onChunk: (text: string) => void): Promise<void> {
-  if (!stream) return;
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const text = decoder.decode(value, { stream: true });
-      if (text) onChunk(text);
-    }
-    const tail = decoder.decode();
-    if (tail) onChunk(tail);
-  } catch {
-    /* aborted / closed */
-  }
-}
-
 export async function runBunScript(opts: {
   code: string;
   workspaceId: string;
@@ -98,50 +80,44 @@ export async function runBunScript(opts: {
       return { exitCode: 1, entries, timedOut: false, cancelled: true };
     }
 
-    const proc = Bun.spawn(["bun", "run", "main.ts"], {
+    const captured = await spawnCaptured(["bun", "run", "main.ts"], {
       cwd: workspace,
       env: {
         ...process.env,
         NONLAAGENTS_URL: proxy.url,
         NONLAAGENTS_TOKEN: proxy.token,
       },
-      stdout: "pipe",
-      stderr: "pipe",
     });
 
-    let timedOut = false;
-    let cancelled = false;
+    try {
+      let timedOut = false;
+      let cancelled = false;
 
-    const killProc = () => {
-      try {
-        proc.kill();
-      } catch {
-        /* ignore */
-      }
-    };
+      const killer = setTimeout(() => {
+        timedOut = true;
+        captured.kill();
+      }, opts.timeoutMs);
 
-    const killer = setTimeout(() => {
-      timedOut = true;
-      killProc();
-    }, opts.timeoutMs);
+      const onAbort = () => {
+        cancelled = true;
+        captured.kill();
+      };
+      opts.abortSignal?.addEventListener("abort", onAbort, { once: true });
+      if (opts.abortSignal?.aborted) onAbort();
 
-    const onAbort = () => {
-      cancelled = true;
-      killProc();
-    };
-    opts.abortSignal?.addEventListener("abort", onAbort, { once: true });
-    if (opts.abortSignal?.aborted) onAbort();
+      const stdoutBuf = createLineBuffer("stdout", startedAtMs, pushEntries);
+      const stderrBuf = createLineBuffer("stderr", startedAtMs, pushEntries);
 
-    const stdoutBuf = createLineBuffer("stdout", startedAtMs, pushEntries);
-    const stderrBuf = createLineBuffer("stderr", startedAtMs, pushEntries);
+      const [, , exitCode] = await Promise.all([followCaptureFile(captured.stdoutPath, (chunk) => stdoutBuf.push(chunk), captured.exited), followCaptureFile(captured.stderrPath, (chunk) => stderrBuf.push(chunk), captured.exited), captured.exited]);
+      clearTimeout(killer);
+      opts.abortSignal?.removeEventListener("abort", onAbort);
+      stdoutBuf.flush();
+      stderrBuf.flush();
 
-    const [, , exitCode] = await Promise.all([readStreamLive(proc.stdout, (chunk) => stdoutBuf.push(chunk)), readStreamLive(proc.stderr, (chunk) => stderrBuf.push(chunk)), proc.exited]);
-    clearTimeout(killer);
-    opts.abortSignal?.removeEventListener("abort", onAbort);
-    stdoutBuf.flush();
-    stderrBuf.flush();
-
-    return { exitCode, entries, timedOut, cancelled };
+      return { exitCode, entries, timedOut, cancelled };
+    } finally {
+      await unlinkCaptured(captured);
+    }
   } finally {
     proxy.stop();
     cleanupWorkspace(workspace);

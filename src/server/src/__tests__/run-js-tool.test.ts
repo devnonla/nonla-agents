@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { closeSync, openSync } from "node:fs";
 import { runJs, runJsWithSoftWait } from "../common/ai/agent-tools/run-js.tool.js";
 import { bgTaskRegistry } from "../modules/tools/common/bg-task-registry.js";
 
@@ -11,6 +12,31 @@ describe("runJs", () => {
     const out = await runJs("return 1 + 2");
     expect(out.ok).toBe(true);
     expect(out.result).toBe(3);
+  }, 30_000);
+
+  test("does not fail with posix_spawn EBADF when many descriptors are open", async () => {
+    const fds: number[] = [];
+    try {
+      for (let i = 0; i < 11_000; i++) {
+        try {
+          fds.push(openSync("/dev/null", "r"));
+        } catch {
+          break;
+        }
+      }
+      expect(fds.length).toBeGreaterThan(1_000);
+      const out = await runJs("return 7");
+      expect(out.ok).toBe(true);
+      expect(out.result).toBe(7);
+    } finally {
+      for (const fd of fds) {
+        try {
+          closeSync(fd);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
   }, 30_000);
 
   test("returns objects and captures console.log", async () => {
@@ -34,6 +60,16 @@ describe("runJs", () => {
     const out = await runJs("   ");
     expect(out.ok).toBe(false);
     expect(out.error).toMatch(/empty/i);
+  });
+
+  test("rejects planning-only snippets", async () => {
+    const out = await runJs(`
+      // Quick check: YouTube Data API search endpoint structure
+      // We'll need: GET https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=KEYWORD&key=API_KEY
+      return "Planning to use YouTube Data API v3 search endpoint with type=channel";
+    `);
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatch(/planning/i);
   });
 
   test("reports syntax errors", async () => {

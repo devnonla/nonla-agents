@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
-import { SANDBOX_TSCONFIG, detectPackages, ensureWritableDir, isPkgInstalled, rewriteSandboxTs, sandboxChildEnv, wrapForSandbox } from "../../../common/sandbox/index.js";
+import { SANDBOX_TSCONFIG, detectPackages, ensureWritableDir, followCaptureFile, isPkgInstalled, readCapturedOutput, rewriteSandboxTs, sandboxChildEnv, spawnCaptured, unlinkCaptured, wrapForSandbox } from "../../../common/sandbox/index.js";
 import { bgTaskRegistry } from "./bg-task-registry.js";
 import { startNonlaagentsProxy } from "./nonlaagents-proxy.js";
 import { writeToolsNonlaagentsPackage } from "./nonlaagents-ts.js";
@@ -177,38 +177,29 @@ function sandboxRuntimeEnv(sandboxDir: string, extra: Record<string, string>): R
 
 async function runCmd(cmd: string, args: string[], cwd: string, env: Record<string, string> = {}, timeoutMs = 600_000): Promise<{ success: boolean; stdout: string; stderr: string }> {
   const argv = await wrapForSandbox([cmd, ...args], { cwd, writablePaths: [cwd] });
-  const proc = Bun.spawn(argv, {
+  const captured = await spawnCaptured(argv, {
     cwd,
     env: sandboxRuntimeEnv(cwd, env),
-    stdout: "pipe",
-    stderr: "pipe",
-    stdin: "ignore",
   });
   let timedOut = false;
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   const timer = setTimeout(() => {
     timedOut = true;
-    try {
-      proc.kill();
-    } catch {
-      /* ignore */
-    }
-    killTimer = setTimeout(() => {
-      try {
-        proc.kill("SIGKILL");
-      } catch {
-        /* ignore */
-      }
-    }, KILL_GRACE_MS);
+    captured.kill();
+    killTimer = setTimeout(() => captured.kill("SIGKILL"), KILL_GRACE_MS);
   }, timeoutMs);
-  return Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]).then(([stdout, stderr, code]) => {
-    clearTimeout(timer);
-    if (killTimer) clearTimeout(killTimer);
+  try {
+    const code = await captured.exited;
+    const { stdout, stderr } = await readCapturedOutput(captured);
     if (timedOut) {
       return { success: false, stdout: "", stderr: `Process timed out after ${timeoutMs / 1000}s` };
     }
     return { success: code === 0, stdout, stderr };
-  });
+  } finally {
+    clearTimeout(timer);
+    if (killTimer) clearTimeout(killTimer);
+    await unlinkCaptured(captured);
+  }
 }
 
 type SpawnHandle = {
@@ -275,32 +266,10 @@ async function sweepSandboxDir(sandboxDir: string, currentUserFile: string): Pro
   }
 }
 
-async function readUtf8Stream(stream: ReadableStream<Uint8Array>, onChunk?: (piece: string) => void, maxChars = 5 * 1024 * 1024): Promise<string> {
-  const reader = stream.getReader();
-  const dec = new TextDecoder("utf-8");
-  let acc = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const piece = dec.decode(value, { stream: true });
-    if (onChunk && piece) onChunk(piece);
-    acc += piece;
-    if (acc.length > maxChars) acc = acc.slice(-maxChars);
-  }
-  acc += dec.decode();
-  return acc.length > maxChars ? acc.slice(-maxChars) : acc;
-}
-
 async function spawnCmd(cmd: string, args: string[], cwd: string, env: Record<string, string> = {}, onStderr?: (chunk: string) => void): Promise<SpawnHandle> {
   const writable = ensureWritableDir(cwd);
   const argv = await wrapForSandbox([cmd, ...args], { cwd: writable, writablePaths: [writable] });
-  const proc = Bun.spawn(argv, {
-    cwd,
-    env,
-    stdout: "pipe",
-    stderr: "pipe",
-    stdin: "ignore",
-  });
+  const captured = await spawnCaptured(argv, { cwd, env });
 
   let killed = false;
   let exited = false;
@@ -313,30 +282,29 @@ async function spawnCmd(cmd: string, args: string[], cwd: string, env: Record<st
     }
   };
 
-  const killProc = (signal?: "SIGKILL") => {
-    try {
-      if (signal) proc.kill(signal);
-      else proc.kill();
-    } catch {
-      /* ignore */
-    }
-  };
+  const follow = onStderr ? followCaptureFile(captured.stderrPath, onStderr, captured.exited) : Promise.resolve();
 
-  const done = Promise.all([readUtf8Stream(proc.stdout), readUtf8Stream(proc.stderr, onStderr), proc.exited])
-    .then(([stdout, stderr, code]) => {
+  const done = Promise.all([captured.exited, follow])
+    .then(async ([code]) => {
       exited = true;
       finishKill();
-      return {
-        success: !killed && code === 0,
-        stdout,
-        stderr: killed ? stderr || "Process cancelled" : stderr,
-      };
+      try {
+        const { stdout, stderr } = await readCapturedOutput(captured);
+        return {
+          success: !killed && code === 0,
+          stdout,
+          stderr: killed ? stderr || "Process cancelled" : stderr,
+        };
+      } finally {
+        await unlinkCaptured(captured);
+      }
     })
-    .catch((err) => {
-      killProc();
-      killProc("SIGKILL");
+    .catch(async (err) => {
+      captured.kill();
+      captured.kill("SIGKILL");
       exited = true;
       finishKill();
+      await unlinkCaptured(captured);
       return {
         success: false,
         stdout: "",
@@ -345,13 +313,13 @@ async function spawnCmd(cmd: string, args: string[], cwd: string, env: Record<st
     });
 
   return {
-    pid: proc.pid,
+    pid: captured.pid,
     done,
     kill: () => {
       if (exited || killed) return;
       killed = true;
-      killProc();
-      killTimer = setTimeout(() => killProc("SIGKILL"), KILL_GRACE_MS);
+      captured.kill();
+      killTimer = setTimeout(() => captured.kill("SIGKILL"), KILL_GRACE_MS);
     },
   };
 }

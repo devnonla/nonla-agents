@@ -1,4 +1,4 @@
-import { detectPackages, isPkgInstalled } from "../../common/sandbox/index.js";
+import { detectPackages, isPkgInstalled, readCapturedOutput, spawnCaptured, unlinkCaptured } from "../../common/sandbox/index.js";
 import { type SiteTree, getTreeDir, readSourceFile } from "./sites-fs.js";
 
 const INSTALL_TIMEOUT_MS = 120_000;
@@ -18,17 +18,15 @@ async function withInstallLock<T>(key: string, fn: () => Promise<T>): Promise<T>
 }
 
 async function runBunInTree(cwd: string, args: string[]): Promise<{ ok: true } | { ok: false; error: string }> {
-  const proc = Bun.spawn([process.execPath, ...args], {
+  const captured = await spawnCaptured([process.execPath, ...args], {
     cwd,
     env: { ...process.env, BUN_INSTALL_FROZEN_LOCKFILE: "0" },
-    stdout: "pipe",
-    stderr: "pipe",
-    stdin: "ignore",
   });
 
-  const timer = setTimeout(() => proc.kill("SIGKILL"), INSTALL_TIMEOUT_MS);
+  const timer = setTimeout(() => captured.kill("SIGKILL"), INSTALL_TIMEOUT_MS);
   try {
-    const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+    const code = await captured.exited;
+    const { stdout, stderr } = await readCapturedOutput(captured);
     if (code === 0) return { ok: true };
     const detail = (stderr || stdout).trim().slice(0, 2000);
     return { ok: false, error: detail || `bun ${args[0] ?? "install"} exited with code ${code}` };
@@ -36,6 +34,7 @@ async function runBunInTree(cwd: string, args: string[]): Promise<{ ok: true } |
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   } finally {
     clearTimeout(timer);
+    await unlinkCaptured(captured);
   }
 }
 
