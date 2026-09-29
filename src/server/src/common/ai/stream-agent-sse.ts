@@ -150,7 +150,11 @@ export async function streamAgentSSE({ agent, messages, maxSteps = 100, stream, 
     };
 
     const emitToolResult = async (toolCallId: string, toolName: string, result: unknown) => {
-      const id = toolCallId || "";
+      let id = toolCallId || "";
+      if (!id || !emittedToolNames.has(id)) {
+        const unresolved = [...emittedToolNames.entries()].filter(([eid, name]) => (toolName && toolName !== "unknown" ? name === toolName : true) && !resolvedToolCallIds.has(eid));
+        if (unresolved.length === 1) id = unresolved[0][0];
+      }
       if (id && resolvedToolCallIds.has(id)) return;
       if (id) resolvedToolCallIds.add(id);
       const name = toolName && toolName !== "unknown" ? toolName : (emittedToolNames.get(id) ?? toolName ?? "unknown");
@@ -173,12 +177,12 @@ export async function streamAgentSSE({ agent, messages, maxSteps = 100, stream, 
     };
 
     const resolveToolCallId = (tc: { id?: string; name?: string }): string => {
+      if (tc.id && emittedToolNames.has(tc.id)) return tc.id;
+      const unresolved = [...emittedToolNames.entries()].filter(([id, name]) => name === tc.name && !resolvedToolCallIds.has(id));
+      if (unresolved.length === 1) return unresolved[0][0];
       if (tc.id) return tc.id;
       for (const [id, pending] of pendingToolCalls) {
         if (pending.name === tc.name) return id;
-      }
-      for (const [id, name] of emittedToolNames) {
-        if (name === tc.name && !resolvedToolCallIds.has(id)) return id;
       }
       return `${tc.name ?? "tool"}-${Date.now()}`;
     };

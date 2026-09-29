@@ -100,6 +100,92 @@ describe("streamAgentSSE", () => {
     });
   });
 
+  test("re-emits the same toolCallId from updates with full args (client upserts — no ghost error)", async () => {
+    const { events, stream } = collectStream();
+    await streamAgentSSE({
+      agent: fakeAgent([
+        [
+          "messages",
+          [
+            {
+              type: "AIMessageChunk",
+              tool_call_chunks: [{ id: "tc1", name: "edit_skill_file", args: "{" }],
+            },
+            {},
+          ],
+        ],
+        [
+          "updates",
+          {
+            agent: {
+              messages: [
+                {
+                  type: "AIMessage",
+                  tool_calls: [{ id: "tc1", name: "edit_skill_file", args: { path: "SKILL.md", mode: "full", content: "# Skill\n" } }],
+                  _getType: () => "ai",
+                },
+              ],
+            },
+          },
+        ],
+        ["updates", { tools: [toolMsg("tc1", "edit_skill_file", JSON.stringify({ ok: true, path: "SKILL.md" }))] }],
+      ]),
+      messages: [],
+      stream,
+    });
+
+    const calls = events.filter((e) => e.type === "tool-call");
+    expect(calls).toHaveLength(2);
+    expect(calls.every((e) => e.toolCallId === "tc1")).toBe(true);
+    expect(calls[1]?.input).toEqual({ path: "SKILL.md", mode: "full", content: "# Skill\n" });
+    const results = events.filter((e) => e.type === "tool-result");
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ toolCallId: "tc1", result: { ok: true, path: "SKILL.md" } });
+    expect(events.at(-1)).toMatchObject({ type: "done" });
+  });
+
+  test("maps a later updates tool-call with a different id onto the early chunk id", async () => {
+    const { events, stream } = collectStream();
+    await streamAgentSSE({
+      agent: fakeAgent([
+        [
+          "messages",
+          [
+            {
+              type: "AIMessageChunk",
+              tool_call_chunks: [{ id: "chunk-1", name: "read_skill_file", args: "{}" }],
+            },
+            {},
+          ],
+        ],
+        [
+          "updates",
+          {
+            agent: {
+              messages: [
+                {
+                  type: "AIMessage",
+                  tool_calls: [{ id: "final-9", name: "read_skill_file", args: { path: "SKILL.md" } }],
+                  _getType: () => "ai",
+                },
+              ],
+            },
+          },
+        ],
+        ["updates", { tools: [toolMsg("final-9", "read_skill_file", JSON.stringify({ ok: true, path: "SKILL.md" }))] }],
+      ]),
+      messages: [],
+      stream,
+    });
+
+    const calls = events.filter((e) => e.type === "tool-call");
+    expect(calls.map((e) => e.toolCallId)).toEqual(["chunk-1", "chunk-1"]);
+    expect(calls[1]?.input).toEqual({ path: "SKILL.md" });
+    const results = events.filter((e) => e.type === "tool-result");
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ toolCallId: "chunk-1", result: { ok: true, path: "SKILL.md" } });
+  });
+
   test("flushes unresolved tool-calls when the stream ends without a result", async () => {
     const { events, stream } = collectStream();
     await streamAgentSSE({
