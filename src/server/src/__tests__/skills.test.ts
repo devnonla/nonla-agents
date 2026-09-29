@@ -188,6 +188,34 @@ AI draft only — not published yet.
     expect(data.message).toContain("compacted edit placeholder");
   });
 
+  test("PUT /api/skills/:id — folded YAML description is flattened to one line", async () => {
+    const res = await authRequest(app, token, "PUT", `/api/skills/${skillId}`, {
+      draftContent: `---
+name: code-review
+description: >-
+  Review PRs for quality
+  and standards.
+---
+
+Folded draft.
+`,
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { draftContent: string };
+    expect(data.draftContent).toContain("description: Review PRs for quality and standards.");
+    expect(data.draftContent).not.toContain(">-");
+    expect(data.draftContent).toContain("Folded draft.");
+  });
+
+  test("PUT /api/skills/:id — draftContent without frontmatter is rejected", async () => {
+    const res = await authRequest(app, token, "PUT", `/api/skills/${skillId}`, {
+      draftContent: "# No frontmatter\n",
+    });
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { message: string };
+    expect(data.message).toContain("frontmatter");
+  });
+
   test("PUT /api/skills/:id — Accept draft publishes content", async () => {
     const draftBody = `---
 name: code-review
@@ -413,10 +441,10 @@ description: Runtime coverage skill
 Full rewrite via assistant draft.
 `;
     const raw = await tool.invoke({ path: "SKILL.md", mode: "full", content: next, summary: "rewrite" });
-    const data = JSON.parse(String(raw)) as { ok: boolean; path: string; content: string };
+    const data = JSON.parse(String(raw)) as { ok: boolean; path: string; content?: string };
     expect(data.ok).toBe(true);
     expect(data.path).toBe("SKILL.md");
-    expect(data.content).toContain("Full rewrite via assistant draft");
+    expect(data.content).toBeUndefined();
 
     const getRes = await authRequest(app, token, "GET", `/api/skills/${skillId}`);
     const skill = (await getRes.json()) as { content: string; draftContent: string | null };
@@ -432,10 +460,14 @@ Full rewrite via assistant draft.
       mode: "replace",
       edits: [{ old_string: "Full rewrite via assistant draft.", new_string: "Replaced hunk body." }],
     });
-    const data = JSON.parse(String(raw)) as { ok: boolean; content: string };
+    const data = JSON.parse(String(raw)) as { ok: boolean; content?: string };
     expect(data.ok).toBe(true);
-    expect(data.content).toContain("Replaced hunk body.");
-    expect(data.content).not.toContain("Full rewrite via assistant draft.");
+    expect(data.content).toBeUndefined();
+
+    const getRes = await authRequest(app, token, "GET", `/api/skills/${skillId}`);
+    const skill = (await getRes.json()) as { draftContent: string | null };
+    expect(skill.draftContent).toContain("Replaced hunk body.");
+    expect(skill.draftContent).not.toContain("Full rewrite via assistant draft.");
   });
 
   test("makeEditSkillFileTool — mode=full creates reference draft", async () => {
@@ -470,6 +502,64 @@ Full rewrite via assistant draft.
     const emptyReplace = JSON.parse(String(await tool.invoke({ path: "references/brand-new.md", mode: "replace", edits: [{ old_string: "a", new_string: "b" }] }))) as { ok: boolean; error: string };
     expect(emptyReplace.ok).toBe(false);
     expect(emptyReplace.error).toContain("empty");
+  });
+
+  test("makeEditSkillFileTool — SKILL.md without frontmatter is rejected", async () => {
+    const { makeEditSkillFileTool } = await import("../modules/skills/common/agent-tools/edit-skill-file.tool.js");
+    const tool = makeEditSkillFileTool(skillId);
+
+    const missing = JSON.parse(String(await tool.invoke({ path: "SKILL.md", mode: "full", content: "# No frontmatter\n" }))) as {
+      ok: boolean;
+      error: string;
+    };
+    expect(missing.ok).toBe(false);
+    expect(missing.error).toContain("frontmatter");
+
+    const noDesc = JSON.parse(
+      String(
+        await tool.invoke({
+          path: "SKILL.md",
+          mode: "full",
+          content: `---
+name: runtime-skill
+---
+
+Body only.
+`,
+        }),
+      ),
+    ) as { ok: boolean; error: string };
+    expect(noDesc.ok).toBe(false);
+    expect(noDesc.error).toContain("description");
+  });
+
+  test("makeEditSkillFileTool — SKILL.md folded YAML description is flattened to one line", async () => {
+    const { makeEditSkillFileTool } = await import("../modules/skills/common/agent-tools/edit-skill-file.tool.js");
+    const { getSkill } = await import("../modules/skills/skills.service.js");
+    const tool = makeEditSkillFileTool(skillId);
+
+    const folded = JSON.parse(
+      String(
+        await tool.invoke({
+          path: "SKILL.md",
+          mode: "full",
+          content: `---
+name: runtime-skill
+description: >-
+  Use when creating or editing Remotion videos.
+  Keep this searchable.
+---
+
+# Body
+`,
+        }),
+      ),
+    ) as { ok: boolean };
+    expect(folded.ok).toBe(true);
+
+    const row = await getSkill(skillId);
+    expect(row?.draftContent).toContain("description: Use when creating or editing Remotion videos. Keep this searchable.");
+    expect(row?.draftContent).not.toContain(">-");
   });
 
   test("makeReadSkillFileTool — reads SKILL.md and references working content", async () => {
@@ -507,6 +597,29 @@ Full rewrite via assistant draft.
     expect(missing.available).toContain("references/api-notes.md");
   });
 
+  test("makeReadSkillFileTool — reads multiple files in one call", async () => {
+    const { makeReadSkillFileTool } = await import("../modules/skills/common/agent-tools/edit-skill-file.tool.js");
+    const readTool = makeReadSkillFileTool(skillId);
+
+    const batched = JSON.parse(String(await readTool.invoke({ paths: ["SKILL.md", "references/api-notes.md"] }))) as {
+      ok: boolean;
+      files: { path: string; content: string }[];
+    };
+    expect(batched.ok).toBe(true);
+    expect(batched.files.map((f) => f.path)).toEqual(["SKILL.md", "references/api-notes.md"]);
+    expect(batched.files[0]?.content).toContain("name: runtime-skill");
+    expect(batched.files[1]?.content).toContain("Draft reference body");
+
+    const partial = JSON.parse(String(await readTool.invoke({ paths: ["SKILL.md", "references/missing.md"] }))) as {
+      ok: boolean;
+      files: { path: string; content: string }[];
+      missing: string[];
+    };
+    expect(partial.ok).toBe(false);
+    expect(partial.files.map((f) => f.path)).toEqual(["SKILL.md"]);
+    expect(partial.missing).toEqual(["references/missing.md"]);
+  });
+
   test("makeDeleteSkillFileTool — deletes reference; rejects SKILL.md", async () => {
     const { makeDeleteSkillFileTool, makeEditSkillFileTool, makeReadSkillFileTool } = await import("../modules/skills/common/agent-tools/edit-skill-file.tool.js");
     const editTool = makeEditSkillFileTool(skillId);
@@ -542,18 +655,26 @@ Full rewrite via assistant draft.
     expect(gone.ok).toBe(false);
   });
 
-  test("buildSkillAgentSystemPrompt — includes working SKILL.md and refs", async () => {
+  test("buildSkillAgentSystemPrompt — lists files and tools, not SKILL.md body", async () => {
     const { buildSkillAgentSystemPrompt } = await import("../modules/skills/common/agent-tools/edit-skill-file.tool.js");
     const prompt = await buildSkillAgentSystemPrompt(skillId);
     expect(prompt).toContain(skillId);
     expect(prompt).toContain("runtime-skill");
-    expect(prompt).toContain("<current_skill_md>");
+    expect(prompt).not.toContain("<current_skill_md>");
+    expect(prompt).not.toContain("Published instructions");
     expect(prompt).toContain("references/api-notes.md");
     expect(prompt).toContain("edit_skill_file");
     expect(prompt).toContain("read_skill_file");
     expect(prompt).toContain("delete_skill_file");
     expect(prompt).toContain("<workflow>");
+    expect(prompt).toContain("<standard>");
     expect(prompt).toContain("<quality>");
+    expect(prompt).toContain("agentskills.io");
+    expect(prompt).toContain("progressive disclosure");
+    expect(prompt).toContain("read_skill({ name");
+    expect(prompt).toContain("WHAT");
+    expect(prompt).toContain("single line");
+    expect(prompt).toContain(">-");
     expect(prompt.toLowerCase()).not.toContain("cursor");
   });
 

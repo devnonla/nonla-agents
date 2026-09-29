@@ -30,6 +30,15 @@ function assertRefName(name: string) {
   }
 }
 
+function assertSkillMdFrontmatter(markdown: string): { name: string; description: string; body: string } {
+  const parsed = parseSkillFrontmatter(markdown);
+  const name = parsed.frontmatter.name?.trim();
+  const description = parsed.frontmatter.description?.trim();
+  if (!name) throw new BadRequestException("SKILL.md frontmatter must include name");
+  if (!description) throw new BadRequestException("SKILL.md frontmatter must include description");
+  return { name, description, body: parsed.body };
+}
+
 async function getSkillOrThrow(id: string) {
   const row = await qone(getDb().select().from(skills).where(eq(skills.id, id)));
   if (!row) throw new NotFoundException("Skill not found");
@@ -103,15 +112,11 @@ export async function updateSkill(id: string, body: Partial<{ name: string; desc
   const patch: Partial<NewSkill> = { updatedAt: new Date() };
 
   if (body.content !== undefined) {
-    const parsed = parseSkillFrontmatter(body.content);
-    const fmName = parsed.frontmatter.name?.trim();
-    const fmDesc = parsed.frontmatter.description?.trim();
-    if (!fmName) throw new BadRequestException("SKILL.md frontmatter must include name");
-    if (!fmDesc) throw new BadRequestException("SKILL.md frontmatter must include description");
-    await assertNameAvailable(fmName, id);
-    patch.name = fmName;
-    patch.description = fmDesc;
-    patch.content = composeSkillMarkdown(fmName, fmDesc, parsed.body);
+    const fm = assertSkillMdFrontmatter(body.content);
+    await assertNameAvailable(fm.name, id);
+    patch.name = fm.name;
+    patch.description = fm.description;
+    patch.content = composeSkillMarkdown(fm.name, fm.description, fm.body);
     // Publishing content clears pending AI draft (align draft with published).
     patch.draftContent = patch.content;
   } else {
@@ -128,7 +133,12 @@ export async function updateSkill(id: string, body: Partial<{ name: string; desc
   }
 
   if (body.draftContent !== undefined && body.content === undefined) {
-    patch.draftContent = body.draftContent;
+    if (body.draftContent != null && body.draftContent !== "") {
+      const fm = assertSkillMdFrontmatter(body.draftContent);
+      patch.draftContent = composeSkillMarkdown(fm.name, fm.description, fm.body);
+    } else {
+      patch.draftContent = body.draftContent;
+    }
   }
 
   if (body.content === undefined && (patch.name !== undefined || patch.description !== undefined)) {
@@ -275,11 +285,10 @@ export async function getWorkingContent(skillId: string, path: string): Promise<
   if (normalized === "SKILL.md") {
     const row = await qone(getDb().select().from(skills).where(eq(skills.id, skillId)));
     if (!row) return null;
-    const published = ensureSkillMarkdown(row.content, row.name, row.description);
     if (row.draftContent != null && row.draftContent !== "") {
-      return ensureSkillMarkdown(row.draftContent, row.name, row.description);
+      return row.draftContent;
     }
-    return published;
+    return ensureSkillMarkdown(row.content, row.name, row.description);
   }
   const refMatch = normalized.match(/^references\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);
   if (!refMatch) return null;
@@ -297,10 +306,12 @@ export async function writeSkillDraftPath(skillId: string, path: string, draft: 
   if (normalized === "SKILL.md") {
     await getSkillOrThrow(skillId);
     const next = normalizeToLf(draft);
-    await qrun(getDb().update(skills).set({ draftContent: next, updatedAt: new Date() }).where(eq(skills.id, skillId)));
+    const fm = assertSkillMdFrontmatter(next);
+    const flattened = composeSkillMarkdown(fm.name, fm.description, fm.body);
+    await qrun(getDb().update(skills).set({ draftContent: flattened, updatedAt: new Date() }).where(eq(skills.id, skillId)));
     const updated = (await getSkill(skillId))!;
     wsHub.emit("skills:updated", updated);
-    return { path: "SKILL.md", content: next };
+    return { path: "SKILL.md", content: flattened };
   }
 
   const refMatch = normalized.match(/^references\/([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/);

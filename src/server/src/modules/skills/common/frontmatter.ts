@@ -10,6 +10,35 @@ export type SkillFrontmatter = {
   description: string;
 };
 
+const BLOCK_SCALAR_RE = /^[>|][-+]?\d*$/;
+
+function unquoteYamlScalar(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"') && value.length >= 2) || (value.startsWith("'") && value.endsWith("'") && value.length >= 2)) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function readBlockScalar(lines: string[], startIndex: number): { value: string; nextIndex: number } {
+  const parts: string[] = [];
+  let i = startIndex;
+  while (i + 1 < lines.length) {
+    const next = lines[i + 1];
+    if (next.trim() === "") {
+      parts.push("");
+      i++;
+      continue;
+    }
+    if (/^\s/.test(next)) {
+      parts.push(next.trim());
+      i++;
+      continue;
+    }
+    break;
+  }
+  return { value: parts.join(" ").replace(/\s+/g, " ").trim(), nextIndex: i };
+}
+
 export function parseSkillFrontmatter(content: string): {
   frontmatter: Partial<SkillFrontmatter>;
   body: string;
@@ -24,16 +53,22 @@ export function parseSkillFrontmatter(content: string): {
   const yaml = m[1] ?? "";
   const body = m[2] ?? "";
   const frontmatter: Partial<SkillFrontmatter> = {};
+  const lines = yaml.split(/\r?\n/);
 
-  for (const rawLine of yaml.split(/\r?\n/)) {
-    const line = rawLine.trimEnd();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trimEnd();
     if (!line || line.startsWith("#")) continue;
     const colon = line.indexOf(":");
     if (colon <= 0) continue;
     const key = line.slice(0, colon).trim();
-    let value = line.slice(colon + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
+    const raw = line.slice(colon + 1).trim();
+    let value: string;
+    if (BLOCK_SCALAR_RE.test(raw)) {
+      const block = readBlockScalar(lines, i);
+      value = block.value;
+      i = block.nextIndex;
+    } else {
+      value = unquoteYamlScalar(raw);
     }
     if (key === "name") frontmatter.name = value;
     if (key === "description") frontmatter.description = value;
