@@ -57,6 +57,13 @@ export async function getSecretValueByKey(key: string): Promise<string | null> {
   return decryptSecret(row.value);
 }
 
+/** Decrypt a single secret by id. Returns null if missing. */
+export async function getSecretValue(id: string): Promise<string | null> {
+  const row = await qone(getDb().select().from(secrets).where(eq(secrets.id, id)));
+  if (!row) return null;
+  return decryptSecret(row.value);
+}
+
 /** Upsert by key — create or rotate value. */
 export async function upsertSecretByKey(body: { key: string; value: string }) {
   const key = body.key?.trim() ?? "";

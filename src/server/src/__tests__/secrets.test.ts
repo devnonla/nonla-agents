@@ -52,6 +52,13 @@ describe("Secrets API", () => {
     expect(data).not.toHaveProperty("value");
   });
 
+  test("GET /api/secrets/:id/value — returns decrypted value for admin", async () => {
+    const res = await authRequest(app, token, "GET", `/api/secrets/${secretId}/value`);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { value: string };
+    expect(data.value).toBe("super-secret-value");
+  });
+
   test("DB stores ciphertext not plaintext", () => {
     const row = db.select().from(secrets).where(eq(secrets.id, secretId)).get();
     expect(row).toBeTruthy();

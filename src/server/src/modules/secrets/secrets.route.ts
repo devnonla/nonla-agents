@@ -1,13 +1,19 @@
 import { Hono } from "hono";
 import { BadRequestException } from "../../common/exceptions/http.exception.js";
 import { requireRole } from "../../common/middleware/auth.middleware.js";
-import { createSecret, deleteSecret, getSecretMeta, listSecrets, updateSecret } from "./secrets.service.js";
+import { createSecret, deleteSecret, getSecretMeta, getSecretValue, listSecrets, updateSecret } from "./secrets.service.js";
 
 const app = new Hono();
 
 app.use("*", requireRole("admin"));
 
 app.get("/", async (c) => c.json(await listSecrets(c.req.query())));
+
+app.get("/:id/value", async (c) => {
+  const value = await getSecretValue(c.req.param("id"));
+  if (value === null) throw new BadRequestException("Secret not found");
+  return c.json({ value });
+});
 
 app.get("/:id", async (c) => {
   const entry = await getSecretMeta(c.req.param("id"));
