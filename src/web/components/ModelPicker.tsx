@@ -1,7 +1,5 @@
-import { AltArrowDownIcon } from "@solar-icons/react/dynamic/alt-arrow-down";
-import { AltArrowLeftIcon } from "@solar-icons/react/dynamic/alt-arrow-left";
-import { MagnifierIcon } from "@solar-icons/react/dynamic/magnifier";
 import type { TooltipPlacement } from "devnonla-ui";
+import { ChevronDown, ChevronLeft, Search } from "lucide-react";
 import { Popover, controlHeightVar, controlRadiusVar, getSizeTokens } from "devnonla-ui";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmProvider } from "src/common/types";
@@ -198,7 +196,7 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
       ) : (
         <span className="min-w-0 flex-1 truncate text-quaternary-foreground">{placeholder}</span>
       )}
-      <AltArrowDownIcon size={12} className={cn("shrink-0 opacity-60 transition-transform duration-150", open && "rotate-180")} />
+      <ChevronDown size={12} className={cn("shrink-0 opacity-60 transition-transform duration-150", open && "rotate-180")} />
     </button>
   );
 
@@ -250,7 +248,7 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
         <div className="flex max-h-72 w-full min-w-0 flex-col">
           <div className="shrink-0 border-b border-black/10 bg-black/3 px-1.5 pt-1.5 pb-1.5">
             <button type="button" onClick={handleBack} className="flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-left outline-none hover:bg-ink-hover">
-              <AltArrowLeftIcon size={14} className="shrink-0 text-foreground" />
+              <ChevronLeft size={14} className="shrink-0 text-foreground" />
               {viewProvider && (
                 <span className="flex min-w-0 items-center gap-1.5">
                   <ProviderIcon provider={viewProvider.provider} size={14} />
@@ -261,7 +259,7 @@ export function ModelPicker({ selectedProviderId, selectedModel, onChange, disab
 
             {activeModels.length > 5 && (
               <div className="relative mt-1">
-                <MagnifierIcon size={13} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted-foreground" />
+                <Search size={13} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={searchRef}
                   type="text"
