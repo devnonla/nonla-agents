@@ -1,27 +1,32 @@
+/**
+ * read_site_files — site coding assistant tool.
+ *
+ * Returns one draft/prod source file as plain text (not JSON).
+ */
+
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { SITE_SOURCE_FILES, type SiteSourceFile, type SiteTree, readAllSourceFiles, readSourceFile } from "../../sites-fs.js";
+import { type SiteTree, readSourceFile } from "../../sites-fs.js";
+import { SITE_EDITABLE_FILES, type SiteEditableFile } from "./edit-site-surface.tool.js";
 
 export function makeReadSiteFilesTool(siteId: string) {
   return tool(
     async (input) => {
       const tree = (input.tree ?? "draft") as SiteTree;
+      const file = input.file as SiteEditableFile;
       try {
-        if (input.file) {
-          const file = input.file as SiteSourceFile;
-          return JSON.stringify({ ok: true, tree, file, content: readSourceFile(siteId, tree, file) });
-        }
-        return JSON.stringify({ ok: true, tree, files: readAllSourceFiles(siteId, tree) });
+        return readSourceFile(siteId, tree, file);
       } catch (err) {
-        return JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) });
+        return `Error: ${err instanceof Error ? err.message : String(err)}`;
       }
     },
     {
       name: "read_site_files",
-      description: 'Read site source (app.tsx, styles.css, backend.ts). Draft is already in the system prompt — call this only if replace failed, you need tree="prod", or a file is missing from the prompt. tree defaults to "draft". npm packages auto-install from imports — do not edit package.json.',
+      description:
+        'Read one site source file as plain text. Required: file ("app.tsx" | "styles.css" | "backend.ts"). Call before editing that file and whenever replace fails so old_string matches exact current text. tree defaults to "draft"; use tree="prod" to compare published. npm packages auto-install from imports — do not edit package.json.',
       schema: z.object({
+        file: z.enum(SITE_EDITABLE_FILES).describe('Which file to read: "app.tsx", "styles.css", or "backend.ts"'),
         tree: z.enum(["draft", "prod"]).optional(),
-        file: z.enum(SITE_SOURCE_FILES as unknown as [string, ...string[]]).optional(),
       }),
     },
   );

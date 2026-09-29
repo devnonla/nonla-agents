@@ -270,8 +270,9 @@ function compactHtml(html: string): string {
 }
 
 export function buildSiteUnlockHtml(opts: { title: string; slug: string; error?: string; origin?: string }) {
-  const err = opts.error ? `<p class="error" role="alert">${escapeHtml(opts.error)}</p>` : "";
+  const err = opts.error ? `<div class="error" role="alert"><p>${escapeHtml(opts.error)}</p></div>` : "";
   const og = siteOgHead(opts.origin, opts.slug, opts.title);
+  // Meadow wallpaper (same as dashboard DesktopStage) + NonlaUI light card
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -280,61 +281,81 @@ export function buildSiteUnlockHtml(opts: { title: string; slug: string; error?:
   <title>${escapeHtml(opts.title)}</title>
   ${og}
   <style>
-    :root{color-scheme:dark}
+    :root{
+      color-scheme:light;
+      --nonla-bg:#fffcf1;--nonla-fg:#1f1f1e;--nonla-brand:#f18d00;--nonla-solid-fg:#fff;
+      --nonla-fg-tertiary:color-mix(in oklab,var(--nonla-fg) 64%,var(--nonla-bg));
+      --nonla-fg-quaternary:color-mix(in oklab,var(--nonla-fg) 50%,var(--nonla-bg));
+      --nonla-surface:#fff;--nonla-danger:#c0392b;
+      --nonla-border:color-mix(in oklab,var(--nonla-fg) 7%,var(--nonla-bg));
+      --nonla-input:color-mix(in oklab,var(--nonla-fg) 12%,var(--nonla-bg));
+      --nonla-radius:8px;--nonla-height-lg:40px;
+      --border-subtle:color-mix(in srgb,var(--nonla-border) 65%,transparent);
+      --ring:color-mix(in oklab,var(--nonla-brand) 55%,transparent);
+    }
     *{box-sizing:border-box}
-    body{margin:0;min-width:320px;background:#121212;color:#ebebeb;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    .wrap{position:relative;display:flex;min-height:100vh;align-items:center;justify-content:center;overflow:hidden;padding:24px}
-    .grid{pointer-events:none;position:absolute;inset:0;opacity:.58;background-image:linear-gradient(90deg,rgba(221,118,39,.09) 1px,transparent 1px),linear-gradient(rgba(221,118,39,.07) 1px,transparent 1px);background-size:48px 48px}
-    .halo{pointer-events:none;position:absolute;top:0;right:0;left:0;height:34rem;background:radial-gradient(ellipse 56% 46% at 50% 0%,rgba(221,118,39,.22),transparent)}
-    .shell{position:relative;width:100%;max-width:448px}
-    .status{display:flex;align-items:center;justify-content:space-between;margin:0 4px 12px;color:#9a9a9a;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;font-weight:500;letter-spacing:.16em}
-    .secure{display:flex;align-items:center;gap:6px;color:#ffa333}
-    .dot{width:6px;height:6px;border-radius:999px;background:#ffa333}
-    .card{overflow:hidden;border:1px solid rgba(102,102,102,.2);border-radius:16px;background:#191919}
-    .header{padding:24px 32px 20px;border-bottom:1px solid rgba(102,102,102,.12)}
-    .identity{display:flex;align-items:flex-start;gap:16px}
-    .lock{display:grid;flex:0 0 auto;width:44px;height:44px;place-items:center;border:1px solid rgba(221,118,39,.3);border-radius:12px;background:rgba(221,118,39,.1);color:#ffa333}
-    .eyebrow{margin:0 0 4px;color:#ffa333;font-size:12px;font-weight:500;letter-spacing:.08em}
-    h1{overflow:hidden;margin:0;color:#ebebeb;font-size:24px;font-weight:600;line-height:32px;text-overflow:ellipsis;white-space:nowrap}
-    .description{margin:20px 0 0;max-width:340px;color:#9a9a9a;font-size:13px;line-height:19px}
-    form{padding:24px 32px 32px}
-    label{display:block;margin-bottom:16px;color:#ebebeb;font-size:12px;font-weight:500}
-    .input-wrap{position:relative;display:block;margin-top:8px}
-    .input-lock{position:absolute;top:50%;left:14px;width:16px;height:16px;transform:translateY(-50%);color:#8a8a8a}
-    input{width:100%;height:40px;border:1px solid rgba(102,102,102,.2);border-radius:6px;background:#121212;color:#ebebeb;padding:0 14px 0 40px;font:inherit;font-size:14px;outline:none;transition:border-color .15s}
-    input::placeholder{color:#6e6e6e}
-    input:focus{border-color:rgba(235,235,235,.3)}
-    .error{margin:0 0 16px;padding:8px 12px;border:1px solid rgba(239,68,68,.25);border-radius:6px;background:rgba(239,68,68,.1);color:#ef4444;font-size:12px;font-weight:500;line-height:16px}
-    button{width:100%;height:40px;border:0;border-radius:6px;background:#dd7627;color:#fff;font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s}
-    button:hover{background:#ffa333}
-    button:focus-visible{outline:2px solid #ffa333;outline-offset:3px}
-    .help{margin:24px 0 0;color:#6e6e6e;text-align:center;font-size:12px;line-height:16px}
-    @media(max-width:480px){.wrap{padding:20px}.header{padding:24px 24px 20px}form{padding:24px}.status{font-size:10px}}
+    body{margin:0;min-width:320px;background:var(--nonla-bg);color:var(--nonla-fg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .wrap{position:relative;display:flex;min-height:100vh;align-items:center;justify-content:center;overflow:hidden;padding:20px}
+    .wallpaper{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;pointer-events:none;user-select:none}
+    .veil{pointer-events:none;position:absolute;inset:0;background:color-mix(in srgb,var(--nonla-bg) 28%,transparent)}
+    .shell{position:relative;z-index:1;width:100%;max-width:24rem}
+    .card{overflow:hidden;border:1px solid var(--nonla-border);border-radius:var(--nonla-radius);background:var(--nonla-surface);box-shadow:0 16px 48px color-mix(in srgb,var(--nonla-fg) 14%,transparent),0 0 0 1px color-mix(in srgb,var(--nonla-fg) 4%,transparent)}
+    .chrome{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-bottom:1px solid color-mix(in srgb,var(--nonla-border) 65%,transparent);background:var(--nonla-bg)}
+    .chrome-title{font-size:13px;font-weight:600;color:var(--nonla-fg)}
+    .hero{display:flex;flex-direction:column;align-items:center;padding:1.75rem 1.5rem 1.25rem;text-align:center}
+    .icon-wrap{position:relative;margin-bottom:1rem}
+    .icon-glow{pointer-events:none;position:absolute;top:50%;left:50%;width:6.5rem;height:6.5rem;transform:translate(-50%,-50%);border-radius:999px;background:radial-gradient(circle,color-mix(in oklab,var(--nonla-brand) 26%,transparent) 0%,transparent 70%)}
+    .icon{position:relative;display:flex;width:3.5rem;height:3.5rem;align-items:center;justify-content:center;overflow:hidden;border-radius:999px;border:1px solid color-mix(in oklab,var(--nonla-brand) 28%,transparent);background:var(--nonla-surface);color:var(--nonla-brand)}
+    h1{overflow:hidden;margin:0;max-width:100%;color:var(--nonla-fg);font-size:1.25rem;font-weight:600;line-height:1.75rem;letter-spacing:-0.02em;text-overflow:ellipsis;white-space:nowrap}
+    .description{margin:.375rem 0 0;max-width:22rem;color:var(--nonla-fg-tertiary);font-size:.875rem;line-height:1.25rem}
+    form{padding:1.25rem 1.5rem 1.5rem;border-top:1px solid var(--border-subtle)}
+    label{display:block;margin-bottom:.375rem;color:var(--nonla-fg);font-size:.875rem;font-weight:500}
+    .field{margin-bottom:1rem}
+    .input-wrap{position:relative;display:block}
+    .input-lock{position:absolute;top:50%;left:12px;width:16px;height:16px;transform:translateY(-50%);color:var(--nonla-fg-quaternary);pointer-events:none}
+    input{display:block;width:100%;height:var(--nonla-height-lg);border:1px solid var(--nonla-input);border-radius:var(--nonla-radius);background:var(--nonla-surface);color:var(--nonla-fg);padding:0 12px 0 38px;font:inherit;font-size:.875rem;outline:none;transition:border-color .15s,box-shadow .15s}
+    input::placeholder{color:var(--nonla-fg-tertiary)}
+    /* Class + :focus — :focus alone skips when the tab/window lacks system focus */
+    input.is-focused,input:focus,input:focus-visible{border-color:var(--nonla-brand);box-shadow:0 0 0 3px color-mix(in oklab,var(--nonla-brand) 28%,transparent)}
+    .error{margin:0 0 1rem;padding:.5rem .75rem;border:1px solid color-mix(in oklab,var(--nonla-danger) 20%,transparent);border-radius:6px;background:color-mix(in oklab,var(--nonla-danger) 10%,transparent)}
+    .error p{margin:0;color:var(--nonla-danger);font-size:.75rem;font-weight:500;line-height:1rem}
+    button{display:inline-flex;width:100%;height:var(--nonla-height-lg);align-items:center;justify-content:center;border:0;border-radius:var(--nonla-radius);background:var(--nonla-brand);color:var(--nonla-solid-fg);font:inherit;font-size:.875rem;font-weight:500;cursor:pointer;transition:filter .15s,transform .1s}
+    button:hover{filter:brightness(1.06)}
+    button:active{transform:scale(.99);filter:brightness(.96)}
+    button:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+    button[disabled]{opacity:.65;cursor:wait}
+    @media(max-width:480px){.wrap{padding:16px}}
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="grid" aria-hidden="true"></div>
-    <div class="halo" aria-hidden="true"></div>
+    <img class="wallpaper" src="/bg.jpg" alt="" draggable="false" />
+    <div class="veil" aria-hidden="true"></div>
     <section class="shell" aria-labelledby="site-title">
-      <div class="status"><span>ACCESS GATEWAY</span><span class="secure"><i class="dot"></i>ENCRYPTED</span></div>
       <div class="card">
-        <header class="header">
-          <div class="identity">
-            <div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path><path d="M12 14v2"></path></svg></div>
-            <div><p class="eyebrow">PRIVATE SITE</p><h1 id="site-title">${escapeHtml(opts.title)}</h1></div>
+        <div class="chrome" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--nonla-brand)"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+          <span class="chrome-title">Unlock</span>
+        </div>
+        <div class="hero">
+          <div class="icon-wrap">
+            <div class="icon-glow" aria-hidden="true"></div>
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path><path d="M12 14v2"></path></svg>
+            </div>
           </div>
-          <p class="description">This space is protected. Enter the access password to continue.</p>
-        </header>
+          <h1 id="site-title">${escapeHtml(opts.title)}</h1>
+          <p class="description">Enter password to continue</p>
+        </div>
         <form id="f">
-          <label for="p">Access password
-            <span class="input-wrap"><svg class="input-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><input id="p" type="password" placeholder="Enter password" autocomplete="current-password" required /></span>
-          </label>
+          <div class="field">
+            <label for="p">Password</label>
+            <span class="input-wrap"><svg class="input-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><input id="p" name="password" type="password" placeholder="Enter the password" autocomplete="current-password" autofocus required /></span>
+          </div>
           ${err}
-          <button type="submit">Unlock site</button>
+          <button type="submit" id="btn">Unlock</button>
         </form>
       </div>
-      <p class="help">Request access from the site owner if you do not have a password.</p>
     </section>
   </main>
   <script>
@@ -343,6 +364,24 @@ export function buildSiteUnlockHtml(opts: { title: string; slug: string; error?:
       var params = new URLSearchParams(location.search);
       var key = "site_public_auth_" + slug;
       var saved = localStorage.getItem(key);
+      var form = document.getElementById("f");
+      var btn = document.getElementById("btn");
+      var input = document.getElementById("p");
+      function focusPassword() {
+        if (!input) return;
+        input.classList.add("is-focused");
+        try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+      }
+      input.addEventListener("focus", function () { input.classList.add("is-focused"); });
+      input.addEventListener("blur", function () { input.classList.remove("is-focused"); });
+      // Focus immediately — don't wait on token verify. Class keeps ring visible
+      // even when the browser tab lacks system focus (:focus won't match).
+      focusPassword();
+      requestAnimationFrame(focusPassword);
+      setTimeout(focusPassword, 0);
+      setTimeout(focusPassword, 50);
+      window.addEventListener("pageshow", focusPassword);
+      window.addEventListener("focus", focusPassword);
       // Legacy ?site_token= URLs — clear storage and strip query (cookie auth only).
       if (params.get("site_token")) {
         localStorage.removeItem(key);
@@ -365,24 +404,33 @@ export function buildSiteUnlockHtml(opts: { title: string; slug: string; error?:
         } catch (_) {}
         localStorage.removeItem(key);
       }
-      document.getElementById("f").addEventListener("submit", async function (e) {
+      focusPassword();
+      form.addEventListener("submit", async function (e) {
         e.preventDefault();
-        var password = document.getElementById("p").value;
-        var res = await fetch("/api/public/sites/" + encodeURIComponent(slug) + "/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password: password }),
-          credentials: "same-origin",
-        });
-        var data = await res.json();
-        if (!res.ok || !data.valid) {
-          location.search = "?e=1";
-          return;
+        btn.disabled = true;
+        btn.textContent = "Unlocking…";
+        try {
+          var password = input.value;
+          var res = await fetch("/api/public/sites/" + encodeURIComponent(slug) + "/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: password }),
+            credentials: "same-origin",
+          });
+          var data = await res.json();
+          if (!res.ok || !data.valid) {
+            location.search = "?e=1";
+            return;
+          }
+          if (data.token) {
+            localStorage.setItem(key, data.token);
+          }
+          location.href = location.pathname;
+        } catch (_) {
+          btn.disabled = false;
+          btn.textContent = "Unlock";
+          focusPassword();
         }
-        if (data.token) {
-          localStorage.setItem(key, data.token);
-        }
-        location.href = location.pathname;
       });
     })();
   </script>

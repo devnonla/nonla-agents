@@ -1,19 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import { EDIT_PAYLOAD_OMITTED, applyEdits, applyExactReplace, editPayloadIsOmitted, normalizeToLf } from "../common/ai/apply-exact-replace.js";
+import { buildLangChainMessages, toolCallArgs } from "../common/ai/build-langchain-messages.js";
 import { compactEditMessagesInPlace, redactEditHistoryPayloads } from "../common/ai/compact-edit-middleware.js";
 import { buildSiteAgentSystemPrompt } from "../modules/sites/common/site-agent-prompt.js";
-import { buildLangChainMessages as buildSiteMessages, compactSiteWriteHistory, toolCallArgs as siteToolCallArgs } from "../modules/sites/services/site-agent.service.js";
-import { buildLangChainMessages as buildCodingMessages, toolCallArgs as codingToolCallArgs, compactGenerateCodeHistory } from "../modules/tools/services/coding-agent.service.js";
 
 describe("toolCallArgs", () => {
   test("accepts plain objects only", () => {
-    expect(siteToolCallArgs({ file: "app.tsx" })).toEqual({ file: "app.tsx" });
-    expect(codingToolCallArgs({ code: "x" })).toEqual({ code: "x" });
-    expect(siteToolCallArgs("not-an-object")).toEqual({});
-    expect(siteToolCallArgs(["a"])).toEqual({});
-    expect(siteToolCallArgs(null)).toEqual({});
-    expect(siteToolCallArgs(undefined)).toEqual({});
+    expect(toolCallArgs({ file: "app.tsx" })).toEqual({ file: "app.tsx" });
+    expect(toolCallArgs({ code: "x" })).toEqual({ code: "x" });
+    expect(toolCallArgs("not-an-object")).toEqual({});
+    expect(toolCallArgs(["a"])).toEqual({});
+    expect(toolCallArgs(null)).toEqual({});
+    expect(toolCallArgs(undefined)).toEqual({});
   });
 });
 
@@ -78,150 +77,6 @@ describe("applyEdits", () => {
 
   test("normalizeToLf", () => {
     expect(normalizeToLf("a\r\nb\rc")).toBe("a\nb\nc");
-  });
-});
-
-describe("compactSiteWriteHistory", () => {
-  test("redacts edit args and older snapshots, keeps latest output", () => {
-    const messages = [
-      { role: "user" as const, content: "edit" },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_ui",
-        toolCallId: "w1",
-        toolInput: { mode: "full", content: "v1" },
-        toolOutput: JSON.stringify({ ok: true, content: "v1" }),
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "check_site",
-        toolCallId: "c1",
-        toolInput: {},
-        toolOutput: '{"ok":true}',
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_ui",
-        toolCallId: "w2",
-        toolInput: { mode: "full", content: "v2" },
-        toolOutput: JSON.stringify({ ok: true, content: "v2" }),
-      },
-    ];
-
-    const compacted = compactSiteWriteHistory(messages);
-    const edits = compacted.filter((m) => m.role === "tool-call" && m.toolName === "edit_ui");
-    expect(edits).toHaveLength(2);
-    for (const e of edits) {
-      const input = (e as { toolInput: { content: string } }).toolInput;
-      expect(input.content).toContain("omitted");
-    }
-    expect((edits[0] as { toolOutput: string }).toolOutput).toContain("omitted");
-    expect((edits[1] as { toolOutput: string }).toolOutput).toContain('"content":"v2"');
-    expect(compacted.some((m) => m.role === "tool-call" && m.toolName === "check_site")).toBe(true);
-  });
-
-  test("redacts read_site_files bodies (draft is re-injected each turn)", () => {
-    const messages = [
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "read_site_files",
-        toolCallId: "r1",
-        toolInput: { file: "app.tsx" },
-        toolOutput: JSON.stringify({ ok: true, tree: "draft", file: "app.tsx", content: "export default function App() {}" }),
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "read_site_files",
-        toolCallId: "r2",
-        toolInput: {},
-        toolOutput: JSON.stringify({ ok: true, tree: "draft", files: { "app.tsx": "A", "styles.css": "B", "backend.ts": "C" } }),
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "read_site_files",
-        toolCallId: "r3",
-        toolInput: { file: "app.tsx" },
-        toolOutput: JSON.stringify({ ok: false, error: "missing" }),
-      },
-    ];
-
-    const compacted = compactSiteWriteHistory(messages);
-    expect((compacted[0] as { toolOutput: string }).toolOutput).toContain("omitted");
-    expect((compacted[0] as { toolOutput: string }).toolOutput).not.toContain("export default");
-    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain("omitted");
-    expect((compacted[1] as { toolOutput: string }).toolOutput).not.toContain('"A"');
-    expect((compacted[2] as { toolOutput: string }).toolOutput).toContain("missing");
-    expect((compacted[2] as { toolOutput: string }).toolOutput).not.toContain("omitted");
-  });
-
-  test("keeps latest snapshot per file for edit_site_files", () => {
-    const messages = [
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_site_files",
-        toolCallId: "u1",
-        toolInput: { file: "app.tsx", mode: "full", content: "ui-v1" },
-        toolOutput: JSON.stringify({ ok: true, file: "app.tsx", content: "ui-v1" }),
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_site_files",
-        toolCallId: "s1",
-        toolInput: { file: "styles.css", mode: "full", content: "css-v1" },
-        toolOutput: JSON.stringify({ ok: true, file: "styles.css", content: "css-v1" }),
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_site_files",
-        toolCallId: "u2",
-        toolInput: { file: "app.tsx", mode: "full", content: "ui-v2" },
-        toolOutput: JSON.stringify({ ok: true, file: "app.tsx", content: "ui-v2" }),
-      },
-    ];
-
-    const compacted = compactSiteWriteHistory(messages);
-    expect((compacted[0] as { toolOutput: string }).toolOutput).toContain("omitted");
-    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain("css-v1");
-    expect((compacted[1] as { toolOutput: string }).toolOutput).not.toContain("omitted");
-    expect((compacted[2] as { toolOutput: string }).toolOutput).toContain("ui-v2");
-  });
-});
-
-describe("compactGenerateCodeHistory", () => {
-  test("redacts edit args and older snapshots, keeps latest current_code", () => {
-    const messages = [
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_code",
-        toolCallId: "g1",
-        toolInput: { mode: "full", code: "old()" },
-        toolOutput: JSON.stringify({ ok: true, current_code: "old()" }),
-      },
-      {
-        role: "tool-call" as const,
-        content: "",
-        toolName: "edit_code",
-        toolCallId: "g2",
-        toolInput: { mode: "full", code: "new()" },
-        toolOutput: JSON.stringify({ ok: true, current_code: "new()" }),
-      },
-    ];
-
-    const compacted = compactGenerateCodeHistory(messages);
-    expect((compacted[0] as { toolInput: { code: string } }).toolInput.code).toContain("omitted");
-    expect((compacted[1] as { toolInput: { code: string } }).toolInput.code).toContain("omitted");
-    expect((compacted[0] as { toolOutput: string }).toolOutput).toContain("omitted");
-    expect((compacted[1] as { toolOutput: string }).toolOutput).toContain('"current_code":"new()"');
   });
 });
 
@@ -357,8 +212,8 @@ describe("redactEditHistoryPayloads", () => {
 });
 
 describe("buildLangChainMessages", () => {
-  test("site: orphan tool-call emits paired AIMessage + ToolMessage", () => {
-    const result = buildSiteMessages([
+  test("orphan tool-call emits paired AIMessage + ToolMessage", () => {
+    const result = buildLangChainMessages([
       {
         role: "tool-call",
         content: "",
@@ -379,8 +234,8 @@ describe("buildLangChainMessages", () => {
     expect((result[1] as ToolMessage).tool_call_id).toBe("tc-1");
   });
 
-  test("coding: redacts then pairs tool results", () => {
-    const result = buildCodingMessages([
+  test("coding: pairs tool results without redacting args", () => {
+    const result = buildLangChainMessages([
       { role: "assistant", content: "updating" },
       {
         role: "tool-call",
@@ -388,18 +243,18 @@ describe("buildLangChainMessages", () => {
         toolCallId: "g1",
         toolName: "edit_code",
         toolInput: { mode: "full", code: "old" },
-        toolOutput: JSON.stringify({ ok: true, current_code: "old" }),
+        toolOutput: JSON.stringify({ ok: true, mode: "full" }),
       },
     ]);
 
     expect(result[0]).toBeInstanceOf(AIMessage);
     expect(result[1]).toBeInstanceOf(ToolMessage);
     const ai = result[0] as AIMessage;
-    expect(String(ai.tool_calls?.[0]?.args?.code)).toContain("omitted");
+    expect(ai.tool_calls?.[0]?.args?.code).toBe("old");
   });
 
-  test("coding: non-object toolInput becomes empty args", () => {
-    const result = buildCodingMessages([
+  test("non-object toolInput becomes empty args", () => {
+    const result = buildLangChainMessages([
       {
         role: "tool-call",
         content: "",
@@ -414,20 +269,15 @@ describe("buildLangChainMessages", () => {
 });
 
 describe("buildSiteAgentSystemPrompt", () => {
-  test("embeds current draft files so the agent need not re-read", () => {
+  test("does not embed draft source — agent must read_site_files", () => {
     const prompt = buildSiteAgentSystemPrompt({
       name: "Shop",
       slug: "shop",
-      files: {
-        "app.tsx": "export default function App() { return <div>Hi</div> }",
-        "styles.css": "body { color: red }",
-        "backend.ts": "export async function handle() { return {} }",
-      },
     });
-    expect(prompt).toContain("export default function App()");
-    expect(prompt).toContain("body { color: red }");
-    expect(prompt).toContain("export async function handle()");
-    expect(prompt).toContain("Do not call read_site_files for these");
-    expect(prompt).not.toContain("have not read this turn");
+    expect(prompt).toContain('call read_site_files with file ("app.tsx" | "styles.css" | "backend.ts")');
+    expect(prompt).toContain("Returns plain source text");
+    expect(prompt).toContain("read_site_files → batch related edits");
+    expect(prompt).not.toContain("<current_files>");
+    expect(prompt).not.toContain("export default function App() { return <div>Hi</div> }");
   });
 });

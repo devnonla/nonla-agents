@@ -73,18 +73,13 @@ export function makeEditSiteFilesTool(siteId: string) {
         }
 
         const result = await updateSiteFile(siteId, file, next, "draft");
-        const written = readSourceFile(siteId, "draft", file as SiteSourceFile);
         return JSON.stringify({
           ok: true,
           file,
           mode,
           message: summary ?? "Draft updated.",
-          content: written,
           draftDirty: result.draftDirty,
           depsInstalled: result.depsInstalled,
-          next: result.depsInstalled
-            ? "Dependencies auto-installed from imports. Finish any related edits, then call check_site at most once. On ok, stop and reply."
-            : "Draft updated. Trust this content snapshot for further edits this turn. Finish related edits first, then check_site at most once — do not verify after every edit.",
         });
       } catch (err) {
         return JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) });
@@ -93,7 +88,7 @@ export function makeEditSiteFilesTool(siteId: string) {
     {
       name: "edit_site_files",
       description:
-        'Edit a site draft file. file: "app.tsx" (UI), "styles.css", or "backend.ts". Draft is in the system prompt / latest snapshot for that file — do not re-read unless replace failed. mode="replace": edits[{ old_string, new_string, replace_all? }]. mode="full": write complete content. Prefer replace for small changes.',
+        'Edit a site draft file. file: "app.tsx" (UI), "styles.css", or "backend.ts". Call read_site_files(file=…) first when you need current text. mode="replace": edits[{ old_string, new_string, replace_all? }]. mode="full": write complete content. Prefer replace for small changes. Returns ok/file/mode only — not file contents. Call read_site_files again after edits when you need the latest text.',
       schema: editSiteSchema,
     },
   );

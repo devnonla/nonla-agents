@@ -2,16 +2,13 @@
  * site-agent.service.ts — Site coding assistant SSE streaming.
  */
 
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import type { BaseMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { SSEStreamingApi } from "hono/streaming";
 import { createAgent } from "langchain";
 import { makeNonlaagentsGuideTool } from "../../../common/ai/agent-tools/nonlaagents-guide.tool.js";
 import { makeRunJsTool } from "../../../common/ai/agent-tools/run-js.tool.js";
 import { webFetchTool } from "../../../common/ai/agent-tools/web-fetch.tool.js";
-import { EDIT_PAYLOAD_OMITTED } from "../../../common/ai/apply-exact-replace.js";
-import { createCompactEditMiddleware, redactEditHistoryPayloads } from "../../../common/ai/compact-edit-middleware.js";
+import { type ChatHistoryMessage, buildLangChainMessages } from "../../../common/ai/build-langchain-messages.js";
 import { getChatModel } from "../../../common/ai/getChatModel.js";
 import { streamAgentSSE } from "../../../common/ai/stream-agent-sse.js";
 import { resolvePublicBaseUrl } from "../../../common/spa-html.js";
@@ -23,173 +20,58 @@ import { makeEditSiteFilesTool } from "../common/agent-tools/edit-site-surface.t
 import { makePreviewSiteTool } from "../common/agent-tools/preview-site.tool.js";
 import { makeReadSiteFilesTool } from "../common/agent-tools/read-site-files.tool.js";
 import { buildSiteAgentSystemPrompt } from "../common/site-agent-prompt.js";
-import { readAllSourceFiles } from "../sites-fs.js";
 import { getSite } from "../sites.service.js";
-
-interface ToolCallMessage {
-  role: "tool-call";
-  content: string;
-  toolCallId?: string;
-  toolName?: string;
-  toolInput?: unknown;
-  toolOutput?: string;
-}
-
-interface TextMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
 
 export interface SiteAgentStreamRequest {
   providerId: string;
   modelId: string;
-  messages: (TextMessage | ToolCallMessage)[];
+  messages: ChatHistoryMessage[];
   /** Browser origin (window.location.origin) — used when PUBLIC_BASE_URL is unset */
   publicOrigin?: string;
 }
 
-export function toolCallArgs(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
-}
-
-function redactReadSiteFilesOutput(raw: string): string {
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (parsed.ok === false) return raw;
-    const next = { ...parsed };
-    if ("content" in next) next.content = EDIT_PAYLOAD_OMITTED;
-    if ("files" in next) next.files = EDIT_PAYLOAD_OMITTED;
-    return JSON.stringify(next);
-  } catch {
-    return EDIT_PAYLOAD_OMITTED;
-  }
-}
-
-/** Cross-turn: redact edit args; keep the latest successful snapshot per surface. Drop stale read_site_files bodies (draft is in the system prompt). */
-export function compactSiteWriteHistory(messages: SiteAgentStreamRequest["messages"]): SiteAgentStreamRequest["messages"] {
-  return redactEditHistoryPayloads(messages, undefined, { keepLatestOutput: true }).map((m) => {
-    if (m.role !== "tool-call" || m.toolName !== "read_site_files") return m;
-    if (typeof m.toolOutput !== "string" || !m.toolOutput) return m;
-    return { ...m, toolOutput: redactReadSiteFilesOutput(m.toolOutput) };
-  });
-}
-
-function appendToolResults(result: BaseMessage[], toolMsgs: ToolCallMessage[], idFallback: (k: number) => string) {
-  for (let k = 0; k < toolMsgs.length; k++) {
-    const tc = toolMsgs[k];
-    result.push(
-      new ToolMessage({
-        content: tc.toolOutput ?? "",
-        tool_call_id: tc.toolCallId || idFallback(k),
-      }),
-    );
-  }
-}
-
-export function buildLangChainMessages(messages: SiteAgentStreamRequest["messages"]): BaseMessage[] {
-  const result: BaseMessage[] = [];
-  const compacted = compactSiteWriteHistory(messages);
-
-  for (let i = 0; i < compacted.length; i++) {
-    const msg = compacted[i];
-
-    if (msg.role === "user") {
-      result.push(new HumanMessage(msg.content));
-      continue;
-    }
-
-    if (msg.role === "system") {
-      result.push(new SystemMessage(msg.content));
-      continue;
-    }
-
-    if (msg.role === "assistant") {
-      const toolMsgs: ToolCallMessage[] = [];
-      let j = i + 1;
-      while (j < compacted.length && compacted[j].role === "tool-call") {
-        toolMsgs.push(compacted[j] as ToolCallMessage);
-        j++;
-      }
-
-      if (toolMsgs.length > 0) {
-        result.push(
-          new AIMessage({
-            content: msg.content,
-            tool_calls: toolMsgs.map((tc, idx) => ({
-              id: tc.toolCallId || `tc-${i + 1 + idx}`,
-              name: tc.toolName || "unknown",
-              args: toolCallArgs(tc.toolInput),
-            })),
-          }),
-        );
-        appendToolResults(result, toolMsgs, (k) => `tc-${i + 1 + k}`);
-        i = j - 1;
-      } else {
-        result.push(new AIMessage(msg.content));
-      }
-      continue;
-    }
-
-    if (msg.role === "tool-call") {
-      const tc = msg as ToolCallMessage;
-      const toolCallId = tc.toolCallId || `tc-${i}`;
-      result.push(
-        new AIMessage({
-          content: "",
-          tool_calls: [
-            {
-              id: toolCallId,
-              name: tc.toolName || "unknown",
-              args: toolCallArgs(tc.toolInput),
-            },
-          ],
-        }),
-      );
-      result.push(new ToolMessage({ content: tc.toolOutput ?? "", tool_call_id: toolCallId }));
-    }
-  }
-
-  return result;
-}
-
 export async function streamSiteAgent(siteId: string, body: SiteAgentStreamRequest, stream: SSEStreamingApi, abortSignal?: AbortSignal, request?: Request): Promise<void> {
-  const { providerId, modelId, messages, publicOrigin } = body;
-  const site = await getSite(siteId);
-  const model = await getChatModel(providerId, modelId);
-  const publicBaseUrl = resolvePublicBaseUrl({ request, clientOrigin: publicOrigin });
+  try {
+    const { providerId, modelId, messages, publicOrigin } = body;
+    const site = await getSite(siteId);
+    const model = await getChatModel(providerId, modelId);
+    const publicBaseUrl = resolvePublicBaseUrl({ request, clientOrigin: publicOrigin });
 
-  const tools: StructuredToolInterface[] = [
-    makeReadSiteFilesTool(siteId),
-    makeEditSiteFilesTool(siteId),
-    makeCheckSiteTool(siteId),
-    makePreviewSiteTool(siteId),
-    makeNonlaagentsGuideTool("sites"),
-    webFetchTool,
-    makeRunJsTool({ abortSignal }),
-    makeKvStoreTool(["list"]),
-    makeSecretsTool(["list"]),
-    makeDatatableTool(["list_projects", "get_schema"]),
-  ];
+    const tools: StructuredToolInterface[] = [
+      makeReadSiteFilesTool(siteId),
+      makeEditSiteFilesTool(siteId),
+      makeCheckSiteTool(siteId),
+      makePreviewSiteTool(siteId),
+      makeNonlaagentsGuideTool("sites"),
+      webFetchTool,
+      makeRunJsTool({ abortSignal }),
+      makeKvStoreTool(["list"]),
+      makeSecretsTool(["list"]),
+      makeDatatableTool(["list_projects", "get_schema"]),
+    ];
 
-  const draft = readAllSourceFiles(siteId, "draft");
-  const systemPrompt = buildSiteAgentSystemPrompt({
-    name: site.name,
-    slug: site.slug,
-    publicBaseUrl: publicBaseUrl || undefined,
-    files: { "app.tsx": draft["app.tsx"], "styles.css": draft["styles.css"], "backend.ts": draft["backend.ts"] },
-  });
-  const agent = createAgent({
-    model,
-    tools,
-    systemPrompt,
-    middleware: [createCompactEditMiddleware()],
-  });
+    const systemPrompt = buildSiteAgentSystemPrompt({
+      name: site.name,
+      slug: site.slug,
+      publicBaseUrl: publicBaseUrl || undefined,
+    });
+    const agent = createAgent({
+      model,
+      tools,
+      systemPrompt,
+    });
 
-  await streamAgentSSE({
-    agent,
-    messages: buildLangChainMessages(messages),
-    maxSteps: 20,
-    stream,
-    abortSignal,
-  });
+    await streamAgentSSE({
+      agent,
+      messages: buildLangChainMessages(messages),
+      maxSteps: 30,
+      stream,
+      abortSignal,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await stream.writeSSE({
+      data: JSON.stringify({ type: "error", error: msg }),
+    });
+  }
 }
